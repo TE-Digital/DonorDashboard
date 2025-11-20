@@ -1,0 +1,16 @@
+DONOR DASH
+
+The Donor Dashboard is basically built with Sopabase (backend, database, and authentication) and React frontend. It uses the Vita and Mantine frameworks for easy use. 
+
+
+1. INSTALLATION
+
+npm install @mantine/dates@7.17.8
+npm install dayjs
+npm install
+npm install @tabler/icons-react
+
+
+2. SMTP configuration
+DEV: Use Supabase deault settings (sender email not configurable!)
+PROD: [tbd]
