@@ -21,13 +21,24 @@ export const AdminBrandingPage: React.FC = () => {
   const [primary, setPrimary] = useState(branding.primary_color);
   const [secondary, setSecondary] = useState(branding.secondary_color);
   const [font, setFont] = useState(branding.font_family);
-  const [buttonRadius, setButtonRadius] = useState(branding.button_radius || "md");
+  const [buttonRadius, setButtonRadius] = useState(
+    branding.button_radius || "md"
+  );
 
   const [heroTitle, setHeroTitle] = useState(branding.hero_title ?? "");
-  const [heroSubtitle, setHeroSubtitle] = useState(branding.hero_subtitle ?? "");
+  const [heroSubtitle, setHeroSubtitle] = useState(
+    branding.hero_subtitle ?? ""
+  );
 
   const [loginTitle, setLoginTitle] = useState(branding.login_title ?? "");
-  const [loginSubtitle, setLoginSubtitle] = useState(branding.login_subtitle ?? "");
+  const [loginSubtitle, setLoginSubtitle] = useState(
+    branding.login_subtitle ?? ""
+  );
+
+  // 🆕 New field: donor_contact_email
+  const [donorContactEmail, setDonorContactEmail] = useState(
+    branding.donor_contact_email ?? ""
+  );
 
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
@@ -40,7 +51,7 @@ export const AdminBrandingPage: React.FC = () => {
     let logoUrl = branding.logo_url;
 
     try {
-      // Upload new logo if provided
+      // Upload logo if selected
       if (file) {
         const fileExt = file.name.split(".").pop();
         const fileName = `logo.${fileExt}`;
@@ -70,12 +81,13 @@ export const AdminBrandingPage: React.FC = () => {
           hero_subtitle: heroSubtitle,
           login_title: loginTitle,
           login_subtitle: loginSubtitle,
+          donor_contact_email: donorContactEmail.trim() || null, // 🆕 save new field
         })
         .eq("id", "global");
 
       if (updateError) throw updateError;
 
-      // Simple way to refresh theme + texts everywhere
+      // Force-refresh theme
       window.location.reload();
     } catch (e: any) {
       console.error(e);
@@ -97,7 +109,7 @@ export const AdminBrandingPage: React.FC = () => {
           {branding.logo_url && (
             <Image
               src={branding.logo_url}
-	      maw={250} // Sets a max width of 250px
+              maw={250}
               height={60}
               fit="contain"
               alt="Current logo"
@@ -115,6 +127,7 @@ export const AdminBrandingPage: React.FC = () => {
       <Card withBorder>
         <Stack gap="md">
           <Text fw={500}>Colors & Font</Text>
+
           <ColorInput
             label="Primary color"
             value={primary}
@@ -173,6 +186,18 @@ export const AdminBrandingPage: React.FC = () => {
             placeholder="Sign in to manage students, donors and reports."
             value={loginSubtitle}
             onChange={(e) => setLoginSubtitle(e.currentTarget.value)}
+          />
+        </Stack>
+      </Card>
+
+      <Card withBorder>
+        <Stack gap="md">
+          <Text fw={500}>Donor Contact Email</Text>
+          <TextInput
+            label="Email for donor communication"
+            description="All messages from the donor forms will be sent here."
+            value={donorContactEmail}
+            onChange={(e) => setDonorContactEmail(e.currentTarget.value)}
           />
         </Stack>
       </Card>

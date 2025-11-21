@@ -10,6 +10,9 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const frontendUrl =
+  Deno.env.get("FRONTEND_URL") ?? "http://localhost:5173";
+
 const supabase = createClient(supabaseUrl, serviceKey);
 
 serve(async (req) => {
@@ -37,6 +40,11 @@ serve(async (req) => {
     const preferredLanguage =
       (body?.preferredLanguage as string | undefined) ?? "en";
 
+    // NEW: allow frontend to override redirect target
+    const explicitRedirectTo = body?.redirectTo as string | undefined;
+    const redirectTo =
+      explicitRedirectTo || `${frontendUrl}/welcome`;
+
     if (!donorId) {
       return new Response(JSON.stringify({ error: "donorId is required" }), {
         status: 400,
@@ -44,10 +52,10 @@ serve(async (req) => {
       });
     }
 
-    // 1) Load donor (no profile_id here)
+    // 1) Load donor (include name so we can populate profile.full_name)
     const { data: donor, error: donorError } = await supabase
       .from("donors")
-      .select("id, contact, user_id, is_dashboard_enabled")
+      .select("id, name, contact, user_id, is_dashboard_enabled")
       .eq("id", donorId)
       .maybeSingle();
 
@@ -67,7 +75,11 @@ serve(async (req) => {
     }
 
     // 2) Determine email (body.email overrides contact.email)
-    const contact = (donor.contact ?? {}) as { email?: string | null };
+    const contact = (donor.contact ?? {}) as {
+      email?: string | null;
+      name?: string | null;
+    };
+
     const email =
       explicitEmail?.trim().toLowerCase() ||
       contact.email?.trim().toLowerCase() ||
@@ -85,10 +97,16 @@ serve(async (req) => {
       );
     }
 
+    // Prefer contact.name, then donors.name
+    const donorName =
+      (contact.name && contact.name.trim()) ||
+      (donor.name && donor.name.trim()) ||
+      null;
+
     // 3) See if a profile already exists for this email
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("id, email")
+      .select("id, email, full_name")
       .ilike("email", email)
       .maybeSingle();
 
@@ -106,7 +124,7 @@ serve(async (req) => {
     let authUserId: string;
 
     if (profile) {
-      // Existing user → reuse its id
+      // Existing user → reuse its id, no new invite sent
       authUserId = profile.id;
     } else {
       // 4) No user yet → create + send invite email
@@ -115,7 +133,9 @@ serve(async (req) => {
           data: {
             preferredLanguage,
             role: "donor",
+            donor_id: donor.id,
           },
+          redirectTo, // ✅ use our computed redirect URL
         });
 
       if (inviteError || !inviteResult || !inviteResult.user) {
@@ -130,6 +150,23 @@ serve(async (req) => {
       }
 
       authUserId = inviteResult.user.id;
+    }
+
+    // 4b) Ensure PROFILES row exists and has name/email (UPSERT on id)
+    const { error: upsertProfileError } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: authUserId,
+          email,
+          full_name: donorName,
+        },
+        { onConflict: "id" },
+      );
+
+    if (upsertProfileError) {
+      console.error("invite-donor: upsertProfileError", upsertProfileError);
+      // not fatal for invite, but will affect how nicely the UI looks
     }
 
     const nowIso = new Date().toISOString();
@@ -159,7 +196,7 @@ serve(async (req) => {
     // 6) Ensure DONOR role in person_roles
     const { data: existingRoleRows, error: roleError } = await supabase
       .from("person_roles")
-      .select("id")
+      .select("user_id") // your table has no "id" column
       .eq("user_id", authUserId)
       .eq("role", "donor");
 
@@ -181,6 +218,7 @@ serve(async (req) => {
         ok: true,
         message: "Donor linked (and invited if needed).",
         language: preferredLanguage,
+        redirectTo, // for debugging / confirmation
       }),
       {
         status: 200,

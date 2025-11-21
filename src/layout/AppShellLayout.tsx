@@ -55,6 +55,8 @@ export const AppShellLayout: React.FC = () => {
 
   const donorNav: NavItem[] = [
     { label: "Dashboard", to: "/donor/dashboard" },
+    { label: "Contact", to: "/donor/renew" },
+
   ];
 
   const roleLabels: Record<AppRole, string> = {

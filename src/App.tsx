@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { WelcomeSetPasswordPage } from "./modules/auth/WelcomeSetPasswordPage";
 import { ProtectedRoute, RoleRoute } from "./modules/auth/ProtectedRoute";
 import { AppShellLayout } from "./layout/AppShellLayout";
 import { useAuth } from "./modules/auth/AuthContext";
@@ -40,6 +41,7 @@ import { TeacherEditReportPage } from "./modules/teacher/TeacherEditReportPage";
 
 import { DonorDashboardPage } from "./modules/donor/DonorDashboardPage";
 import { DonorStudentDetailPage } from "./modules/donor/DonorStudentDetailPage";
+import { DonorRenewPage } from "./modules/donor/DonorRenewPage";
 
 import { ProfilePage } from "./modules/profile/ProfilePage";
 
@@ -60,6 +62,7 @@ const App: React.FC = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+ 	<Route path="/welcome" element={<WelcomeSetPasswordPage />} />
 
       {/* Auth-protected area */}
       <Route element={<ProtectedRoute />}>
@@ -164,6 +167,7 @@ const App: React.FC = () => {
           {/* ---------- DONOR AREA ---------- */}
           <Route path="/donor" element={<RoleRoute allowed={["donor"]} />}>
             <Route path="dashboard" element={<DonorDashboardPage />} />
+	            <Route path="renew" element={<DonorRenewPage />} />
             <Route
               path="students/:studentId"
               element={<DonorStudentDetailPage />}
