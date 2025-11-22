@@ -95,9 +95,12 @@ export const AdminCreateDonorPage: React.FC = () => {
         note_internal: noteInternal.trim() || null,
       };
 
-      const { error: insertError } = await supabase
-        .from("donors")
-        .insert(payload);
+const { data: inserted, error: insertError } = await supabase
+  .from("donors")
+  .insert(payload)
+  .select()
+  .single();
+
 
       if (insertError) {
         console.error("Error creating donor", insertError);
@@ -106,7 +109,7 @@ export const AdminCreateDonorPage: React.FC = () => {
         return;
       }
 
-      navigate("/admin/donors", { replace: true });
+      navigate(`/admin/donors/${inserted.id}/edit`, { replace: true });
     } catch (err: any) {
       console.error(err);
       setError(err.message ?? "Unexpected error while creating donor.");

@@ -1,4 +1,3 @@
-// src/modules/auth/WelcomeSetPasswordPage.tsx
 import React, { useEffect, useState } from "react";
 import {
   Button,
@@ -26,20 +25,12 @@ export const WelcomeSetPasswordPage: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  // On mount, verify that we *do* have a Supabase session.
-  // If not, send the user back to /login.
   useEffect(() => {
     const checkSession = async () => {
       const { data, error } = await supabase.auth.getSession();
 
-      if (error) {
+      if (error || !data.session?.user) {
         console.error("Error checking session on welcome:", error);
-        navigate("/login", { replace: true });
-        return;
-      }
-
-      if (!data.session?.user) {
-        // No active session (link expired, wrong URL, etc.)
         navigate("/login", { replace: true });
         return;
       }
@@ -86,7 +77,6 @@ export const WelcomeSetPasswordPage: React.FC = () => {
   };
 
   if (checking) {
-    // Simple branded loading screen
     return (
       <div
         style={{
@@ -126,7 +116,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
           {branding.logo_url && (
             <Image
               src={branding.logo_url}
-              height={56} // ~70% of previous 80px
+              height={48} // smaller logo
               fit="contain"
               alt={branding.hero_title ?? "Logo"}
             />

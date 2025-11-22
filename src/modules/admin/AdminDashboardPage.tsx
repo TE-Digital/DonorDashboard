@@ -26,6 +26,7 @@ export const AdminDashboardPage: React.FC = () => {
     scholarships_total: 0,
     scholarships_active: 0,
     overdue_reports: 0,
+    contact_requests_unhandled: 0, // ⬅ updated key
   });
 
   useEffect(() => {
@@ -33,7 +34,6 @@ export const AdminDashboardPage: React.FC = () => {
       setLoading(true);
       const todayIso = new Date().toISOString().slice(0, 10);
 
-      // Base counts
       const [
         studentsRes,
         schoolsRes,
@@ -41,6 +41,7 @@ export const AdminDashboardPage: React.FC = () => {
         teachersRes,
         totalSchRes,
         activeSchRes,
+        contactReqRes,
       ] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("schools").select("id", { count: "exact", head: true }),
@@ -58,17 +59,19 @@ export const AdminDashboardPage: React.FC = () => {
           .eq("status", "active")
           .lte("period_start", todayIso)
           .gte("period_end", todayIso),
+        supabase
+          .from("contact_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("handled", false),
       ]);
 
       // ---- OVERDUE REPORT CALCULATION ----
-      // 1. Load all students (admin sees global state)
       const { data: allStudents } = await supabase
         .from("students")
         .select("id");
 
       const allStudentIds = allStudents?.map((s) => s.id) ?? [];
 
-      // 2. Load ALL active scholarships
       const { data: activeSchRows } = await supabase
         .from("scholarship_awards")
         .select("student_id, status, period_start, period_end")
@@ -80,14 +83,12 @@ export const AdminDashboardPage: React.FC = () => {
         (activeSchRows ?? []).map((s) => s.student_id)
       );
 
-      // 3. Load latest reports (term_updates)
       const { data: termUpdates } = await supabase
         .from("term_updates")
         .select("student_id, report_date")
         .in("student_id", allStudentIds)
         .order("report_date", { ascending: false });
 
-      // Build a map: student_id → latest report_date
       const latestReportMap = new Map<string, string>();
       (termUpdates ?? []).forEach((r) => {
         if (!latestReportMap.has(r.student_id)) {
@@ -95,14 +96,13 @@ export const AdminDashboardPage: React.FC = () => {
         }
       });
 
-      // 4. Evaluate overdue
       let overdue = 0;
       const sixMonthsAgo = new Date();
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
       const sixMonthsAgoIso = sixMonthsAgo.toISOString().slice(0, 10);
 
       allStudentIds.forEach((id) => {
-        if (!activeStudentIds.has(id)) return; // only students with active scholarships
+        if (!activeStudentIds.has(id)) return;
 
         const lastReport = latestReportMap.get(id);
 
@@ -124,6 +124,7 @@ export const AdminDashboardPage: React.FC = () => {
         scholarships_total: totalSchRes.count ?? 0,
         scholarships_active: activeSchRes.count ?? 0,
         overdue_reports: overdue,
+        contact_requests_unhandled: contactReqRes.count ?? 0,
       });
 
       setLoading(false);
@@ -148,7 +149,6 @@ export const AdminDashboardPage: React.FC = () => {
           Dashboard Overview
         </Text>
 
-        {/* Quick actions */}
         <Group gap="xs">
           <Button size="xs" onClick={() => navigate("/admin/students/new")}>
             Add student
@@ -159,7 +159,11 @@ export const AdminDashboardPage: React.FC = () => {
           <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
             Add donor
           </Button>
-          <Button size="xs" variant="outline" onClick={() => navigate("/admin/teachers")}>
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={() => navigate("/admin/teachers")}
+          >
             View teachers
           </Button>
         </Group>
@@ -173,12 +177,19 @@ export const AdminDashboardPage: React.FC = () => {
         <StatCard label="Active scholarships" value={stats.scholarships_active} />
         <StatCard label="Total scholarships" value={stats.scholarships_total} />
         <StatCard label="Overdue reports" value={stats.overdue_reports} />
+        <StatCard
+          label="Open contact requests"
+          value={stats.contact_requests_unhandled}
+        />
       </SimpleGrid>
     </Stack>
   );
 };
 
-const StatCard: React.FC<{ label: string; value: number }> = ({ label, value }) => (
+const StatCard: React.FC<{ label: string; value: number }> = ({
+  label,
+  value,
+}) => (
   <Card shadow="xs" radius="md" withBorder>
     <Group justify="space-between" align="flex-end">
       <Text size="sm" c="dimmed">

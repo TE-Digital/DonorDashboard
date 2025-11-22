@@ -1,14 +1,12 @@
-// src/modules/auth/LoginPage.tsx
 import React, { useEffect, useState } from "react";
 import {
   Button,
   Card,
   Container,
-  Group,
-  PasswordInput,
   Stack,
   Text,
   TextInput,
+  PasswordInput,
   Image,
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
@@ -41,7 +39,6 @@ export const LoginPage: React.FC = () => {
     });
 
     if (signInError) setError(signInError.message);
-
     setSubmitting(false);
   };
 
@@ -54,7 +51,7 @@ export const LoginPage: React.FC = () => {
         alignItems: "center",
         justifyContent: "center",
         padding: "2rem",
-        fontFamily: branding.font_family, // <-- Apply branding font
+        fontFamily: branding.font_family,
       }}
     >
       <Container size={420}>
@@ -62,7 +59,7 @@ export const LoginPage: React.FC = () => {
           {branding.logo_url && (
             <Image
               src={branding.logo_url}
-              height={80}
+              height={48} // smaller logo
               fit="contain"
               alt={branding.hero_title ?? "Logo"}
             />
@@ -102,33 +99,24 @@ export const LoginPage: React.FC = () => {
                 placeholder="Your password"
                 value={password}
                 onChange={(e) => setPassword(e.currentTarget.value)}
-                visibilityToggleIcon={({ reveal }) => (
-              	<span style={{ fontSize: 11 }}>
-      		{reveal ? "Hide password" : "Show password"}
-   		 </span>
-                  )
-                }
+                // no custom "show/hide password" text – use Mantine default
               />
 
-              <Group justify="space-between" mt="md">
-      <Stack gap="xs" mt="md">
-  {/* Primary action */}
-  <Button type="submit" fullWidth>
-    Sign in
-  </Button>
+              <Stack gap="xs" mt="md">
+                <Button type="submit" fullWidth loading={submitting}>
+                  Sign in
+                </Button>
 
-  {/* Secondary action */}
-  <Button
-    variant="subtle"
-    size="xs"
-    onClick={() => navigate("/reset-password")}
-    px={0}
-    style={{ alignSelf: "flex-start" }}
-  >
-    Forgot password?
-  </Button>
-</Stack>
-              </Group>
+                <Button
+                  variant="subtle"
+                  size="xs"
+                  type="button"
+                  onClick={() => navigate("/reset-password")}
+                  style={{ alignSelf: "flex-start" }}
+                >
+                  Forgot password?
+                </Button>
+              </Stack>
             </Stack>
           </form>
         </Card>
@@ -137,5 +125,4 @@ export const LoginPage: React.FC = () => {
   );
 };
 
-
-
+export default LoginPage;

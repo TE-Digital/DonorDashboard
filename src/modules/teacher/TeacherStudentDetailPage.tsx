@@ -59,6 +59,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
   // editable fields
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [village, setVillage] = useState("");
   const [bio, setBio] = useState("");
@@ -66,7 +67,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
   const [contactPhone, setContactPhone] = useState("");
   const [contactGuardian, setContactGuardian] = useState("");
   const [contactAddress, setContactAddress] = useState("");
-  const [contactLineId, setContactLineId] = useState("");
+  const [contactLineOrWhatsApp, setContactLineOrWhatsApp] = useState("");
 
   // birthday / age
   const [birthdate, setBirthdate] = useState<Date | null>(null);
@@ -110,6 +111,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
           `
           id,
           name,
+          nickname,
           school_id,
           scholarship,
           responsible_teacher_id,
@@ -139,6 +141,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       const detail: StudentDetail = {
         id: studentData.id,
         name: studentData.name,
+        nickname: studentData.nickname,
         school_id: studentData.school_id,
         scholarship: studentData.scholarship,
         responsible_teacher_id: studentData.responsible_teacher_id,
@@ -159,6 +162,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
       // fill editable fields
       setName(detail.name ?? "");
+      setNickname(detail.nickname ?? "");
       setGradeLevel(detail.grade_level ?? "");
       setVillage(detail.village ?? "");
       setBio(detail.bio ?? "");
@@ -173,12 +177,12 @@ export const TeacherStudentDetailPage: React.FC = () => {
       setContactPhone(contact.phone ?? "");
       setContactGuardian(contact.guardian ?? "");
       setContactAddress(contact.address ?? "");
-      setContactLineId(contact.line_id ?? "");
+      setContactLineOrWhatsApp(contact.line_or_whatsapp ?? "");
 
       setBirthdate(detail.birthdate ? new Date(detail.birthdate) : null);
       setProfilePhotoPath(detail.profile_photo_path ?? null);
 
-      // ---- Load reports (no longer focusing on Term as a concept) ----
+      // ---- Load reports ----
       const { data: reportsData, error: reportsError } = await supabase
         .from("term_updates")
         .select(
@@ -220,7 +224,6 @@ export const TeacherStudentDetailPage: React.FC = () => {
           report_date: r.report_date,
           covers_start: r.covers_start,
           covers_end: r.covers_end,
-          // term_name removed from UI, but kept for type compatibility if needed
           term_name: null,
           donor_comment: r.donor_comment,
           internal_note: r.internal_note,
@@ -279,7 +282,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       phone: contactPhone.trim(),
       guardian: contactGuardian.trim(),
       address: contactAddress.trim() || null,
-      line_id: contactLineId.trim() || null,
+      line_or_whatsapp: contactLineOrWhatsApp.trim() || null,
     };
 
     const monthly =
@@ -289,7 +292,8 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
     const updatePayload: any = {
       name: trimmedName,
-      grade_level: gradeLevel || null, // current grade level (teacher can adjust yearly)
+      nickname: nickname.trim() || null,
+      grade_level: gradeLevel || null,
       village: village || null,
       bio: bio || null,
       monthly_support_expected: monthly,
@@ -364,57 +368,56 @@ export const TeacherStudentDetailPage: React.FC = () => {
     : null;
 
   // richer preview: resolve attachments for selected report
-useEffect(() => {
-  const resolveAttachments = async () => {
-    if (!selectedReport || !selectedReport.attachments) {
-      setSelectedAttachments([]);
-      return;
-    }
-
-    try {
-      const raw = selectedReport.attachments as any[];
-
-      const previews: AttachmentPreview[] = [];
-
-      for (const a of raw) {
-        // Support both { path, is_public } and legacy string entries
-        const path =
-          typeof a === "string" ? (a as string) : (a.path as string | undefined);
-        if (!path) continue;
-
-        const is_public =
-          typeof a === "string"
-            ? true
-            : a.is_public === undefined
-            ? true
-            : !!a.is_public;
-
-        const { data, error } = await supabase.storage
-          .from("progress-photos")
-          .createSignedUrl(path, 60 * 60); // 1 hour
-
-        if (error || !data?.signedUrl) {
-          console.error("Error creating signed URL for", path, error);
-          continue;
-        }
-
-        previews.push({
-          url: data.signedUrl,
-          is_public,
-          path,
-        });
+  useEffect(() => {
+    const resolveAttachments = async () => {
+      if (!selectedReport || !selectedReport.attachments) {
+        setSelectedAttachments([]);
+        return;
       }
 
-      setSelectedAttachments(previews);
-    } catch (err) {
-      console.error("Error resolving attachments", err);
-      setSelectedAttachments([]);
-    }
-  };
+      try {
+        const raw = selectedReport.attachments as any[];
 
-  resolveAttachments();
-}, [selectedReport]);
+        const previews: AttachmentPreview[] = [];
 
+        for (const a of raw) {
+          // Support both { path, is_public } and legacy string entries
+          const path =
+            typeof a === "string" ? (a as string) : (a.path as string | undefined);
+          if (!path) continue;
+
+          const is_public =
+            typeof a === "string"
+              ? true
+              : a.is_public === undefined
+              ? true
+              : !!a.is_public;
+
+          const { data, error } = await supabase.storage
+            .from("progress-photos")
+            .createSignedUrl(path, 60 * 60); // 1 hour
+
+          if (error || !data?.signedUrl) {
+            console.error("Error creating signed URL for", path, error);
+            continue;
+          }
+
+          previews.push({
+            url: data.signedUrl,
+            is_public,
+            path,
+          });
+        }
+
+        setSelectedAttachments(previews);
+      } catch (err) {
+        console.error("Error resolving attachments", err);
+        setSelectedAttachments([]);
+      }
+    };
+
+    resolveAttachments();
+  }, [selectedReport]);
 
   const handleRowClick = (reportId: string) => {
     if (!studentId) return;
@@ -441,6 +444,11 @@ useEffect(() => {
     label: s.name,
   }));
 
+  const displayName =
+    nickname && nickname.trim().length > 0
+      ? `${nickname} (${student.name})`
+      : student.name;
+
   return (
     <Stack>
       <Group justify="space-between" align="flex-start">
@@ -451,12 +459,15 @@ useEffect(() => {
             size={72}
             alt={student.name}
           >
-            {(!profilePhotoUrl && student.name)
-              ? student.name.charAt(0)
-              : null}
+            {!profilePhotoUrl && student.name ? student.name.charAt(0) : null}
           </Avatar>
           <Stack gap={4}>
-            <Title order={3}>{student.name}</Title>
+            <Title order={3}>{displayName}</Title>
+            {nickname && nickname.trim().length > 0 && (
+              <Text size="xs" c="dimmed">
+                Legal name: {student.name}
+              </Text>
+            )}
             <Text size="sm" c="dimmed">
               {student.school_name || "No school assigned"}
             </Text>
@@ -511,6 +522,13 @@ useEffect(() => {
               required
             />
 
+            <TextInput
+              label="Nickname (shared with donor)"
+              description="Optional name used in donor-facing dashboards, emails, and reports."
+              value={nickname}
+              onChange={(e) => setNickname(e.currentTarget.value)}
+            />
+
             <Group grow>
               <DateInput
                 label="Birthday"
@@ -563,9 +581,9 @@ useEffect(() => {
             </Group>
 
             <TextInput
-              label="LINE ID"
-              value={contactLineId}
-              onChange={(e) => setContactLineId(e.currentTarget.value)}
+              label="LINE / WhatsApp"
+              value={contactLineOrWhatsApp}
+              onChange={(e) => setContactLineOrWhatsApp(e.currentTarget.value)}
             />
 
             <Textarea
@@ -843,8 +861,7 @@ useEffect(() => {
                                   bottom: 0,
                                   left: 0,
                                   right: 0,
-                                  background:
-                                    "rgba(0,0,0,0.55)",
+                                  background: "rgba(0,0,0,0.55)",
                                   color: "white",
                                   fontSize: 9,
                                   padding: "2px 4px",
@@ -868,4 +885,3 @@ useEffect(() => {
     </Stack>
   );
 };
-

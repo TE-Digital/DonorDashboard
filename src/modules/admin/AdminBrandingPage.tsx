@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// src/modules/admin/AdminBrandingPage.tsx
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Card,
@@ -13,7 +14,7 @@ import {
 import { useBranding } from "../theme/BrandingContext";
 import { supabase } from "../../lib/supabaseClient";
 
-const RADIUS_OPTIONS = ["xs", "sm", "md", "lg", "xl"];
+// const RADIUS_OPTIONS = ["xs", "sm", "md", "lg", "xl"]; // not used
 
 export const AdminBrandingPage: React.FC = () => {
   const branding = useBranding();
@@ -35,7 +36,7 @@ export const AdminBrandingPage: React.FC = () => {
     branding.login_subtitle ?? ""
   );
 
-  // 🆕 New field: donor_contact_email
+  // Start with whatever the branding context has
   const [donorContactEmail, setDonorContactEmail] = useState(
     branding.donor_contact_email ?? ""
   );
@@ -44,6 +45,13 @@ export const AdminBrandingPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // If branding is loaded / updated later, prefill the email once
+  useEffect(() => {
+    if (!donorContactEmail && branding.donor_contact_email) {
+      setDonorContactEmail(branding.donor_contact_email);
+    }
+  }, [branding.donor_contact_email, donorContactEmail]);
+
   const save = async () => {
     setSaving(true);
     setError(null);
@@ -51,7 +59,7 @@ export const AdminBrandingPage: React.FC = () => {
     let logoUrl = branding.logo_url;
 
     try {
-      // Upload logo if selected
+      // Upload logo if a new file is selected
       if (file) {
         const fileExt = file.name.split(".").pop();
         const fileName = `logo.${fileExt}`;
@@ -66,8 +74,11 @@ export const AdminBrandingPage: React.FC = () => {
           .from("branding")
           .getPublicUrl(fileName);
 
-        logoUrl = urlData.publicUrl;
+        // Add cache-busting param so the new logo is visible immediately
+        logoUrl = `${urlData.publicUrl}?v=${Date.now()}`;
       }
+
+      const trimmedEmail = donorContactEmail.trim();
 
       const { error: updateError } = await supabase
         .from("branding_settings")
@@ -81,13 +92,13 @@ export const AdminBrandingPage: React.FC = () => {
           hero_subtitle: heroSubtitle,
           login_title: loginTitle,
           login_subtitle: loginSubtitle,
-          donor_contact_email: donorContactEmail.trim() || null, // 🆕 save new field
+          donor_contact_email: trimmedEmail || null, // null if empty
         })
         .eq("id", "global");
 
       if (updateError) throw updateError;
 
-      // Force-refresh theme
+      // Force-refresh theme / branding context
       window.location.reload();
     } catch (e: any) {
       console.error(e);
@@ -196,6 +207,7 @@ export const AdminBrandingPage: React.FC = () => {
           <TextInput
             label="Email for donor communication"
             description="All messages from the donor forms will be sent here."
+            placeholder="contact@your-organization.org"
             value={donorContactEmail}
             onChange={(e) => setDonorContactEmail(e.currentTarget.value)}
           />
@@ -216,3 +228,5 @@ export const AdminBrandingPage: React.FC = () => {
     </Stack>
   );
 };
+
+export default AdminBrandingPage;

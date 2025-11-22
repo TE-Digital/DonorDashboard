@@ -1,3 +1,4 @@
+// src/modules/theme/BrandingContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -11,6 +12,7 @@ export type BrandingSettings = {
   hero_subtitle: string | null;
   login_title: string | null;
   login_subtitle: string | null;
+  donor_contact_email: string | null;
 };
 
 // Default used ONLY as seed + last-resort fallback
@@ -25,6 +27,7 @@ export const defaultBranding: BrandingSettings = {
   hero_subtitle: "Helping children in remote schools, together.",
   login_title: "Welcome back",
   login_subtitle: "Sign in to manage students, donors and reports.",
+  donor_contact_email: "your@email.com",
 };
 
 const BrandingContext = createContext<BrandingSettings>(defaultBranding);
@@ -38,17 +41,28 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
     (async () => {
       try {
         // 1) Try to load row from DB
-        const { data, error } = await supabase
+        const { data: row, error } = await supabase
           .from("branding_settings")
-          .select("*")
+          .select(
+            `
+            logo_url,
+            primary_color,
+            secondary_color,
+            font_family,
+            button_radius,
+            hero_title,
+            hero_subtitle,
+            login_title,
+            login_subtitle,
+            donor_contact_email
+          `
+          )
           .eq("id", "global")
-          .limit(1);
+          .maybeSingle();
 
         if (error) {
           console.error("Branding load error:", error);
         }
-
-        const row = data && data.length > 0 ? data[0] : null;
 
         if (row) {
           // DB is the source of truth
@@ -85,6 +99,10 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
               row.login_subtitle,
               defaultBranding.login_subtitle
             ),
+            donor_contact_email: nullableStr(
+              row.donor_contact_email,
+              defaultBranding.donor_contact_email
+            ),
           });
           return;
         }
@@ -104,6 +122,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
               hero_subtitle: defaultBranding.hero_subtitle,
               login_title: defaultBranding.login_title,
               login_subtitle: defaultBranding.login_subtitle,
+              donor_contact_email: defaultBranding.donor_contact_email,
             },
             { onConflict: "id" }
           );
@@ -140,7 +159,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
           <h1 style={{ marginBottom: 8 }}>
             {defaultBranding.hero_title ?? "Dashboard"}
           </h1>
-          <p style={{ opacity: 0.7 }}>Preparing your dashboard. Please wait a moment…</p>
+          <p style={{ opacity: 0.7 }}>
+            Preparing your dashboard. Please wait a moment…
+          </p>
         </div>
       </div>
     );
@@ -154,5 +175,3 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
 };
 
 export const useBranding = () => useContext(BrandingContext);
-
-

@@ -1,4 +1,3 @@
-// src/modules/admin/AdminStudentDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -57,10 +56,15 @@ type ReportRow = {
 export const AdminStudentDetailPage: React.FC = () => {
   // Support both /students/:studentId and /students/:id
   const params = useParams<{ studentId?: string; id?: string }>();
-  const studentId = params.studentId ?? params.id ?? "";
+  const routeStudentId = params.studentId ?? params.id ?? "";
+  const isNew = !routeStudentId || routeStudentId === "create"; // <-- key fix
+
   const navigate = useNavigate();
 
-  const studentQueryParam = studentId ? `?studentId=${studentId}` : "";
+  const studentIdForLinks = !isNew && routeStudentId ? routeStudentId : null;
+  const studentQueryParam = studentIdForLinks
+    ? `?studentId=${studentIdForLinks}`
+    : "";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -89,7 +93,6 @@ export const AdminStudentDetailPage: React.FC = () => {
   const [profilePhotoPath, setProfilePhotoPath] = useState<string | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
-
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [schools, setSchools] = useState<School[]>([]);
@@ -138,7 +141,6 @@ export const AdminStudentDetailPage: React.FC = () => {
       setTeacherOptions([]);
     }
 
-    // grant types for scholarship dropdown
     const { data: gtRows, error: gtError } = await supabase
       .from("grant_types")
       .select("id, name")
@@ -248,18 +250,17 @@ export const AdminStudentDetailPage: React.FC = () => {
 
   // ---------- load student ----------
   const loadStudent = async () => {
-    if (!studentId) {
-      setError("No student id in URL.");
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setMessage(null);
 
     try {
       await loadLookups();
+
+      // New student: no DB row yet
+      if (isNew || !routeStudentId) {
+        return;
+      }
 
       const { data, error: studentError } = await supabase
         .from("students")
@@ -281,7 +282,7 @@ export const AdminStudentDetailPage: React.FC = () => {
         grant_type_id
       `
         )
-        .eq("id", studentId)
+        .eq("id", routeStudentId)
         .maybeSingle();
 
       if (studentError || !data) {
@@ -324,7 +325,7 @@ export const AdminStudentDetailPage: React.FC = () => {
   useEffect(() => {
     loadStudent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studentId]);
+  }, [routeStudentId, isNew]);
 
   // ---------- derive public URL for photo ----------
   useEffect(() => {
@@ -338,9 +339,16 @@ export const AdminStudentDetailPage: React.FC = () => {
     }
   }, [profilePhotoPath]);
 
-  // ---------- upload new photo ----------
+  // ---------- upload new photo (only for existing students) ----------
   const handlePhotoUpload = async (file: File | null) => {
-    if (!file || !studentId) return;
+    if (!file) return;
+
+    if (isNew || !routeStudentId) {
+      setError("Please save the student first before uploading a photo.");
+      return;
+    }
+
+    const sid = routeStudentId;
 
     setUploadingPhoto(true);
     setError(null);
@@ -348,7 +356,7 @@ export const AdminStudentDetailPage: React.FC = () => {
 
     try {
       const fileExt = file.name.split(".").pop();
-      const fileName = `${studentId}.${fileExt}`;
+      const fileName = `${sid}.${fileExt}`;
       const filePath = `students/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -367,7 +375,7 @@ export const AdminStudentDetailPage: React.FC = () => {
       const { error: updatePhotoError } = await supabase
         .from("students")
         .update({ profile_photo_path: filePath })
-        .eq("id", studentId);
+        .eq("id", sid);
 
       if (updatePhotoError) {
         console.error(updatePhotoError);
@@ -385,10 +393,9 @@ export const AdminStudentDetailPage: React.FC = () => {
     }
   };
 
-  // ---------- submit ----------
+  // ---------- submit (insert OR update) ----------
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentId) return;
 
     setSaving(true);
     setError(null);
@@ -419,14 +426,13 @@ export const AdminStudentDetailPage: React.FC = () => {
         ? Number(monthlySupport.replace(",", "."))
         : null;
 
-    // derive scholarship label from selected grant type, if any
     let scholarshipLabel: string | null = null;
     if (grantTypeId) {
       const gt = grantTypeOptions.find((g) => g.value === grantTypeId);
       scholarshipLabel = gt?.label ?? null;
     }
 
-    const updatePayload: any = {
+    const payload: any = {
       name: trimmedName,
       nickname: nickname.trim() || null,
       school_id: schoolId,
@@ -441,24 +447,60 @@ export const AdminStudentDetailPage: React.FC = () => {
       grant_type_id: grantTypeId,
     };
 
-    const { error: updateError } = await supabase
-      .from("students")
-      .update(updatePayload)
-      .eq("id", studentId);
+    try {
+      let currentId: string | null =
+        !isNew && routeStudentId ? routeStudentId : null;
 
-    if (updateError) {
-      console.error(updateError);
-      setError("Could not save student. Please try again.");
+      if (!currentId) {
+        // INSERT
+        const { data, error: insertError } = await supabase
+          .from("students")
+          .insert(payload)
+          .select("id")
+          .maybeSingle();
+
+        if (insertError) {
+          console.error(insertError);
+          setError("Could not create student. Please try again.");
+          return;
+        }
+        currentId = data?.id ?? null;
+
+        if (!currentId) {
+          setError("Student created, but no ID returned.");
+          return;
+        }
+
+        setMessage("Student created successfully.");
+        // After creating, go to edit mode
+        navigate(`/admin/students/${currentId}`, { replace: true });
+      } else {
+        // UPDATE
+        const { error: updateError } = await supabase
+          .from("students")
+          .update(payload)
+          .eq("id", currentId);
+
+        if (updateError) {
+          console.error(updateError);
+          setError("Could not save student. Please try again.");
+          return;
+        }
+
+        setMessage("Student updated successfully.");
+        await loadScholarshipsAndReports(currentId);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message ?? "Unexpected error while saving student.");
+    } finally {
       setSaving(false);
-      return;
     }
-
-    setMessage("Student updated successfully.");
-    setSaving(false);
   };
 
   const handleDelete = async () => {
-    if (!studentId) return;
+    if (isNew || !routeStudentId) return;
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this student? This cannot be undone."
     );
@@ -467,7 +509,7 @@ export const AdminStudentDetailPage: React.FC = () => {
     const { error: deleteError } = await supabase
       .from("students")
       .delete()
-      .eq("id", studentId);
+      .eq("id", routeStudentId);
 
     if (deleteError) {
       console.error(deleteError);
@@ -478,6 +520,8 @@ export const AdminStudentDetailPage: React.FC = () => {
     navigate("/admin/students");
   };
 
+  const title = isNew ? "Add student" : "Student details";
+
   return (
     <Card withBorder shadow="sm" radius="md" pos="relative" p="lg">
       <LoadingOverlay visible={loading || saving} />
@@ -486,19 +530,22 @@ export const AdminStudentDetailPage: React.FC = () => {
         <Group justify="space-between" align="flex-start">
           <div>
             <Text fw={700} size="lg">
-              Student details
+              {title}
             </Text>
             <Text size="sm" c="dimmed">
-              Edit the student's information, contact details, and see related
-              scholarships and reports.
+              {isNew
+                ? "Create a new student, link them to a school and teacher, and capture the minimum contact details."
+                : "Edit the student's information, contact details, and see related scholarships and reports."}
             </Text>
           </div>
 
-          <Group gap="xs">
-            <Button variant="outline" color="red" onClick={handleDelete}>
-              Delete
-            </Button>
-          </Group>
+          {!isNew && (
+            <Group gap="xs">
+              <Button variant="outline" color="red" onClick={handleDelete}>
+                Delete
+              </Button>
+            </Group>
+          )}
         </Group>
 
         {error && (
@@ -533,7 +580,7 @@ export const AdminStudentDetailPage: React.FC = () => {
                   </Group>
 
                   <FileInput
-                    label="Change profile photo"
+                    label="Profile photo"
                     placeholder="Upload image"
                     value={profilePhotoFile}
                     onChange={setProfilePhotoFile}
@@ -545,9 +592,9 @@ export const AdminStudentDetailPage: React.FC = () => {
                     mt="xs"
                     onClick={() => handlePhotoUpload(profilePhotoFile)}
                     loading={uploadingPhoto}
-                    disabled={!profilePhotoFile}
+                    disabled={!profilePhotoFile || isNew}
                   >
-                    Upload
+                    {isNew ? "Save student first" : "Upload"}
                   </Button>
                 </Stack>
               </Grid.Col>
@@ -709,7 +756,7 @@ export const AdminStudentDetailPage: React.FC = () => {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={saving}>
-                  Save changes
+                  {isNew ? "Save student" : "Save changes"}
                 </Button>
               </Group>
             </Group>
@@ -722,18 +769,24 @@ export const AdminStudentDetailPage: React.FC = () => {
             <Text fw={500} size="sm">
               Scholarships
             </Text>
-            <Button
-              component={Link}
-              to={`/admin/scholarships/new${studentQueryParam}`}
-              size="xs"
-              variant="subtle"
-            >
-              New scholarship
-            </Button>
+            {!isNew && studentIdForLinks && (
+              <Button
+                component={Link}
+                to={`/admin/scholarships/new${studentQueryParam}`}
+                size="xs"
+                variant="subtle"
+              >
+                New scholarship
+              </Button>
+            )}
           </Group>
           <Divider />
 
-          {scholarships.length === 0 ? (
+          {isNew ? (
+            <Text size="sm" c="dimmed">
+              Save the student first, then you can add scholarships.
+            </Text>
+          ) : scholarships.length === 0 ? (
             <Text size="sm" c="dimmed">
               No scholarships recorded.
             </Text>
@@ -785,18 +838,24 @@ export const AdminStudentDetailPage: React.FC = () => {
             <Text fw={500} size="sm">
               Term updates / reports
             </Text>
-            <Button
-              component={Link}
-              to={`/admin/reports/new${studentQueryParam}`}
-              size="xs"
-              variant="subtle"
-            >
-              New report
-            </Button>
+            {!isNew && studentIdForLinks && (
+              <Button
+                component={Link}
+                to={`/admin/reports/new${studentQueryParam}`}
+                size="xs"
+                variant="subtle"
+              >
+                New report
+              </Button>
+            )}
           </Group>
           <Divider />
 
-          {reports.length === 0 ? (
+          {isNew ? (
+            <Text size="sm" c="dimmed">
+              Save the student first, then you can add reports.
+            </Text>
+          ) : reports.length === 0 ? (
             <Text size="sm" c="dimmed">
               No reports recorded yet.
             </Text>
@@ -844,7 +903,6 @@ export const AdminStudentDetailPage: React.FC = () => {
                           </Text>
                         )}
 
-                        {/* Up to 3 small pictures from attachments */}
                         {r.attachments && r.attachments.length > 0 && (
                           <Group gap="xs" mt={4}>
                             {r.attachments
@@ -885,3 +943,5 @@ export const AdminStudentDetailPage: React.FC = () => {
     </Card>
   );
 };
+
+export default AdminStudentDetailPage;

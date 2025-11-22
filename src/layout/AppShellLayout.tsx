@@ -39,10 +39,12 @@ export const AppShellLayout: React.FC = () => {
     { label: "Schools", to: "/admin/schools" },
     { label: "Donors", to: "/admin/donors" },
     { label: "Scholarships", to: "/admin/scholarships" },
+    { label: "Contact requests", to: "/admin/contact-requests" }, 
   ];
 
   // Admin “maintenance / settings”
   const adminSettingsNav: NavItem[] = [
+    { label: "Reports", to: "/admin/reports" },
     { label: "Grant Types", to: "/admin/grant-types" },
     { label: "Users & Roles", to: "/admin/users" },
     { label: "Branding", to: "/admin/branding" },

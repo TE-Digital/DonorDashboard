@@ -98,7 +98,8 @@ export const AdminStudentsPage: React.FC = () => {
     ]);
 
     if (schoolError) console.error("Error loading schools", schoolError);
-    if (profileError) console.error("Error loading teacher profiles", profileError);
+    if (profileError)
+      console.error("Error loading teacher profiles", profileError);
     if (scholarshipError)
       console.error("Error loading scholarships", scholarshipError);
     if (termUpdateError)
@@ -115,15 +116,22 @@ export const AdminStudentsPage: React.FC = () => {
       profilesById.set(p.id, p.full_name);
     });
 
-    // 4) compute active scholarships per student
+    // 4) compute "active now" scholarships per student
+    //    Align with dashboard logic: status = 'active'
+    //    and period_start/period_end include today.
     const activeScholarshipStudents = new Set<string>();
+    const todayIso = new Date().toISOString().slice(0, 10);
+
     (scholarshipRows ?? []).forEach((aw: any) => {
-      // naive: if status = 'active' or period_end in the future, mark as active
-      const isActive =
-        aw.status === "active" ||
-        !aw.period_end ||
-        new Date(aw.period_end) >= new Date();
-      if (isActive) {
+      const periodStart: string | null = aw.period_start ?? null;
+      const periodEnd: string | null = aw.period_end ?? null;
+
+      const isActiveNow =
+        aw.status === "active" &&
+        (!periodStart || periodStart <= todayIso) &&
+        (!periodEnd || periodEnd >= todayIso);
+
+      if (isActiveNow) {
         activeScholarshipStudents.add(aw.student_id);
       }
     });
@@ -233,13 +241,13 @@ export const AdminStudentsPage: React.FC = () => {
       ]);
 
       const csvContent =
-        [header, ...rows].map((r) =>
-          r
-            .map((field) =>
-              `"${String(field).replace(/"/g, '""')}"`
-            )
-            .join(",")
-        ).join("\n");
+        [header, ...rows]
+          .map((r) =>
+            r
+              .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+              .join(",")
+          )
+          .join("\n");
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -282,11 +290,7 @@ export const AdminStudentsPage: React.FC = () => {
             >
               Export CSV
             </Button>
-            <Button
-              component={Link}
-              to="/admin/students/create"
-              size="xs"
-            >
+            <Button component={Link} to="/admin/students/create" size="xs">
               Add student
             </Button>
           </Group>

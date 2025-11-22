@@ -29,6 +29,8 @@ import { AdminEditScholarshipPage } from "./modules/admin/AdminEditScholarshipPa
 import { AdminCreateGrantTypePage } from "./modules/admin/AdminCreateGrantTypePage";
 import { AdminEditGrantTypePage } from "./modules/admin/AdminEditGrantTypePage";
 import { AdminGrantTypesOverviewPage } from "./modules/admin/AdminGrantTypesOverviewPage";
+import { AdminContactRequestsPage } from "./modules/admin/AdminContactRequestsPage";
+import { AdminReportsPage } from "./modules/admin/AdminReportsPage";
 
 import { AdminNewReportPage } from "./modules/admin/AdminNewReportPage";
 import { AdminEditReportPage } from "./modules/admin/AdminEditReportPage";
@@ -112,6 +114,12 @@ const App: React.FC = () => {
               path="donors/:donorId/edit"
               element={<AdminEditDonorPage />}
             />
+{/* Contact & renewal requests */}
+<Route
+  path="contact-requests"
+  element={<AdminContactRequestsPage />}
+/>
+
 
             {/* Scholarships */}
             <Route path="scholarships" element={<AdminScholarshipsPage />} />
@@ -123,6 +131,8 @@ const App: React.FC = () => {
               path="scholarships/:scholarshipId/edit"
               element={<AdminEditScholarshipPage />}
             />
+
+<Route path="reports" element={<AdminReportsPage />} />
 
             {/* Grant / scholarship types */}
             <Route
@@ -153,6 +163,7 @@ const App: React.FC = () => {
           <Route path="/teacher" element={<RoleRoute allowed={["teacher"]} />}>
             <Route path="dashboard" element={<TeacherDashboardPage />} />
             <Route path="students" element={<TeacherStudentsPage />} />
+		<Route path="students/new" element={<AdminCreateStudentPage />} />
             <Route
               path="students/:studentId"
               element={<TeacherStudentDetailPage />}
