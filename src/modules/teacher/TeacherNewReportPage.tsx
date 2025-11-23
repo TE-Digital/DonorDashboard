@@ -185,7 +185,6 @@ export const TeacherNewReportPage: React.FC = () => {
       // 2) Insert progress report into term_updates
       const payload: any = {
         student_id: studentId,
-        term_id: null, // we no longer require a static term
         grade: grade || null,
         grade_text: gradeText || null,
         grade_numeric:

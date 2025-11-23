@@ -2,7 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { WelcomeSetPasswordPage } from "./modules/auth/WelcomeSetPasswordPage";
 import { ProtectedRoute, RoleRoute } from "./modules/auth/ProtectedRoute";
-import { AppShellLayout } from "./layout/AppShellLayout";
+import AppShellLayout from "./layout/AppShellLayout";
 import { useAuth } from "./modules/auth/AuthContext";
 
 import { LoginPage } from "./modules/auth/LoginPage";

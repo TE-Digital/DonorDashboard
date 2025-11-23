@@ -14,6 +14,9 @@
 /dist
 /build
 /out
+/donorsashboard-app
+/my-react-app
+
 
 # Runtime data
 .eslintcache

@@ -1,25 +1,28 @@
 // src/modules/teacher/TeacherStudentDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import {
+  Avatar,
   Box,
   Button,
   Card,
   FileInput,
   Group,
   Loader,
+  NumberInput,
+  ScrollArea,
+  Select,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   Textarea,
   TextInput,
   Title,
-  NumberInput,
-  Avatar,
   Divider,
-  Select,
+  Badge,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase, Student, TermUpdate } from "../../lib/supabaseClient";
 
 interface StudentDetail extends Student {
@@ -28,7 +31,8 @@ interface StudentDetail extends Student {
 }
 
 interface TermUpdateRow extends TermUpdate {
-  term_name?: string | null; // kept for backward-compatibility, but no longer displayed as "Term"
+  // We no longer rely on term_id; schema has been simplified
+  term_name?: string | null;
 }
 
 type AttachmentPreview = {
@@ -42,6 +46,18 @@ type School = {
   name: string;
 };
 
+type ScholarshipAwardRow = {
+  id: string;
+  period_start: string | null;
+  period_end: string | null;
+  amount_for_period: number | null;
+  currency: string | null;
+  status: string | null;
+  is_paid: boolean | null;
+  payment_date: string | null;
+  grant_types: { name: string | null } | null;
+};
+
 export const TeacherStudentDetailPage: React.FC = () => {
   const { studentId } = useParams();
   const [searchParams] = useSearchParams();
@@ -52,6 +68,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [reports, setReports] = useState<TermUpdateRow[]>([]);
+  const [awards, setAwards] = useState<ScholarshipAwardRow[]>([]);
 
   // schools for dropdown
   const [schools, setSchools] = useState<School[]>([]);
@@ -64,6 +81,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
   const [village, setVillage] = useState("");
   const [bio, setBio] = useState("");
   const [monthlySupport, setMonthlySupport] = useState<string>("");
+
   const [contactPhone, setContactPhone] = useState("");
   const [contactGuardian, setContactGuardian] = useState("");
   const [contactAddress, setContactAddress] = useState("");
@@ -92,7 +110,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Load schools for dropdown
+      // 1) Load schools for dropdown
       const { data: schoolRows, error: schoolError } = await supabase
         .from("schools")
         .select("id, name")
@@ -104,7 +122,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
         setSchools((schoolRows ?? []) as School[]);
       }
 
-      // ---- Load student ----
+      // 2) Load student
       const { data: studentData, error: studentError } = await supabase
         .from("students")
         .select(
@@ -182,14 +200,13 @@ export const TeacherStudentDetailPage: React.FC = () => {
       setBirthdate(detail.birthdate ? new Date(detail.birthdate) : null);
       setProfilePhotoPath(detail.profile_photo_path ?? null);
 
-      // ---- Load reports ----
+      // 3) Load progress reports (FIX: no term_id in select)
       const { data: reportsData, error: reportsError } = await supabase
         .from("term_updates")
         .select(
           `
           id,
           student_id,
-          term_id,
           grade,
           info,
           attachments,
@@ -207,14 +224,13 @@ export const TeacherStudentDetailPage: React.FC = () => {
         .order("report_date", { ascending: false });
 
       if (reportsError) {
-        console.error(reportsError);
+        console.error("Error loading reports", reportsError);
       }
 
       const mappedReports: TermUpdateRow[] =
         reportsData?.map((r: any) => ({
           id: r.id,
           student_id: r.student_id,
-          term_id: r.term_id,
           grade: r.grade,
           info: r.info,
           attachments: r.attachments,
@@ -230,6 +246,32 @@ export const TeacherStudentDetailPage: React.FC = () => {
         })) ?? [];
 
       setReports(mappedReports);
+
+      // 4) Load scholarship awards for this student
+      const { data: awardRows, error: awardError } = await supabase
+        .from("scholarship_awards")
+        .select(
+          `
+          id,
+          period_start,
+          period_end,
+          amount_for_period,
+          currency,
+          status,
+          is_paid,
+          payment_date,
+          grant_types ( name )
+        `
+        )
+        .eq("student_id", studentId)
+        .order("period_start", { ascending: false });
+
+      if (awardError) {
+        console.error("Error loading scholarship awards for student", awardError);
+      }
+
+      setAwards((awardRows ?? []) as ScholarshipAwardRow[]);
+
       setLoading(false);
     };
 
@@ -273,7 +315,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       return;
     }
     if (!contactPhone.trim() || !contactGuardian.trim()) {
-      setError("Phone and guardian are required (contact information).");
+      setError("Please provide a guardian name and phone number.");
       setSaving(false);
       return;
     }
@@ -315,7 +357,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       return;
     }
 
-    setMessage("Changes saved.");
+    setMessage("Student details have been saved.");
   };
 
   const handlePhotoUpload = async (file: File | null) => {
@@ -377,7 +419,6 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
       try {
         const raw = selectedReport.attachments as any[];
-
         const previews: AttachmentPreview[] = [];
 
         for (const a of raw) {
@@ -426,13 +467,15 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
   const handleEditSelectedReport = () => {
     if (!selectedReport || !studentId) return;
-    navigate(
-      `/teacher/reports/${selectedReport.id}/edit?studentId=${studentId}`
-    );
+    navigate(`/teacher/reports/${selectedReport.id}/edit?studentId=${studentId}`);
   };
 
   if (loading) {
-    return <Loader />;
+    return (
+      <Group justify="center" mt="lg">
+        <Loader />
+      </Group>
+    );
   }
 
   if (!student) {
@@ -450,51 +493,74 @@ export const TeacherStudentDetailPage: React.FC = () => {
       : student.name;
 
   return (
-    <Stack>
-      <Group justify="space-between" align="flex-start">
-        <Group align="center" gap="md">
-          <Avatar
-            src={profilePhotoUrl || undefined}
-            radius="xl"
-            size={72}
-            alt={student.name}
-          >
-            {!profilePhotoUrl && student.name ? student.name.charAt(0) : null}
-          </Avatar>
-          <Stack gap={4}>
-            <Title order={3}>{displayName}</Title>
-            {nickname && nickname.trim().length > 0 && (
-              <Text size="xs" c="dimmed">
-                Legal name: {student.name}
-              </Text>
-            )}
-            <Text size="sm" c="dimmed">
-              {student.school_name || "No school assigned"}
-            </Text>
-          </Stack>
-        </Group>
+    <Stack gap="md">
+      {/* HEADER CARD */}
+      <Card withBorder radius="md">
+        <Group justify="space-between" align="flex-start">
+          <Group align="center" gap="md">
+            <Avatar
+              src={profilePhotoUrl || undefined}
+              radius="xl"
+              size={72}
+              alt={student.name}
+            >
+              {!profilePhotoUrl && student.name ? student.name.charAt(0) : null}
+            </Avatar>
+            <Stack gap={4}>
+              <Title order={3}>{displayName}</Title>
+              {nickname && nickname.trim().length > 0 && (
+                <Text size="xs" c="dimmed">
+                  Registered name: {student.name}
+                </Text>
+              )}
+              <Group gap="xs">
+                {student.school_name && (
+                  <Badge variant="light" size="sm">
+                    {student.school_name}
+                  </Badge>
+                )}
+                {gradeLevel && (
+                  <Badge variant="light" size="sm">
+                    Grade {gradeLevel}
+                  </Badge>
+                )}
+                {village && (
+                  <Badge variant="outline" size="sm">
+                    {village}
+                  </Badge>
+                )}
+                {student.grant_type_name && (
+                  <Badge variant="outline" size="sm">
+                    {student.grant_type_name}
+                  </Badge>
+                )}
+              </Group>
+            </Stack>
+          </Group>
 
-        <Group>
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() =>
-              navigate(`/teacher/reports/new?studentId=${student.id}`)
-            }
-          >
-            Add report
-          </Button>
-          <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
-            Back
-          </Button>
+          <Group>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() =>
+                navigate(`/teacher/reports/new?studentId=${student.id}`)
+              }
+            >
+              Add report
+            </Button>
+            <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
+              Back
+            </Button>
+          </Group>
         </Group>
-      </Group>
+      </Card>
 
-      <SimpleGrid cols={{ base: 1, sm: 2 }}>
+      {/* MAIN CONTENT */}
+      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
         {/* LEFT: editable student details */}
-        <Card withBorder component="form" onSubmit={handleSaveStudent}>
+        <Card withBorder radius="md" component="form" onSubmit={handleSaveStudent}>
           <Stack gap="sm">
-            <Text fw={600}>Student details</Text>
+            <Text fw={600}>Student profile</Text>
 
             {/* Profile photo upload */}
             <Stack gap={4}>
@@ -516,15 +582,15 @@ export const TeacherStudentDetailPage: React.FC = () => {
             </Stack>
 
             <TextInput
-              label="Name"
+              label="Student name"
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
               required
             />
 
             <TextInput
-              label="Nickname (shared with donor)"
-              description="Optional name used in donor-facing dashboards, emails, and reports."
+              label="Nickname (shown to donors)"
+              description="Optional name used in donor dashboards, emails, and progress reports."
               value={nickname}
               onChange={(e) => setNickname(e.currentTarget.value)}
             />
@@ -554,7 +620,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
             <TextInput
               label="Current grade level"
-              description="You can adjust this when the student moves to the next grade."
+              description="Update this when the student moves to the next grade."
               value={gradeLevel}
               onChange={(e) => setGradeLevel(e.currentTarget.value)}
             />
@@ -620,16 +686,11 @@ export const TeacherStudentDetailPage: React.FC = () => {
           </Stack>
         </Card>
 
-        {/* RIGHT: additional info */}
-        <Card withBorder>
-          <Text fw={600} mb="xs">
-            Additional information
-          </Text>
-          <Stack gap={8}>
-            <Text size="sm">
-              <strong>Grant type:</strong>{" "}
-              {student.grant_type_name || "—"}
-            </Text>
+        {/* RIGHT: scholarship & support + awards list */}
+        <Card withBorder radius="md">
+          <Stack gap="sm">
+            <Text fw={600}>Scholarship & support</Text>
+
             <NumberInput
               label="Monthly support expected (THB)"
               value={
@@ -644,22 +705,111 @@ export const TeacherStudentDetailPage: React.FC = () => {
               }
               min={0}
             />
+
             <Text size="sm">
-              <strong>Scholarship:</strong>{" "}
+              <strong>Preferred grant type:</strong>{" "}
+              {student.grant_type_name || "—"}
+            </Text>
+            <Text size="sm">
+              <strong>Scholarship notes:</strong>{" "}
               {student.scholarship || "—"}
             </Text>
             <Text size="sm">
-              <strong>Created:</strong>{" "}
+              <strong>Student created:</strong>{" "}
               {student.created_at
                 ? new Date(student.created_at).toLocaleDateString()
                 : "—"}
             </Text>
+
+            <Divider my="sm" />
+
+            <Text fw={600} size="sm">
+              Scholarship awards
+            </Text>
+
+            {awards.length === 0 ? (
+              <Text size="sm" c="dimmed">
+                No scholarship awards recorded for this student yet.
+              </Text>
+            ) : (
+              <ScrollArea>
+                <Table
+                  highlightOnHover
+                  verticalSpacing="xs"
+                  style={{ minWidth: 600 }}
+                >
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Grant type</Table.Th>
+                      <Table.Th>Period</Table.Th>
+                      <Table.Th>Amount</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                      <Table.Th>Paid on</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {awards.map((a) => {
+                      const periodLabel =
+                        a.period_start && a.period_end
+                          ? `${new Date(
+                              a.period_start
+                            ).toLocaleDateString()} – ${new Date(
+                              a.period_end
+                            ).toLocaleDateString()}`
+                          : "—";
+
+                      const amountLabel =
+                        a.amount_for_period != null
+                          ? `${a.amount_for_period.toLocaleString("en-US", {
+                              maximumFractionDigits: 0,
+                            })} ${a.currency || "THB"}`
+                          : "—";
+
+                      const status = (a.status || "").toLowerCase();
+                      let statusColor: string = "gray";
+                      if (status === "active") statusColor = "green";
+                      else if (status === "planned") statusColor = "yellow";
+                      else if (status === "completed") statusColor = "blue";
+                      else if (status === "cancelled") statusColor = "red";
+
+                      return (
+                        <Table.Tr key={a.id}>
+                          <Table.Td>
+                            {a.grant_types?.name ?? "Scholarship"}
+                          </Table.Td>
+                          <Table.Td>{periodLabel}</Table.Td>
+                          <Table.Td>{amountLabel}</Table.Td>
+                          <Table.Td>
+                            {a.status && (
+                              <Badge
+                                size="xs"
+                                variant="light"
+                                color={statusColor}
+                              >
+                                {a.status}
+                              </Badge>
+                            )}
+                          </Table.Td>
+                          <Table.Td>
+                            {a.payment_date
+                              ? new Date(
+                                  a.payment_date
+                                ).toLocaleDateString()
+                              : "—"}
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
           </Stack>
         </Card>
       </SimpleGrid>
 
       {/* PROGRESS REPORTS */}
-      <Card withBorder>
+      <Card withBorder radius="md">
         <Group justify="space-between" mb="sm">
           <Text fw={600}>Progress reports</Text>
           <Button
@@ -674,37 +824,29 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
         {reports.length === 0 ? (
           <Text size="sm" c="dimmed">
-            No reports yet.
+            No progress reports yet. Use “Add report” to create the first one.
           </Text>
         ) : (
           <>
-            <Box style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead
-                  style={{
-                    backgroundColor: "var(--mantine-color-gray-0)",
-                  }}
-                >
-                  <tr>
-                    <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                      Report date
-                    </th>
-                    <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                      Covers
-                    </th>
-                    <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                      Progress summary
-                    </th>
-                    <th style={{ padding: "8px 12px", textAlign: "left" }}>
-                      Comment for donor
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+            <ScrollArea>
+              <Table
+                highlightOnHover
+                verticalSpacing="xs"
+                style={{ minWidth: 600 }}
+              >
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Report date</Table.Th>
+                    <Table.Th>Covers period</Table.Th>
+                    <Table.Th>Progress summary</Table.Th>
+                    <Table.Th>Comment for donor</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                   {reports.map((r) => {
                     const isSelected = r.id === selectedReportId;
                     return (
-                      <tr
+                      <Table.Tr
                         key={r.id}
                         onClick={() => handleRowClick(r.id as string)}
                         style={{
@@ -714,24 +856,12 @@ export const TeacherStudentDetailPage: React.FC = () => {
                             : undefined,
                         }}
                       >
-                        <td
-                          style={{
-                            padding: "8px 12px",
-                            borderTop: "1px solid #eee",
-                          }}
-                        >
+                        <Table.Td>
                           {r.report_date
-                            ? new Date(
-                                r.report_date
-                              ).toLocaleDateString()
+                            ? new Date(r.report_date).toLocaleDateString()
                             : "—"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "8px 12px",
-                            borderTop: "1px solid #eee",
-                          }}
-                        >
+                        </Table.Td>
+                        <Table.Td>
                           {r.covers_start && r.covers_end
                             ? `${new Date(
                                 r.covers_start
@@ -739,29 +869,15 @@ export const TeacherStudentDetailPage: React.FC = () => {
                                 r.covers_end
                               ).toLocaleDateString()}`
                             : "—"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "8px 12px",
-                            borderTop: "1px solid #eee",
-                          }}
-                        >
-                          {r.grade_text || r.grade || "—"}
-                        </td>
-                        <td
-                          style={{
-                            padding: "8px 12px",
-                            borderTop: "1px solid #eee",
-                          }}
-                        >
-                          {r.donor_comment || r.info || "—"}
-                        </td>
-                      </tr>
+                        </Table.Td>
+                        <Table.Td>{r.grade_text || r.grade || "—"}</Table.Td>
+                        <Table.Td>{r.donor_comment || r.info || "—"}</Table.Td>
+                      </Table.Tr>
                     );
                   })}
-                </tbody>
-              </table>
-            </Box>
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
 
             {/* RICH PREVIEW FOR SELECTED REPORT */}
             {selectedReport && (
@@ -770,7 +886,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
                 <Stack gap="xs">
                   <Group justify="space-between" align="center">
                     <Text fw={600} size="sm">
-                      Selected report – detailed preview
+                      Selected report – detailed view
                     </Text>
                     <Button
                       size="xs"
@@ -885,3 +1001,5 @@ export const TeacherStudentDetailPage: React.FC = () => {
     </Stack>
   );
 };
+
+export default TeacherStudentDetailPage;

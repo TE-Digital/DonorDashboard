@@ -1,3 +1,4 @@
+// src/modules/admin/AdminStudentDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import {
   Card,
@@ -38,7 +39,7 @@ type ScholarshipAwardRow = {
 
 type ReportAttachment = {
   path: string;
-  is_public: boolean;
+  is_public?: boolean | null;
   publicUrl?: string;
 };
 
@@ -57,7 +58,7 @@ export const AdminStudentDetailPage: React.FC = () => {
   // Support both /students/:studentId and /students/:id
   const params = useParams<{ studentId?: string; id?: string }>();
   const routeStudentId = params.studentId ?? params.id ?? "";
-  const isNew = !routeStudentId || routeStudentId === "create"; // <-- key fix
+  const isNew = !routeStudentId || routeStudentId === "create";
 
   const navigate = useNavigate();
 
@@ -107,6 +108,10 @@ export const AdminStudentDetailPage: React.FC = () => {
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // helper: image extension check
+  const isImagePath = (path: string) =>
+    /\.(jpe?g|png|webp|gif)$/i.test(path.split("?")[0] ?? "");
 
   // ---------- lookups ----------
   const loadLookups = async () => {
@@ -212,34 +217,61 @@ export const AdminStudentDetailPage: React.FC = () => {
       if (repError) {
         console.error("Error loading reports for student", repError);
       } else {
-        const mappedReports: ReportRow[] = (repRows ?? []).map((r: any) => {
-          const rawAttachments =
-            (r.attachments as { path: string; is_public: boolean }[] | null) ??
-            null;
+        // build signed URLs only for image attachments
+        const mappedReports: ReportRow[] = await Promise.all(
+          (repRows ?? []).map(async (r: any) => {
+            const rawAttachments =
+              (r.attachments as { path: string; is_public?: boolean | null }[] | null) ??
+              null;
 
-          const attachments: ReportAttachment[] | null = rawAttachments
-            ? rawAttachments.map((att) => {
-                const { data } = supabase.storage
-                  .from("progress-photos")
-                  .getPublicUrl(att.path);
-                return {
-                  ...att,
-                  publicUrl: data.publicUrl,
-                };
-              })
-            : null;
+            let attachments: ReportAttachment[] | null = null;
 
-          return {
-            id: r.id as string,
-            report_date: r.report_date ?? null,
-            info: r.info ?? null,
-            grade_text: r.grade_text ?? null,
-            donor_comment: r.donor_comment ?? null,
-            internal_note: r.internal_note ?? null,
-            created_at: r.created_at ?? null,
-            attachments,
-          };
-        });
+            if (rawAttachments && rawAttachments.length > 0) {
+              const imageAttachments = rawAttachments.filter(
+                (att) => att?.path && isImagePath(att.path)
+              );
+
+              if (imageAttachments.length > 0) {
+                attachments = await Promise.all(
+                  imageAttachments.map(async (att) => {
+                    try {
+                      const { data, error } = await supabase.storage
+                        .from("progress-photos")
+                        .createSignedUrl(att.path, 60 * 60); // 1 hour
+
+                      return {
+                        path: att.path,
+                        is_public: att.is_public,
+                        publicUrl: !error && data?.signedUrl ? data.signedUrl : undefined,
+                      };
+                    } catch (e) {
+                      console.error(
+                        "Error creating signed URL for admin report photo",
+                        e
+                      );
+                      return {
+                        path: att.path,
+                        is_public: att.is_public,
+                        publicUrl: undefined,
+                      };
+                    }
+                  })
+                );
+              }
+            }
+
+            return {
+              id: r.id as string,
+              report_date: r.report_date ?? null,
+              info: r.info ?? null,
+              grade_text: r.grade_text ?? null,
+              donor_comment: r.donor_comment ?? null,
+              internal_note: r.internal_note ?? null,
+              created_at: r.created_at ?? null,
+              attachments,
+            };
+          })
+        );
 
         setReports(mappedReports);
       }
@@ -472,7 +504,6 @@ export const AdminStudentDetailPage: React.FC = () => {
         }
 
         setMessage("Student created successfully.");
-        // After creating, go to edit mode
         navigate(`/admin/students/${currentId}`, { replace: true });
       } else {
         // UPDATE
@@ -913,8 +944,8 @@ export const AdminStudentDetailPage: React.FC = () => {
                                   key={idx}
                                   src={att.publicUrl}
                                   alt="Report photo"
-                                  width={40}
-                                  height={40}
+                                  w={40}
+                                  h={40}
                                   radius="sm"
                                   fit="cover"
                                 />
