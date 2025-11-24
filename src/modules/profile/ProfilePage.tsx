@@ -98,22 +98,115 @@ export const ProfilePage: React.FC = () => {
     setError(null);
     setMessage(null);
 
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({
+    const trimmedEmail = email.trim();
+
+    try {
+      // If user is editing their own profile, also update auth email
+      if (isOwnProfile) {
+        if (!trimmedEmail) {
+          setError("Email cannot be empty.");
+          setSavingProfile(false);
+          return;
+        }
+
+        // Basic sanity check; you can replace with stricter validation if needed
+        if (!trimmedEmail.includes("@")) {
+          setError("Please enter a valid email address.");
+          setSavingProfile(false);
+          return;
+        }
+
+        const { error: authError } = await supabase.auth.updateUser({
+          email: trimmedEmail,
+        });
+
+        if (authError) {
+          console.error("Error updating auth email", authError);
+          setError(authError.message || "Could not update email.");
+          setSavingProfile(false);
+          return;
+        }
+      }
+
+      // Update profile row (always), keeping email in sync for own profile
+      const updatePayload: {
+        full_name: string;
+        phone: string;
+        email?: string;
+      } = {
         full_name: fullName,
         phone,
-      })
-      .eq("id", targetUserId);
+      };
 
-    if (updateError) {
-      console.error(updateError);
-      setError(updateError.message);
-    } else {
+      if (isOwnProfile) {
+        updatePayload.email = trimmedEmail;
+      }
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update(updatePayload)
+        .eq("id", targetUserId);
+
+      if (updateError) {
+        console.error(updateError);
+        setError(updateError.message);
+        setSavingProfile(false);
+        return;
+      }
+
+      // If this user is also a donor, keep donor.email AND donor.contact.email in sync.
+      if (isOwnProfile) {
+        try {
+          const { data: donorRow, error: donorFetchError } = await supabase
+            .from("donors")
+            .select("id, contact, email")
+            .eq("user_id", targetUserId)
+            .maybeSingle();
+
+          if (donorFetchError) {
+            console.error("Error loading donor for email sync", donorFetchError);
+          } else if (donorRow) {
+            const currentContact =
+              (donorRow as any).contact && typeof (donorRow as any).contact === "object"
+                ? (donorRow as any).contact
+                : {};
+
+            const updatedContact = {
+              ...currentContact,
+              email: trimmedEmail,
+            };
+
+            const { error: donorUpdateError } = await supabase
+              .from("donors")
+              .update({
+                email: trimmedEmail,      // top-level donor email
+                contact: updatedContact,  // JSON contact.email
+              })
+              .eq("id", donorRow.id);
+
+            if (donorUpdateError) {
+              console.error("Error syncing donor email", donorUpdateError);
+              // We don't abort the whole flow, just show a softer message
+              setMessage(
+                "Profile updated, but there was a problem syncing the donor contact email. Please contact an administrator if this persists."
+              );
+              setSavingProfile(false);
+              return;
+            }
+          }
+        } catch (innerErr) {
+          console.error("Unexpected error syncing donor email", innerErr);
+          // Still treat main profile update as success
+        }
+      }
+
       setMessage("Profile updated successfully.");
+    } catch (err: any) {
+      console.error("Unexpected error updating profile", err);
+      setError(err.message ?? "Unexpected error while updating profile.");
+    } finally {
+      setSavingProfile(false);
     }
-
-    setSavingProfile(false);
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -157,7 +250,7 @@ export const ProfilePage: React.FC = () => {
       : "Edit user profile";
 
   const subtitle = isOwnProfile
-    ? "Update your contact details and password."
+    ? "Update your contact details, email and password."
     : "You are editing this user's contact details as an admin.";
 
   return (
@@ -194,8 +287,13 @@ export const ProfilePage: React.FC = () => {
             <TextInput
               label="Email"
               value={email}
-              disabled
-              description="Email is managed via authentication."
+              onChange={(e) => setEmail(e.currentTarget.value)}
+              disabled={!isOwnProfile}
+              description={
+                isOwnProfile
+                  ? "This email is used for login and donor communication."
+                  : "Email is managed via authentication and can only be changed by the user."
+              }
             />
 
             <TextInput
@@ -258,4 +356,3 @@ export const ProfilePage: React.FC = () => {
 };
 
 export default ProfilePage;
-

@@ -1,3 +1,4 @@
+// src/modules/teacher/TeacherStudentsPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, Student } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
@@ -12,13 +13,16 @@ import {
 import {
   Box,
   Button,
+  Card,
   Group,
   Loader,
   Select,
   Stack,
   Text,
   TextInput,
+  useMantineTheme,
 } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { useNavigate } from "react-router-dom";
 
 type ReportStatus = "ok" | "missing" | "overdue";
@@ -38,6 +42,9 @@ export const TeacherStudentsPage: React.FC = () => {
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
 
   const navigate = useNavigate();
+
+  const theme = useMantineTheme();
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
 
   useEffect(() => {
     const load = async () => {
@@ -113,11 +120,13 @@ export const TeacherStudentsPage: React.FC = () => {
         .in("student_id", studentIds);
 
       if (schError) {
-        console.error("Error loading scholarships for teacher students", schError);
+        console.error(
+          "Error loading scholarships for teacher students",
+          schError
+        );
       }
 
-      const today = new Date();
-      const todayIso = today.toISOString().slice(0, 10);
+      const todayIso = new Date().toISOString().slice(0, 10);
 
       const activeScholarshipStudents = new Set<string>();
       (scholarshipData ?? []).forEach((sch: any) => {
@@ -186,6 +195,7 @@ export const TeacherStudentsPage: React.FC = () => {
     });
   }, [data, search, gradeFilter]);
 
+  // ---------- Table columns (desktop only) ----------
   const columns = useMemo<ColumnDef<StudentRow>[]>(
     () => [
       {
@@ -194,18 +204,8 @@ export const TeacherStudentsPage: React.FC = () => {
         cell: (info) => info.getValue() || "—",
       },
       {
-        header: "School",
-        accessorKey: "school_name",
-        cell: (info) => info.getValue() || "—",
-      },
-      {
         header: "Grade",
         accessorKey: "grade_level",
-        cell: (info) => info.getValue() || "—",
-      },
-      {
-        header: "Village",
-        accessorKey: "village",
         cell: (info) => info.getValue() || "—",
       },
       {
@@ -215,6 +215,7 @@ export const TeacherStudentsPage: React.FC = () => {
           const last = row.original.last_report_date;
           const status = row.original.report_status;
           let label: string;
+
           if (!last) {
             label = "No report";
           } else {
@@ -275,6 +276,25 @@ export const TeacherStudentsPage: React.FC = () => {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  // Helper to format last-report label for cards
+  const getLastReportLabel = (row: StudentRow) => {
+    const last = row.last_report_date;
+    const status = row.report_status;
+
+    let label = last
+      ? new Date(last).toLocaleDateString()
+      : "No report";
+
+    if (status === "overdue") label += " (overdue)";
+    else if (status === "missing") label += " (required)";
+
+    let color: string | undefined;
+    if (status === "overdue") color = "red";
+    else if (status === "missing") color = "orange";
+
+    return { label, color };
+  };
+
   return (
     <Stack>
       <Group justify="space-between">
@@ -283,25 +303,95 @@ export const TeacherStudentsPage: React.FC = () => {
         </Text>
       </Group>
 
-      <Group gap="sm">
-        <TextInput
-          placeholder="Search by name or village"
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          w={260}
-        />
-        <Select
-          placeholder="Filter by grade level"
-          value={gradeFilter}
-          onChange={setGradeFilter}
-          data={gradeOptions}
-          clearable
-        />
-      </Group>
+      {/* Filters */}
+      {isMobile ? (
+        <Stack gap="xs">
+          <TextInput
+            placeholder="Search by name or village"
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+          />
+          <Select
+            placeholder="Filter by grade level"
+            value={gradeFilter}
+            onChange={setGradeFilter}
+            data={gradeOptions}
+            clearable
+          />
+        </Stack>
+      ) : (
+        <Group gap="sm">
+          <TextInput
+            placeholder="Search by name or village"
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            w={260}
+          />
+          <Select
+            placeholder="Filter by grade level"
+            value={gradeFilter}
+            onChange={setGradeFilter}
+            data={gradeOptions}
+            clearable
+          />
+        </Group>
+      )}
 
       {loading ? (
         <Loader />
+      ) : isMobile ? (
+        // ---------- MOBILE: cards ----------
+        <Stack gap="sm">
+          {filteredData.length === 0 && (
+            <Text c="dimmed" size="sm">
+              No students found.
+            </Text>
+          )}
+
+          {filteredData.map((row) => {
+            const { label, color } = getLastReportLabel(row);
+
+            return (
+              <Card key={row.id} withBorder radius="md" shadow="xs">
+                <Stack gap={4}>
+                  <Text fw={600}>{row.name || "Unnamed student"}</Text>
+                  {row.grade_level && (
+                    <Text size="sm" c="dimmed">
+                      Grade {row.grade_level}
+                    </Text>
+                  )}
+                  <Text size="sm" c={color}>
+                    Last report: {label}
+                  </Text>
+
+                  <Group mt="xs" grow>
+                    <Button
+                      size="xs"
+                      onClick={() =>
+                        navigate(`/teacher/students/${row.id}`)
+                      }
+                    >
+                      Open
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() =>
+                        navigate(
+                          `/teacher/reports/new?studentId=${row.id}`
+                        )
+                      }
+                    >
+                      Add report
+                    </Button>
+                  </Group>
+                </Stack>
+              </Card>
+            );
+          })}
+        </Stack>
       ) : (
+        // ---------- DESKTOP: table ----------
         <Box
           style={{
             border: "1px solid #eee",
@@ -319,7 +409,9 @@ export const TeacherStudentsPage: React.FC = () => {
                       style={{
                         padding: "8px 12px",
                         textAlign: "left",
-                        cursor: "pointer",
+                        cursor: header.column.getCanSort()
+                          ? "pointer"
+                          : "default",
                       }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
@@ -388,3 +480,4 @@ export const TeacherStudentsPage: React.FC = () => {
   );
 };
 
+export default TeacherStudentsPage;

@@ -184,13 +184,7 @@ const { data: inserted, error: insertError } = await supabase
             Dashboard & communication
           </Text>
           <Stack gap={4}>
-            <Switch
-              label="Dashboard access enabled"
-              checked={isDashboardEnabled}
-              onChange={(e) =>
-                setIsDashboardEnabled(e.currentTarget.checked)
-              }
-            />
+            
             <Switch
               label="Wants email updates"
               checked={wantsEmailUpdates}
