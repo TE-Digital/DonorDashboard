@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Anchor,
   Button,
   Card,
   Center,
@@ -16,7 +17,7 @@ import {
   Title,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 
 type StudentContact = {
@@ -51,7 +52,7 @@ type SchoolOption = {
 type ReportRow = {
   id: string;
   report_date: string | null;
-  grade_numeric: number | null;
+  grade: string | null; // short grade label
   grade_text: string | null;
   info: string | null;
 };
@@ -183,7 +184,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
             `
             id,
             report_date,
-            grade_numeric,
+            grade,
             grade_text,
             info
           `
@@ -254,7 +255,6 @@ export const TeacherStudentDetailPage: React.FC = () => {
       school_id: schoolId || null,
     };
 
-    // Important: use .select().single() to see if a row was actually updated
     const { data, error: updateError } = await supabase
       .from("students")
       .update(updatePayload)
@@ -270,7 +270,6 @@ export const TeacherStudentDetailPage: React.FC = () => {
       return;
     }
 
-    // If no row is returned, treat it as "not updated" (likely RLS)
     if (!data) {
       setError(
         "Student could not be updated. You may not have permission to edit this record."
@@ -278,7 +277,6 @@ export const TeacherStudentDetailPage: React.FC = () => {
       return;
     }
 
-    // Optional: keep local state in sync with DB
     setStudent((prev) =>
       prev ? ({ ...prev, ...data } as StudentDetail) : (data as StudentDetail)
     );
@@ -469,12 +467,16 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
                   return (
                     <Table.Tr key={r.id}>
-                      <Table.Td>{dateLabel}</Table.Td>
                       <Table.Td>
-                        {typeof r.grade_numeric === "number"
-                          ? r.grade_numeric
-                          : ""}
+                        <Anchor
+                          component={Link}
+                          to={`/teacher/reports/${r.id}/edit`}
+                          size="sm"
+                        >
+                          {dateLabel}
+                        </Anchor>
                       </Table.Td>
+                      <Table.Td>{r.grade || ""}</Table.Td>
                       <Table.Td>{summary}</Table.Td>
                     </Table.Tr>
                   );
