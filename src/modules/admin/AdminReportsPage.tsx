@@ -1,29 +1,34 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+// src/modules/admin/AdminReportsPage.tsx
+import React, { useEffect, useState } from "react";
 import {
   Anchor,
   Badge,
-  Button,
   Card,
   Group,
   Loader,
-  MultiSelect,
-  NumberInput,
   ScrollArea,
   Select,
   Stack,
   Table,
   Text,
-  TextInput,
+  Title,
 } from "@mantine/core";
-import { supabase } from "../../lib/supabaseClient";
 import { Link } from "react-router-dom";
+import { supabase } from "../../lib/supabaseClient";
+import {
+  IconFile,
+  IconFileTypePdf,
+  IconFileTypeDocx,
+  IconFileTypeXls,
+  IconFileTypePpt,
+} from "@tabler/icons-react";
 
-type ColumnType = "text" | "number" | "date" | "boolean";
+// --- Types -------------------------------------------------------------------
 
 type ColumnDef = {
   name: string;
   label: string;
-  type: ColumnType;
+  type: "text" | "number" | "date" | "bool" | "json";
 };
 
 type TableDef = {
@@ -32,40 +37,23 @@ type TableDef = {
   columns: ColumnDef[];
 };
 
-// 🔹 Tables & columns that can be used for generic reporting.
-//    Add/adjust columns here as your schema evolves.
+type RelationConfig = {
+  [columnName: string]: {
+    linkBase?: string;
+  };
+};
+
+// --- Table definitions --------------------------------------------------------
+
+// You can extend this with more tables if you like.
+// For now we focus on term_updates because of the attachments.
 const TABLE_DEFS: TableDef[] = [
-  {
-    value: "students",
-    label: "Students",
-    columns: [
-      { name: "id", label: "ID", type: "text" },
-      { name: "name", label: "Name", type: "text" },
-      { name: "nickname", label: "Nickname", type: "text" },
-      { name: "school_id", label: "School (id)", type: "text" },
-      { name: "grade_level", label: "Grade level", type: "text" },
-      { name: "village", label: "Village", type: "text" },
-      { name: "scholarship", label: "Scholarship", type: "text" },
-      { name: "birthdate", label: "Birthdate", type: "date" },
-      {
-        name: "monthly_support_expected",
-        label: "Monthly support expected",
-        type: "number",
-      },
-      {
-        name: "responsible_teacher_id",
-        label: "Responsible teacher (id)",
-        type: "text",
-      },
-      { name: "created_at", label: "Created at", type: "date" },
-    ],
-  },
   {
     value: "term_updates",
     label: "Term updates / reports",
     columns: [
       { name: "id", label: "ID", type: "text" },
-      { name: "student_id", label: "Student (id)", type: "text" },
+      { name: "student_id", label: "Student ID", type: "text" },
       { name: "report_date", label: "Report date", type: "date" },
       { name: "covers_start", label: "Covers from", type: "date" },
       { name: "covers_end", label: "Covers to", type: "date" },
@@ -74,692 +62,319 @@ const TABLE_DEFS: TableDef[] = [
       { name: "grade_text", label: "Grade text", type: "text" },
       { name: "donor_comment", label: "Donor comment", type: "text" },
       { name: "info", label: "Additional info", type: "text" },
-      { name: "created_at", label: "Created at", type: "date" },
-    ],
-  },
-  {
-    value: "scholarship_awards",
-    label: "Scholarship awards",
-    columns: [
-      { name: "id", label: "ID", type: "text" },
-      { name: "student_id", label: "Student (id)", type: "text" },
-      { name: "donor_id", label: "Donor (id)", type: "text" },
-      { name: "grant_type_id", label: "Grant type (id)", type: "text" },
-      { name: "period_start", label: "Period start", type: "date" },
-      { name: "period_end", label: "Period end", type: "date" },
-      {
-        name: "amount_for_period",
-        label: "Amount for period",
-        type: "number",
-      },
-      { name: "currency", label: "Currency", type: "text" },
-      { name: "status", label: "Status", type: "text" },
-      { name: "is_paid", label: "Is paid?", type: "boolean" },
-      { name: "payment_date", label: "Payment date", type: "date" },
+      { name: "attachments", label: "Attachments", type: "json" }, // special
       { name: "created_at", label: "Created at", type: "date" },
     ],
   },
 ];
 
-// 🔹 Relation mapping to show nicer labels instead of raw IDs in results.
-//    Example: students.school_id -> schools.name
-const RELATIONS: Record<
-  string,
-  Record<
-    string,
-    {
-      table: string;
-      displayColumn: string;
-      linkBase?: string; // optional route prefix for clickable links
-    }
-  >
-> = {
-  students: {
-    school_id: {
-      table: "schools",
-      displayColumn: "name",
-      linkBase: "/admin/schools/",
-    },
-    responsible_teacher_id: {
-      table: "profiles",
-      displayColumn: "full_name",
-      linkBase: "/admin/teachers/",
-    },
-  },
-  scholarship_awards: {
-    student_id: {
-      table: "students",
-      displayColumn: "name",
-      linkBase: "/admin/students/",
-    },
-    donor_id: {
-      table: "donors",
-      displayColumn: "name",
-      linkBase: "/admin/donors/",
-    },
-    grant_type_id: {
-      table: "grant_types",
-      displayColumn: "name",
-    },
-  },
+// Optional: you can add more relation targets here if you have those routes.
+const RELATIONS: Record<string, RelationConfig> = {
   term_updates: {
     student_id: {
-      table: "students",
-      displayColumn: "name",
-      linkBase: "/admin/students/",
+      linkBase: "/admin/students/", // /admin/students/<student_id>
     },
   },
 };
 
-type FilterOperator =
-  | "eq"
-  | "neq"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "contains"
-  | "in";
+// --- Component ----------------------------------------------------------------
 
-const OPERATOR_OPTIONS = [
-  { value: "eq", label: "=" },
-  { value: "neq", label: "≠" },
-  { value: "gt", label: ">" },
-  { value: "gte", label: "≥" },
-  { value: "lt", label: "<" },
-  { value: "lte", label: "≤" },
-  { value: "contains", label: "contains" },
-  { value: "in", label: "in list" },
-];
-
-type FilterRow = {
-  id: string;
-  column: string | null;
-  operator: FilterOperator;
-  value: string;
-};
-
-type GenericRow = Record<string, any>;
-
-export const AdminReportsPage: React.FC = () => {
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
-  const [filters, setFilters] = useState<FilterRow[]>([]);
-
+const AdminReportsPage: React.FC = () => {
+  const [selectedTable, setSelectedTable] = useState<string>("term_updates");
+  const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<GenericRow[]>([]);
-  const [count, setCount] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(50);
+  const currentTableDef = TABLE_DEFS.find((t) => t.value === selectedTable);
+  const currentColumns = currentTableDef?.columns ?? [];
 
-  const tableDef = useMemo(
-    () => TABLE_DEFS.find((t) => t.value === selectedTable) || null,
-    [selectedTable]
-  );
-
-  // Reset columns & filters when table changes
   useEffect(() => {
-    if (!tableDef) {
-      setSelectedColumns([]);
-      setFilters([]);
-      setRows([]);
-      setCount(null);
-      setPage(1);
-      return;
-    }
+    const load = async () => {
+      if (!selectedTable) return;
 
-    // Default: preselect a few common columns
-    const defaultCols = tableDef.columns.slice(0, 4).map((c) => c.name);
-    setSelectedColumns(defaultCols);
-    setFilters([]);
-    setRows([]);
-    setCount(null);
-    setPage(1);
-  }, [tableDef?.value]);
+      setLoading(true);
+      setError(null);
 
-  const handleAddFilter = () => {
-    if (!tableDef) return;
-    const firstCol = tableDef.columns[0]?.name ?? null;
-    setFilters((prev) => [
-      ...prev,
-      {
-        id: `${Date.now()}-${prev.length}`,
-        column: firstCol,
-        operator: "eq",
-        value: "",
-      },
-    ]);
-  };
+      try {
+        const { data, error: queryError } = await supabase
+          .from(selectedTable)
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(200);
 
-  const handleRemoveFilter = (id: string) => {
-    setFilters((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const handleFilterChange = (
-    id: string,
-    field: keyof Omit<FilterRow, "id">,
-    value: any
-  ) => {
-    setFilters((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, [field]: value } : f))
-    );
-  };
-
-  const parseValueByType = (raw: string, type: ColumnType) => {
-    if (raw === "") return null;
-
-    switch (type) {
-      case "number":
-        return Number(raw);
-      case "boolean":
-        return raw.toLowerCase() === "true" || raw === "1";
-      case "date":
-        // keep as ISO-ish string; backend will parse
-        return raw;
-      default:
-        return raw;
-    }
-  };
-
-  const runQuery = useCallback(async () => {
-    if (!tableDef || !selectedTable) return;
-
-    setLoading(true);
-
-    try {
-      // Build base query
-      const columnsToSelect =
-        selectedColumns.length > 0
-          ? selectedColumns.join(",")
-          : tableDef.columns.map((c) => c.name).join(",");
-
-      let query = supabase
-        .from(selectedTable)
-        .select(columnsToSelect, { count: "exact" });
-
-      // Apply filters
-      for (const f of filters) {
-        if (!f.column || f.value.trim() === "") continue;
-
-        const colDef =
-          tableDef.columns.find((c) => c.name === f.column) ??
-          ({ type: "text" } as ColumnDef);
-
-        if (f.operator === "contains") {
-          query = query.ilike(f.column, `%${f.value}%`);
-        } else if (f.operator === "in") {
-          const rawParts = f.value
-            .split(",")
-            .map((p) => p.trim())
-            .filter(Boolean);
-          const parsed = rawParts.map((p) => parseValueByType(p, colDef.type));
-          if (parsed.length > 0) {
-            query = query.in(f.column, parsed as any[]);
-          }
+        if (queryError) {
+          console.error("Error loading table", selectedTable, queryError);
+          setError(queryError.message);
         } else {
-          const parsed = parseValueByType(f.value, colDef.type);
-          if (parsed === null) continue;
-
-          switch (f.operator) {
-            case "eq":
-              query = query.eq(f.column, parsed);
-              break;
-            case "neq":
-              query = query.neq(f.column, parsed);
-              break;
-            case "gt":
-              query = query.gt(f.column, parsed);
-              break;
-            case "gte":
-              query = query.gte(f.column, parsed);
-              break;
-            case "lt":
-              query = query.lt(f.column, parsed);
-              break;
-            case "lte":
-              query = query.lte(f.column, parsed);
-              break;
-          }
+          setRows(data ?? []);
         }
+      } catch (e: any) {
+        console.error("Unexpected error loading table", selectedTable, e);
+        setError(e.message ?? "Unexpected error loading table.");
+      } finally {
+        setLoading(false);
       }
+    };
 
-      // Pagination
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
+    load();
+  }, [selectedTable]);
 
-      const { data, error, count: newCount } = await query;
+  // --- Helpers for attachments ------------------------------------------------
 
-      if (error) {
-        console.error("Error running report query", error);
-        setRows([]);
-        setCount(null);
-        return;
-      }
+  const isImagePath = (path: string) =>
+    /\.(jpe?g|png|webp|gif)$/i.test(path || "");
 
-      const rawRows = (data ?? []) as GenericRow[];
-
-      // Resolve relation fields (IDs -> names)
-      const relConfig = RELATIONS[selectedTable] || {};
-      const relFields = Object.keys(relConfig).filter((field) =>
-        selectedColumns.includes(field)
-      );
-
-      const relationMaps: Record<string, Record<string, any>> = {};
-
-      if (relFields.length > 0 && rawRows.length > 0) {
-        const relQueries = relFields.map(async (field) => {
-          const cfg = relConfig[field];
-          const ids = Array.from(
-            new Set(
-              rawRows
-                .map((r) => r[field])
-                .filter((v) => v !== null && v !== undefined)
-            )
-          );
-          if (ids.length === 0) {
-            relationMaps[field] = {};
-            return;
-          }
-
-          const { data: relRows, error: relError } = await supabase
-            .from(cfg.table)
-            .select(`id, ${cfg.displayColumn}`)
-            .in("id", ids);
-
-          if (relError) {
-            console.error("Error loading relation data", field, relError);
-            relationMaps[field] = {};
-            return;
-          }
-
-          const map: Record<string, any> = {};
-          (relRows ?? []).forEach((r: any) => {
-            map[r.id] = r[cfg.displayColumn];
-          });
-          relationMaps[field] = map;
-        });
-
-        await Promise.all(relQueries);
-      }
-
-      const processedRows = rawRows.map((row) => {
-        const newRow: GenericRow = { ...row };
-
-        for (const field of relFields) {
-          const original = row[field];
-          if (
-            original != null &&
-            relationMaps[field] &&
-            relationMaps[field][original]
-          ) {
-            newRow[field] = relationMaps[field][original];
-          }
-        }
-        return newRow;
-      });
-
-      setRows(processedRows);
-      setCount(newCount ?? null);
-    } catch (err) {
-      console.error("Unexpected error running report", err);
-      setRows([]);
-      setCount(null);
-    } finally {
-      setLoading(false);
+  const pickFileIcon = (extLower: string | null | undefined) => {
+    switch (extLower) {
+      case "pdf":
+        return IconFileTypePdf;
+      case "doc":
+      case "docx":
+        return IconFileTypeDocx;
+      case "xls":
+      case "xlsx":
+        return IconFileTypeXls;
+      case "ppt":
+      case "pptx":
+        return IconFileTypePpt;
+      default:
+        return IconFile;
     }
-  }, [tableDef, selectedTable, selectedColumns, filters, page, pageSize]);
-
-  const handleExportCsv = () => {
-    if (!rows.length || !tableDef) return;
-
-    const colsToUse =
-      selectedColumns.length > 0 ? selectedColumns : tableDef.columns.map((c) => c.name);
-
-    const header = colsToUse;
-    const csvRows = rows.map((r) =>
-      colsToUse.map((c) => {
-        const v = r[c];
-        if (v === null || v === undefined) return "";
-        return String(v).replace(/"/g, '""');
-      })
-    );
-
-    const csvContent =
-      [header, ...csvRows]
-        .map((r) => r.map((f) => `"${f}"`).join(","))
-        .join("\n");
-
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedTable ?? "report"}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
-  const totalPages =
-    count != null && pageSize > 0
-      ? Math.max(1, Math.ceil(count / pageSize))
-      : 1;
+  // --- Cell rendering --------------------------------------------------------
 
-  const currentColumns =
-    selectedColumns.length > 0
-      ? selectedColumns
-      : tableDef?.columns.map((c) => c.name) ?? [];
+  const renderCell = (row: any, columnName: string) => {
+    const value = row[columnName];
+    const relCfg = selectedTable && RELATIONS[selectedTable]?.[columnName];
 
-  return (
-    <Card withBorder shadow="sm" radius="md" p="lg">
-      <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <div>
-            <Text fw={700} size="lg">
-              Reports &amp; Data Explorer
-            </Text>
+    // 1) Special rendering for attachments column
+    if (columnName === "attachments") {
+      if (!value) {
+        return (
+          <Table.Td key={columnName}>
             <Text size="sm" c="dimmed">
-              Build ad-hoc reports across students, scholarships, and term
-              updates. Select a table, choose columns, add filters, and export
-              your results.
+              –
             </Text>
-          </div>
-          <Group gap="xs" align="flex-end">
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={handleExportCsv}
-              disabled={!rows.length}
-            >
-              Export CSV
-            </Button>
-          </Group>
-        </Group>
+          </Table.Td>
+        );
+      }
 
-        {/* Table & configuration */}
-        <Card withBorder radius="md">
-          <Stack gap="md">
-            <Group align="flex-end" grow>
-              <Select
-                label="Data source"
-                placeholder="Select a table"
-                value={selectedTable}
-                onChange={(value) => {
-                  setSelectedTable(value);
-                  setPage(1);
-                }}
-                data={TABLE_DEFS.map((t) => ({
-                  value: t.value,
-                  label: t.label,
-                }))}
-              />
+      let items: { path: string; is_public?: boolean }[] = [];
 
-              <NumberInput
-                label="Rows per page"
-                min={10}
-                max={500}
-                step={10}
-                value={pageSize}
-                onChange={(val) => {
-                  const v = typeof val === "number" ? val : 50;
-                  setPageSize(v);
-                  setPage(1);
-                }}
-              />
-            </Group>
+      if (typeof value === "string") {
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) items = parsed;
+        } catch {
+          // invalid JSON → treat as no attachments
+        }
+      } else if (Array.isArray(value)) {
+        items = value;
+      }
 
-            {tableDef && (
-              <>
-                <MultiSelect
-                  label="Columns"
-                  description="Select which columns to include in the report."
-                  data={tableDef.columns.map((c) => ({
-                    value: c.name,
-                    label: c.label,
-                  }))}
-                  value={selectedColumns}
-                  onChange={setSelectedColumns}
-                  searchable
-                  clearable
-                  placeholder="All columns"
-                />
+      if (!items.length) {
+        return (
+          <Table.Td key={columnName}>
+            <Text size="sm" c="dimmed">
+              –
+            </Text>
+          </Table.Td>
+        );
+      }
 
-                <Stack gap="xs">
-                  <Group justify="space-between" align="center">
-                    <Text fw={500} size="sm">
-                      Filters
-                    </Text>
-                    <Button
-                      variant="subtle"
-                      size="xs"
-                      onClick={handleAddFilter}
+      return (
+        <Table.Td key={columnName}>
+          <Stack gap={6}>
+            {items.map((att, i) => {
+              const path = att.path ?? "";
+              if (!path) return null;
+
+              const filename = path.split("/").pop() ?? path;
+              const extRaw = filename.split(".").pop() ?? "";
+              const extUpper = extRaw.toUpperCase();
+              const extLower = extRaw.toLowerCase();
+
+              const { data } = supabase.storage
+                .from("progress-photos")
+                .getPublicUrl(path);
+              const publicUrl = data.publicUrl;
+
+              const IconComp = pickFileIcon(extLower);
+              const image = isImagePath(path);
+
+              return (
+                <Group key={`${path}-${i}`} align="flex-start" gap="xs">
+                  {image ? (
+                    <Anchor
+                      href={publicUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: "inline-block" }}
                     >
-                      Add filter
-                    </Button>
-                  </Group>
-
-                  {filters.length === 0 && (
-                    <Text size="xs" c="dimmed">
-                      No filters added. All rows from the selected table will be
-                      shown.
-                    </Text>
+                      <img
+                        src={publicUrl}
+                        alt={filename}
+                        style={{
+                          width: 40,
+                          height: 40,
+                          objectFit: "cover",
+                          borderRadius: 4,
+                          border: "1px solid #ddd",
+                        }}
+                      />
+                    </Anchor>
+                  ) : (
+                    <IconComp size={20} />
                   )}
 
-                  {filters.map((f) => (
-                    <Group key={f.id} gap="xs" align="flex-end">
-                      <Select
-                        label="Column"
-                        style={{ flex: 1 }}
-                        data={tableDef.columns.map((c) => ({
-                          value: c.name,
-                          label: c.label,
-                        }))}
-                        value={f.column}
-                        onChange={(value) =>
-                          handleFilterChange(f.id, "column", value)
-                        }
-                      />
-                      <Select
-                        label="Op"
-                        style={{ width: 120 }}
-                        data={OPERATOR_OPTIONS}
-                        value={f.operator}
-                        onChange={(value) =>
-                          handleFilterChange(
-                            f.id,
-                            "operator",
-                            (value || "eq") as FilterOperator
-                          )
-                        }
-                      />
-                      <TextInput
-                        label="Value"
-                        style={{ flex: 2 }}
-                        placeholder="Filter value"
-                        value={f.value}
-                        onChange={(e) =>
-                          handleFilterChange(f.id, "value", e.currentTarget.value)
-                        }
-                      />
-                      <Button
-                        variant="subtle"
-                        color="red"
-                        size="xs"
-                        onClick={() => handleRemoveFilter(f.id)}
-                      >
-                        Remove
-                      </Button>
+                  <Stack gap={2}>
+                    <Group gap={6}>
+                      <Badge size="xs" variant="light">
+                        {extUpper || "FILE"}
+                      </Badge>
+                      <Text size="xs" lineClamp={1}>
+                        {filename}
+                      </Text>
                     </Group>
+
+                    <Group gap={8}>
+                      <Anchor
+                        href={publicUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        size="xs"
+                      >
+                        Open
+                      </Anchor>
+                      {/* explicit download link */}
+                      <Anchor
+                        component="a"
+                        href={publicUrl}
+                        download={filename}
+                        size="xs"
+                      >
+                        Download
+                      </Anchor>
+                      {!att.is_public && (
+                        <Text size="xs" c="dimmed">
+                          (internal)
+                        </Text>
+                      )}
+                    </Group>
+                  </Stack>
+                </Group>
+              );
+            })}
+          </Stack>
+        </Table.Td>
+      );
+    }
+
+    // 2) Relation-based clickable link (e.g. student_id → /admin/students/<id>)
+    if (relCfg && value != null) {
+      const linkBase = relCfg.linkBase;
+      return (
+        <Table.Td key={columnName}>
+          {linkBase ? (
+            <Anchor component={Link} to={`${linkBase}${value}`} size="sm">
+              {String(value)}
+            </Anchor>
+          ) : (
+            <Text size="sm">{String(value)}</Text>
+          )}
+        </Table.Td>
+      );
+    }
+
+    // 3) Boolean as badges
+    if (typeof value === "boolean") {
+      return (
+        <Table.Td key={columnName}>
+          <Badge size="sm" color={value ? "green" : "gray"} variant="light">
+            {value ? "Yes" : "No"}
+          </Badge>
+        </Table.Td>
+      );
+    }
+
+    // 4) Generic fallback
+    return (
+      <Table.Td key={columnName}>
+        <Text size="sm">{value == null ? "–" : String(value)}</Text>
+      </Table.Td>
+    );
+  };
+
+  // --- Render ----------------------------------------------------------------
+
+  return (
+    <Stack>
+      <Group justify="space-between" mb="sm">
+        <div>
+          <Title order={3}>Admin – Reports & term updates</Title>
+          <Text size="sm" c="dimmed">
+            Browse term update records and their attachments (photos, PDFs, and
+            other documents).
+          </Text>
+        </div>
+
+        <Select
+          label="Table"
+          placeholder="Select table"
+          value={selectedTable}
+          onChange={(val) => setSelectedTable(val || "term_updates")}
+          data={TABLE_DEFS.map((t) => ({
+            value: t.value,
+            label: t.label,
+          }))}
+          miw={260}
+        />
+      </Group>
+
+      {loading ? (
+        <Loader />
+      ) : error ? (
+        <Text c="red" size="sm">
+          {error}
+        </Text>
+      ) : !currentTableDef ? (
+        <Text size="sm">No table selected.</Text>
+      ) : (
+        <Card withBorder padding="sm">
+          <ScrollArea>
+            <Table striped highlightOnHover withTableBorder withColumnBorders>
+              <Table.Thead>
+                <Table.Tr>
+                  {currentColumns.map((col) => (
+                    <Table.Th key={col.name}>{col.label}</Table.Th>
                   ))}
-                </Stack>
-
-                <Group justify="flex-end">
-                  <Button
-                    onClick={() => {
-                      setPage(1);
-                      runQuery();
-                    }}
-                    loading={loading}
-                    disabled={!selectedTable}
-                  >
-                    Run report
-                  </Button>
-                </Group>
-              </>
-            )}
-          </Stack>
-        </Card>
-
-        {/* Results */}
-        <Card withBorder radius="md">
-          <Stack gap="sm">
-            <Group justify="space-between" align="center">
-              <Text fw={500}>Results</Text>
-              <Group gap="xs" align="center">
-                {count != null && (
-                  <Text size="xs" c="dimmed">
-                    {count} rows total
-                  </Text>
-                )}
-                <Group gap="4" align="center">
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    disabled={page <= 1 || loading}
-                    onClick={() => {
-                      setPage((p) => Math.max(1, p - 1));
-                      // runQuery will be triggered manually
-                    }}
-                  >
-                    Previous
-                  </Button>
-                  <Text size="xs">
-                    Page {page} / {totalPages}
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="subtle"
-                    disabled={page >= totalPages || loading}
-                    onClick={() => {
-                      setPage((p) => Math.min(totalPages, p + 1));
-                    }}
-                  >
-                    Next
-                  </Button>
-                </Group>
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={runQuery}
-                  disabled={!selectedTable}
-                  loading={loading}
-                >
-                  Refresh
-                </Button>
-              </Group>
-            </Group>
-
-            {loading && (
-              <Group justify="center" mt="md">
-                <Loader />
-              </Group>
-            )}
-
-            {!loading && (!rows || rows.length === 0) && (
-              <Text size="sm" c="dimmed">
-                No data to display yet. Configure a report above and click{" "}
-                <strong>Run report</strong>.
-              </Text>
-            )}
-
-            {!loading && rows.length > 0 && (
-              <ScrollArea w="100%">
-                <Table
-                  striped
-                  highlightOnHover
-                  withTableBorder
-                  withColumnBorders
-                  horizontalSpacing="xs"
-                  verticalSpacing="xs"
-                >
-                  <Table.Thead>
-                    <Table.Tr>
-                      {currentColumns.map((c) => {
-                        const colDef = tableDef?.columns.find(
-                          (col) => col.name === c
-                        );
-                        return (
-                          <Table.Th key={c}>{colDef?.label ?? c}</Table.Th>
-                        );
-                      })}
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {rows.length === 0 ? (
+                  <Table.Tr>
+                    <Table.Td colSpan={currentColumns.length}>
+                      <Text size="sm" c="dimmed">
+                        No records found.
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ) : (
+                  rows.map((row, rowIdx) => (
+                    <Table.Tr key={row.id ?? rowIdx}>
+                      {currentColumns.map((col) =>
+                        renderCell(row, col.name)
+                      )}
                     </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {rows.map((row, idx) => (
-                      <Table.Tr key={idx}>
-                        {currentColumns.map((c) => {
-                          const value = row[c];
-                          const relCfg =
-                            selectedTable && RELATIONS[selectedTable]?.[c];
-
-                          // clickable link if we have a linkBase and the original id is present somewhere
-                          if (relCfg && value != null) {
-                            // this assumes the id and label are aligned; for generic use we just link by row[c] is label,
-                            // but in many cases ID will also be available as another selected column if needed.
-                            const linkBase = relCfg.linkBase;
-                            return (
-                              <Table.Td key={c}>
-                                {linkBase ? (
-                                  <Anchor
-                                    component={Link}
-                                    to={`${linkBase}${row.id ?? ""}`}
-                                    size="sm"
-                                  >
-                                    {String(value)}
-                                  </Anchor>
-                                ) : (
-                                  <Text size="sm">{String(value)}</Text>
-                                )}
-                              </Table.Td>
-                            );
-                          }
-
-                          if (typeof value === "boolean") {
-                            return (
-                              <Table.Td key={c}>
-                                <Badge
-                                  size="sm"
-                                  color={value ? "green" : "gray"}
-                                  variant="light"
-                                >
-                                  {value ? "Yes" : "No"}
-                                </Badge>
-                              </Table.Td>
-                            );
-                          }
-
-                          return (
-                            <Table.Td key={c}>
-                              <Text size="sm">
-                                {value === null || value === undefined
-                                  ? "–"
-                                  : String(value)}
-                              </Text>
-                            </Table.Td>
-                          );
-                        })}
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
-          </Stack>
+                  ))
+                )}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
         </Card>
-      </Stack>
-    </Card>
+      )}
+    </Stack>
   );
 };
 

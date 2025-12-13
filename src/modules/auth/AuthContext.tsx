@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setProfile(null);
         setRole(null);
         setRoles([]);
-      }
+        navigation.navigate("Login");       }
     });
 
     return () => {

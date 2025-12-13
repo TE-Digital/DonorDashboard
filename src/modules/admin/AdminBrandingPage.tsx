@@ -99,7 +99,7 @@ export const AdminBrandingPage: React.FC = () => {
       if (updateError) throw updateError;
 
       // Force-refresh theme / branding context
-      window.location.reload();
+     // window.location.reload();
     } catch (e: any) {
       console.error(e);
       setError(e.message ?? "Error saving branding settings");

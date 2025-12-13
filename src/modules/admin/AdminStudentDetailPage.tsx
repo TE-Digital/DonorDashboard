@@ -1,6 +1,7 @@
 // src/modules/admin/AdminStudentDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import {
+  Anchor,  
   Card,
   Stack,
   Text,
@@ -105,6 +106,7 @@ export const AdminStudentDetailPage: React.FC = () => {
   // scholarships + reports
   const [scholarships, setScholarships] = useState<ScholarshipAwardRow[]>([]);
   const [reports, setReports] = useState<ReportRow[]>([]);
+  
 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -813,54 +815,83 @@ export const AdminStudentDetailPage: React.FC = () => {
           </Group>
           <Divider />
 
-          {isNew ? (
-            <Text size="sm" c="dimmed">
-              Save the student first, then you can add scholarships.
-            </Text>
-          ) : scholarships.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No scholarships recorded.
-            </Text>
-          ) : (
-            <Table striped highlightOnHover withTableBorder withColumnBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Period</Table.Th>
-                  <Table.Th>Scholarship</Table.Th>
-                  <Table.Th>Amount / period</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Payment date</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {scholarships.map((aw) => (
-                  <Table.Tr key={aw.id}>
-                    <Table.Td>
-                      {aw.period_start || "?"} – {aw.period_end || "?"}
-                    </Table.Td>
-                    <Table.Td>{aw.grant_type_name || aw.status}</Table.Td>
-                    <Table.Td>
-                      {aw.amount_for_period != null
-                        ? `${aw.amount_for_period} ${aw.currency || ""}`
-                        : "-"}
-                    </Table.Td>
-                    <Table.Td>
-                      {aw.is_paid ? (
-                        <Badge color="green" size="sm">
-                          Paid
-                        </Badge>
-                      ) : (
-                        <Badge color="yellow" size="sm">
-                          Pending
-                        </Badge>
-                      )}
-                    </Table.Td>
-                    <Table.Td>{aw.payment_date || "-"}</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
+{isNew ? (
+  <Text size="sm" c="dimmed">
+    Save the student first, then you can add scholarships.
+  </Text>
+) : scholarships.length === 0 ? (
+  <Text size="sm" c="dimmed">
+    No scholarships recorded.
+  </Text>
+) : (
+  <Table striped highlightOnHover withTableBorder withColumnBorders>
+    <Table.Thead>
+      <Table.Tr>
+        <Table.Th>Period</Table.Th>
+        <Table.Th>Scholarship</Table.Th>
+        <Table.Th>Amount / period</Table.Th>
+        <Table.Th>Status</Table.Th>
+      </Table.Tr>
+    </Table.Thead>
+
+    <Table.Tbody>
+      {scholarships.map((aw) => {
+        // Status helper
+        const statusLabel = aw.status ?? "unknown";
+        const statusColor =
+          statusLabel === "active"
+            ? "green"
+            : statusLabel === "inactive"
+            ? "red"
+            : "gray";
+
+        return (
+          <Table.Tr key={aw.id}>
+            {/* PERIOD (clickable) */}
+            <Table.Td>
+              <Anchor
+                component={Link}
+                to={`/admin/scholarships/${aw.id}/edit`}
+                size="sm"
+                underline="always"
+              >
+                {aw.period_start || "?"} – {aw.period_end || "?"}
+              </Anchor>
+            </Table.Td>
+
+            {/* SCHOLARSHIP NAME (clickable also) */}
+            <Table.Td>
+              <Anchor
+                component={Link}
+                to={`/admin/scholarships/${aw.id}/edit`}
+                size="sm"
+                underline="always"
+              >
+                {aw.grant_type_name || statusLabel}
+              </Anchor>
+            </Table.Td>
+
+            {/* AMOUNT */}
+            <Table.Td>
+              <Text size="sm">
+                {aw.amount_for_period != null
+                  ? `${aw.amount_for_period} ${aw.currency || ""}`
+                  : "-"}
+              </Text>
+            </Table.Td>
+
+            {/* STATUS */}
+            <Table.Td>
+              <Badge size="sm" color={statusColor} variant="light">
+                {statusLabel}
+              </Badge>
+            </Table.Td>
+          </Table.Tr>
+        );
+      })}
+    </Table.Tbody>
+  </Table>
+)}
         </Stack>
 
         {/* Reports */}

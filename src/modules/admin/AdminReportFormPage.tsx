@@ -1,6 +1,9 @@
+// src/modules/admin/AdminReportFormPage.tsx 
 import React, { useEffect, useState } from "react";
 import {
   ActionIcon,
+  Anchor,
+  Badge,
   Box,
   Button,
   Card,
@@ -14,8 +17,6 @@ import {
   Textarea,
   TextInput,
   Title,
-  Badge,
-  Anchor,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -30,8 +31,11 @@ import {
   IconFileTypePpt,
 } from "@tabler/icons-react";
 
+const STORAGE_BUCKET = "progress-photos"; 
+
 type RouteParams = {
-  reportId: string;
+  reportId?: string;
+  studentId?: string;
 };
 
 type ExistingAttachment = {
@@ -82,17 +86,21 @@ const parseDate = (value: string | null | undefined): Date | null => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
-export const AdminEditReportPage: React.FC = () => {
-  const { reportId } = useParams<RouteParams>();
+export const AdminReportFormPage: React.FC = () => {
+  const { reportId, studentId: studentIdParam } = useParams<RouteParams>();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
+  const isEditMode = !!reportId;
+
+  const [loading, setLoading] = useState<boolean>(isEditMode);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // core fields
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [reportDate, setReportDate] = useState<Date | null>(null);
+  const [studentId, setStudentId] = useState<string | null>(
+    studentIdParam ?? null
+  );
+  const [reportDate, setReportDate] = useState<Date | null>(new Date());
   const [coversStart, setCoversStart] = useState<Date | null>(null);
   const [coversEnd, setCoversEnd] = useState<Date | null>(null);
 
@@ -109,16 +117,15 @@ export const AdminEditReportPage: React.FC = () => {
   const [existingAttachments, setExistingAttachments] = useState<
     ExistingAttachment[]
   >([]);
-  const [existingPublicFlags, setExistingPublicFlags] = useState<boolean[]>(
-    []
-  );
+  const [existingPublicFlags, setExistingPublicFlags] = useState<boolean[]>([]);
   const [newAttachments, setNewAttachments] = useState<NewAttachmentDraft[]>(
     []
   );
 
+  // ───────────────────────────────── Load for EDIT mode ──────────────────────
   useEffect(() => {
     const load = async () => {
-      if (!reportId) return;
+      if (!isEditMode || !reportId) return;
       setLoading(true);
       setError(null);
 
@@ -142,7 +149,7 @@ export const AdminEditReportPage: React.FC = () => {
         }
 
         // Map fields
-        setStudentId(data.student_id ?? null);
+        setStudentId(data.student_id ?? studentIdParam ?? null);
         setReportDate(parseDate(data.report_date));
         setCoversStart(parseDate(data.covers_start));
         setCoversEnd(parseDate(data.covers_end));
@@ -202,9 +209,9 @@ export const AdminEditReportPage: React.FC = () => {
     };
 
     load();
-  }, [reportId]);
+  }, [isEditMode, reportId, studentIdParam]);
 
-  // Add new files (like AdminNewReportPage)
+  // ───────────────────────────── File handling (both modes) ──────────────────
   const handleFilesChange = (files: File[] | null) => {
     if (!files || files.length === 0) return;
 
@@ -259,16 +266,20 @@ export const AdminEditReportPage: React.FC = () => {
     if (studentId) {
       navigate(`/admin/students/${studentId}`);
     } else {
-      navigate("/admin/students");
+      navigate("/admin/reports");
     }
   };
 
+  // ───────────────────────────────── Submit (create / update) ────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reportId) return;
 
     if (!reportDate) {
       setError("Please choose a report date.");
+      return;
+    }
+    if (!studentId) {
+      setError("Missing student ID for this report.");
       return;
     }
 
@@ -293,7 +304,7 @@ export const AdminEditReportPage: React.FC = () => {
               .upload(filePath, p.file);
 
             if (error) {
-              console.error("Error uploading attachment (edit)", error);
+              console.error("Error uploading attachment", error);
               throw error;
             }
 
@@ -307,20 +318,27 @@ export const AdminEditReportPage: React.FC = () => {
         newUploaded.push(...uploads);
       }
 
-      // 2) Combine existing + new attachments
-      const combinedAttachments: { path: string; is_public: boolean }[] = [
-        ...existingAttachments.map((att, idx) => ({
-          path: att.path,
-          is_public:
-            typeof existingPublicFlags[idx] === "boolean"
-              ? existingPublicFlags[idx]
-              : att.is_public ?? true,
-        })),
-        ...newUploaded,
-      ];
+      // 2) Combine existing + new attachments (edit) OR only new (create)
+      let combinedAttachments: { path: string; is_public: boolean }[] = [];
+
+      if (isEditMode) {
+        combinedAttachments = [
+          ...existingAttachments.map((att, idx) => ({
+            path: att.path,
+            is_public:
+              typeof existingPublicFlags[idx] === "boolean"
+                ? existingPublicFlags[idx]
+                : att.is_public ?? true,
+          })),
+          ...newUploaded,
+        ];
+      } else {
+        combinedAttachments = [...newUploaded];
+      }
 
       // 3) Build payload
       const payload: any = {
+        student_id: studentId,
         grade: grade || null,
         grade_text: gradeText || null,
         grade_numeric:
@@ -334,38 +352,58 @@ export const AdminEditReportPage: React.FC = () => {
         attachments: combinedAttachments.length > 0 ? combinedAttachments : null,
       };
 
-      const { error: updateError } = await supabase
-        .from("term_updates")
-        .update(payload)
-        .eq("id", reportId);
+      if (isEditMode && reportId) {
+        const { error: updateError } = await supabase
+          .from("term_updates")
+          .update(payload)
+          .eq("id", reportId);
 
-      if (updateError) {
-        console.error("Error updating term_update (admin edit)", updateError);
-        setError(updateError.message);
-        setSubmitting(false);
-        return;
+        if (updateError) {
+          console.error("Error updating term_update", updateError);
+          setError(updateError.message);
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from("term_updates")
+          .insert(payload);
+
+        if (insertError) {
+          console.error("Error inserting term_update", insertError);
+          setError(insertError.message);
+          setSubmitting(false);
+          return;
+        }
       }
 
       navigateBack();
     } catch (err: any) {
-      console.error("Unexpected error updating report (admin)", err);
-      setError(err.message ?? "Unexpected error while updating report.");
+      console.error("Unexpected error saving report (admin)", err);
+      setError(err.message ?? "Unexpected error while saving report.");
       setSubmitting(false);
     }
   };
+
+  // ───────────────────────────────────────── UI ──────────────────────────────
 
   if (loading) {
     return <Loader />;
   }
 
+  const title = isEditMode
+    ? "Edit progress report (admin)"
+    : "Create progress report (admin)";
+
   return (
     <Stack>
       <Group justify="space-between">
         <div>
-          <Title order={3}>Edit progress report (admin)</Title>
+          <Title order={3}>{title}</Title>
           <Text size="sm" c="dimmed">
-            Update term / progress report fields and manage attachments (photos
-            and documents).
+            {isEditMode
+              ? "Update term / progress report fields and manage attachments (photos and documents)."
+              : "Create a new term / progress report and add attachments (photos and documents)."}
           </Text>
         </div>
         <Button
@@ -450,103 +488,109 @@ export const AdminEditReportPage: React.FC = () => {
             onChange={(e) => setInternalNote(e.currentTarget.value)}
           />
 
-          {/* Existing attachments */}
-          <Stack gap="xs">
-            <Text size="sm" fw={500}>
-              Existing attachments
-            </Text>
-            {existingAttachments.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                No existing attachments.
+          {/* Existing attachments – only in EDIT mode */}
+          {isEditMode && (
+            <Stack gap="xs">
+              <Text size="sm" fw={500}>
+                Existing attachments
               </Text>
-            ) : (
-              <Stack gap={6}>
-                {existingAttachments.map((att, idx) => {
-                  const path = att.path;
-                  const filename = path.split("/").pop() ?? path;
-                  const extRaw = filename.split(".").pop() ?? "";
-                  const extUpper = extRaw.toUpperCase();
-                  const extLower = extRaw.toLowerCase();
+              {existingAttachments.length === 0 ? (
+                <Text size="sm" c="dimmed">
+                  No existing attachments.
+                </Text>
+              ) : (
+                <Stack gap={6}>
+                  {existingAttachments.map((att, idx) => {
+                    const path = att.path;
+                    const filename = path.split("/").pop() ?? path;
+                    const extRaw = filename.split(".").pop() ?? "";
+                    const extUpper = extRaw.toUpperCase();
+                    const extLower = extRaw.toLowerCase();
 
-                  const { data } = supabase.storage
-                    .from("progress-photos")
-                    .getPublicUrl(path);
-                  const publicUrl = data.publicUrl;
+                    const { data } = supabase.storage
+                      .from("progress-photos")
+                      .getPublicUrl(path);
+                    const publicUrl = data.publicUrl;
 
-                  const IconComp = pickFileIcon(extLower);
-                  const image = isImagePath(path);
+                    const IconComp = pickFileIcon(extLower);
+                    const image = isImagePath(path);
 
-                  return (
-                    <Group key={`${path}-${idx}`} align="flex-start" gap="xs">
-                      {image ? (
-                        <Anchor
-                          href={publicUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ display: "inline-block" }}
-                        >
-                          <img
-                            src={publicUrl}
-                            alt={filename}
-                            style={{
-                              width: 40,
-                              height: 40,
-                              objectFit: "cover",
-                              borderRadius: 4,
-                              border: "1px solid #ddd",
-                            }}
-                          />
-                        </Anchor>
-                      ) : (
-                        <IconComp size={20} />
-                      )}
-
-                      <Stack gap={2}>
-                        <Group gap={6}>
-                          <Badge size="xs" variant="light">
-                            {extUpper || "FILE"}
-                          </Badge>
-                          <Text size="xs" lineClamp={1}>
-                            {filename}
-                          </Text>
-                        </Group>
-
-                        <Group gap={8}>
+                    return (
+                      <Group
+                        key={`${path}-${idx}`}
+                        align="flex-start"
+                        gap="xs"
+                      >
+                        {image ? (
                           <Anchor
                             href={publicUrl}
                             target="_blank"
                             rel="noreferrer"
-                            size="xs"
+                            style={{ display: "inline-block" }}
                           >
-                            Open
+                            <img
+                              src={publicUrl}
+                              alt={`Attachment ${idx + 1}`}
+                              style={{
+                                width: 40,
+                                height: 40,
+                                objectFit: "cover",
+                                borderRadius: 4,
+                                border: "1px solid #ddd",
+                              }}
+                            />
                           </Anchor>
-                          <Anchor
-                            component="a"
-                            href={publicUrl}
-                            download={filename}
-                            size="xs"
-                          >
-                            Download
-                          </Anchor>
-                          <Switch
-                            size="xs"
-                            label="Share with donor"
-                            checked={existingPublicFlags[idx]}
-                            onChange={(e) =>
-                              handleToggleExistingPublic(
-                                idx,
-                                e.currentTarget.checked
-                              )
-                            }
-                          />
-                        </Group>
-                      </Stack>
-                    </Group>
-                  );
-                })}
-              </Stack>
-            )}
-          </Stack>
+                        ) : (
+                          <IconComp size={20} />
+                        )}
+
+                        <Stack gap={2}>
+                          <Group gap={6}>
+                            <Badge size="xs" variant="light">
+                              {extUpper || "FILE"}
+                            </Badge>
+                            <Text size="xs" lineClamp={1}>
+                                Attachment {idx + 1}
+                            </Text>
+                          </Group>
+
+                          <Group gap={8}>
+                            <Anchor
+                              href={publicUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              size="xs"
+                            >
+                              Open
+                            </Anchor>
+                            <Anchor
+                              component="a"
+                              href={publicUrl}
+                              download={filename}
+                              size="xs"
+                            >
+                              Download
+                            </Anchor>
+                            <Switch
+                              size="xs"
+                              label="Share with donor"
+                              checked={existingPublicFlags[idx]}
+                              onChange={(e) =>
+                                handleToggleExistingPublic(
+                                  idx,
+                                  e.currentTarget.checked
+                                )
+                              }
+                            />
+                          </Group>
+                        </Stack>
+                      </Group>
+                    );
+                  })}
+                </Stack>
+              )}
+            </Stack>
+          )}
 
           {/* New attachments */}
           <Stack gap="xs">
@@ -662,7 +706,7 @@ export const AdminEditReportPage: React.FC = () => {
               Cancel
             </Button>
             <Button type="submit" loading={submitting}>
-              Save changes
+              {isEditMode ? "Save changes" : "Create report"}
             </Button>
           </Group>
         </Stack>
@@ -671,4 +715,4 @@ export const AdminEditReportPage: React.FC = () => {
   );
 };
 
-export default AdminEditReportPage;
+export default AdminReportFormPage;

@@ -18,24 +18,27 @@ import {
   Select,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
-import {
-  useNavigate,
-  useSearchParams,
-  Link,
-} from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { IconTrash } from "@tabler/icons-react";
+import { IconTrash, IconFileDescription } from "@tabler/icons-react";
 
 type StudentOption = {
   value: string;
   label: string;
 };
 
-type ProgressPhotoDraft = {
+type ProgressAttachmentDraft = {
   file: File;
   isPublic: boolean;
-  previewUrl: string;
+  previewUrl?: string; // only used for images
 };
+
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const ACCEPTED_TYPES =
+  "image/*,application/pdf," +
+  "application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+  "application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
+  "application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
 export const AdminNewReportPage: React.FC = () => {
   const navigate = useNavigate();
@@ -45,9 +48,7 @@ export const AdminNewReportPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
-  const [studentId, setStudentId] = useState<string | null>(
-    studentIdFromQuery
-  );
+  const [studentId, setStudentId] = useState<string | null>(studentIdFromQuery);
 
   // form state
   const [reportDate, setReportDate] = useState<Date | null>(new Date());
@@ -63,7 +64,9 @@ export const AdminNewReportPage: React.FC = () => {
   const [donorComment, setDonorComment] = useState("");
   const [internalNote, setInternalNote] = useState("");
 
-  const [photos, setPhotos] = useState<ProgressPhotoDraft[]>([]);
+  const [attachmentsDraft, setAttachmentsDraft] = useState<
+    ProgressAttachmentDraft[]
+  >([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,15 +93,9 @@ export const AdminNewReportPage: React.FC = () => {
 
         setStudentOptions(options);
 
-        // if query param matches a student, keep it; otherwise leave null
         if (studentIdFromQuery) {
-          const exists = options.some(
-            (o) => o.value === studentIdFromQuery
-          );
-          if (!exists) {
-            // invalid studentId in query → clear it
-            setStudentId(null);
-          }
+          const exists = options.some((o) => o.value === studentIdFromQuery);
+          if (!exists) setStudentId(null);
         }
       } catch (err: any) {
         console.error("Error loading students for admin new report", err);
@@ -114,13 +111,24 @@ export const AdminNewReportPage: React.FC = () => {
   const toIsoDate = (d: Date | null): string | null =>
     d ? d.toISOString().slice(0, 10) : null;
 
-  /** Add new photos (additive) */
+  /** Add new files (additive, images + pdf/doc, <= 5MB each) */
   const handleFilesChange = (files: File[] | null) => {
     if (!files || files.length === 0) return;
 
-    setPhotos((prev) => {
+    setAttachmentsDraft((prev) => {
       const next = [...prev];
       for (const f of files) {
+        if (f.size > MAX_FILE_SIZE_BYTES) {
+          // skip and show error
+          console.warn(
+            `File ${f.name} skipped because it exceeds 5MB (${f.size} bytes).`
+          );
+          setError(
+            `Some files were skipped because they exceed 5MB. (e.g. ${f.name})`
+          );
+          continue;
+        }
+
         const key = `${f.name}-${f.size}`;
         const exists = next.some(
           (p) => `${p.file.name}-${p.file.size}` === key
@@ -130,21 +138,23 @@ export const AdminNewReportPage: React.FC = () => {
         next.push({
           file: f,
           isPublic: true,
-          previewUrl: URL.createObjectURL(f),
+          previewUrl: f.type.startsWith("image/")
+            ? URL.createObjectURL(f)
+            : undefined,
         });
       }
       return next;
     });
   };
 
-  const handleTogglePhotoPublic = (idx: number, value: boolean) => {
-    setPhotos((prev) =>
+  const handleToggleAttachmentPublic = (idx: number, value: boolean) => {
+    setAttachmentsDraft((prev) =>
       prev.map((p, i) => (i === idx ? { ...p, isPublic: value } : p))
     );
   };
 
-  const handleRemovePhoto = (idx: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== idx));
+  const handleRemoveAttachment = (idx: number) => {
+    setAttachmentsDraft((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const navigateBack = () => {
@@ -173,13 +183,13 @@ export const AdminNewReportPage: React.FC = () => {
     setError(null);
 
     try {
-      // 1) Upload photos to "progress-photos" bucket and build attachments
+      // 1) Upload attachments to "progress-photos" bucket and build attachments array
       const attachments: { path: string; is_public: boolean }[] = [];
 
-      if (photos.length > 0) {
+      if (attachmentsDraft.length > 0) {
         const uploads = await Promise.all(
-          photos.map(async (p) => {
-            const ext = p.file.name.split(".").pop() || "jpg";
+          attachmentsDraft.map(async (p) => {
+            const ext = p.file.name.split(".").pop() || "bin";
             const filePath = `${studentId}/${Date.now()}-${Math.random()
               .toString(36)
               .slice(2)}.${ext}`;
@@ -189,7 +199,7 @@ export const AdminNewReportPage: React.FC = () => {
               .upload(filePath, p.file);
 
             if (error) {
-              console.error("Error uploading progress photo", error);
+              console.error("Error uploading progress attachment", error);
               throw error;
             }
 
@@ -230,7 +240,6 @@ export const AdminNewReportPage: React.FC = () => {
         return;
       }
 
-      // 3) Go back to student
       navigateBack();
     } catch (err: any) {
       console.error("Unexpected error creating report (admin)", err);
@@ -250,8 +259,8 @@ export const AdminNewReportPage: React.FC = () => {
           <Title order={3}>New progress report (admin)</Title>
           <Text size="sm" c="dimmed">
             Create a new term / progress report for any student, including
-            comments and photos. This will appear in teacher dashboards and
-            overdue calculations.
+            comments, photos and documents. This will appear in teacher
+            dashboards and overdue calculations.
           </Text>
         </div>
         <Button
@@ -315,9 +324,7 @@ export const AdminNewReportPage: React.FC = () => {
               placeholder="0–100 or similar (optional)"
               value={gradeNumeric}
               onChange={(val) =>
-                setGradeNumeric(
-                  typeof val === "number" ? val : undefined
-                )
+                setGradeNumeric(typeof val === "number" ? val : undefined)
               }
               min={0}
             />
@@ -349,87 +356,100 @@ export const AdminNewReportPage: React.FC = () => {
             onChange={(e) => setInternalNote(e.currentTarget.value)}
           />
 
-          {/* Photos */}
+          {/* Attachments */}
           <Stack gap="xs">
             <Text size="sm" fw={500}>
-              Photos
+              Photos / files (max 5 MB each)
             </Text>
             <FileInput
               multiple
-              accept="image/*"
-              placeholder="Select one or more photos"
+              accept={ACCEPTED_TYPES}
+              placeholder="Select photos or documents"
               onChange={handleFilesChange}
             />
 
-            {photos.length > 0 && (
+            {attachmentsDraft.length > 0 && (
               <Group gap="sm">
-                {photos.map((p, idx) => (
-                  <Box
-                    key={`${p.file.name}-${idx}`}
-                    style={{
-                      width: 120,
-                      borderRadius: 8,
-                      border: "1px solid #ddd",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <img
-                      src={p.previewUrl}
-                      alt={p.file.name}
+                {attachmentsDraft.map((p, idx) => {
+                  const isImage = p.file.type.startsWith("image/");
+                  const ext =
+                    p.file.name.split(".").pop()?.toUpperCase() ?? "FILE";
+                  const sizeMb = (p.file.size / (1024 * 1024)).toFixed(2);
+
+                  return (
+                    <Box
+                      key={`${p.file.name}-${idx}`}
                       style={{
-                        width: "100%",
-                        height: 90,
-                        objectFit: "cover",
+                        width: 150,
+                        borderRadius: 8,
+                        border: "1px solid #ddd",
+                        overflow: "hidden",
+                        position: "relative",
+                        backgroundColor: "#f8f9fa",
                       }}
-                    />
-                    <Box p={6}>
-                      <Switch
-                        size="xs"
-                        label="Share with donor"
-                        checked={p.isPublic}
-                        onChange={(e) =>
-                          handleTogglePhotoPublic(
-                            idx,
-                            e.currentTarget.checked
-                          )
-                        }
-                      />
-                    </Box>
-                    <ActionIcon
-                      size="sm"
-                      variant="subtle"
-                      color="red"
-                      aria-label="Remove photo"
-                      style={{
-                        position: "absolute",
-                        top: 4,
-                        right: 4,
-                        backgroundColor: "white",
-                      }}
-                      onClick={() => handleRemovePhoto(idx)}
                     >
-                      <IconTrash size={14} />
-                    </ActionIcon>
-                    {!p.isPublic && (
-                      <Box
+                      {isImage && p.previewUrl ? (
+                        <img
+                          src={p.previewUrl}
+                          alt={p.file.name}
+                          style={{
+                            width: "100%",
+                            height: 100,
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <Box
+                          style={{
+                            height: 100,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <IconFileDescription size={26} />
+                          <Text size="xs" fw={500}>
+                            {ext}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {sizeMb} MB
+                          </Text>
+                        </Box>
+                      )}
+
+                      <Box p={6}>
+                        <Switch
+                          size="xs"
+                          label="Share with donor"
+                          checked={p.isPublic}
+                          onChange={(e) =>
+                            handleToggleAttachmentPublic(
+                              idx,
+                              e.currentTarget.checked
+                            )
+                          }
+                        />
+                      </Box>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="red"
+                        aria-label="Remove file"
                         style={{
                           position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          background: "rgba(0,0,0,0.55)",
-                          color: "white",
-                          fontSize: 9,
-                          padding: "2px 4px",
-                          textAlign: "center",
+                          top: 4,
+                          right: 4,
+                          backgroundColor: "white",
                         }}
+                        onClick={() => handleRemoveAttachment(idx)}
                       >
-                        Internal only
-                      </Box>
-                    )}
-                  </Box>
-                ))}
+                        <IconTrash size={14} />
+                      </ActionIcon>
+                    </Box>
+                  );
+                })}
               </Group>
             )}
           </Stack>

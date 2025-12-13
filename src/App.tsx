@@ -30,8 +30,9 @@ import { AdminCreateGrantTypePage } from "./modules/admin/AdminCreateGrantTypePa
 import { AdminEditGrantTypePage } from "./modules/admin/AdminEditGrantTypePage";
 import { AdminGrantTypesOverviewPage } from "./modules/admin/AdminGrantTypesOverviewPage";
 import { AdminContactRequestsPage } from "./modules/admin/AdminContactRequestsPage";
-import { AdminReportsPage } from "./modules/admin/AdminReportsPage";
+import  AdminReportsPage  from "./modules/admin/AdminReportsPage";
 
+import { AdminReportFormPage } from "./modules/admin/AdminReportFormPage";
 import { AdminNewReportPage } from "./modules/admin/AdminNewReportPage";
 import { AdminEditReportPage } from "./modules/admin/AdminEditReportPage";
 
@@ -152,7 +153,7 @@ const App: React.FC = () => {
             <Route path="reports/new" element={<AdminNewReportPage />} />
             <Route
               path="reports/:reportId/edit"
-              element={<AdminEditReportPage />}
+              element={<AdminReportFormPage />}
             />
 
             {/* Branding */}
