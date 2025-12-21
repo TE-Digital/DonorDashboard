@@ -3,9 +3,13 @@ import React, { useEffect, useState } from "react";
 import {
   Alert,
   Anchor,
+  Avatar,
   Button,
   Card,
   Center,
+  Divider,
+  FileInput,
+  Grid,
   Group,
   Loader,
   Select,
@@ -38,6 +42,7 @@ type StudentDetail = {
   contact: StudentContact | null;
   birthdate: string | null;
   school_id: string | null;
+  profile_photo_path: string | null;
   school?: {
     id: string;
     name: string | null;
@@ -69,6 +74,13 @@ export const TeacherStudentDetailPage: React.FC = () => {
   const [schools, setSchools] = useState<SchoolOption[]>([]);
   const [reports, setReports] = useState<ReportRow[]>([]);
 
+  // profile photo
+  const [profilePhotoPath, setProfilePhotoPath] = useState<string | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [profilePhotoFile, setProfilePhotoFile] = useState<File | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // 
   // editable fields
   const [name, setName] = useState("");
   const [nickname, setNickname] = useState("");
@@ -106,6 +118,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
             name,
             nickname,
             grade_level,
+            profile_photo_path,
             village,
             bio,
             monthly_support_expected,
@@ -145,6 +158,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
             ? String(s.monthly_support_expected)
             : ""
         );
+        setProfilePhotoPath(s.profile_photo_path ?? null);
         setSchoolId(s.school_id);
 
         if (s.birthdate) {
@@ -207,6 +221,66 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
     load();
   }, [studentId]);
+
+  // ---------- derive public URL for photo ----------
+  useEffect(() => {
+    if (profilePhotoPath) {
+      const { data } = supabase.storage
+        .from("student-profiles")
+        .getPublicUrl(profilePhotoPath);
+      setProfilePhotoUrl(data.publicUrl);
+    } else {
+      setProfilePhotoUrl(null);
+    }
+  }, [profilePhotoPath]);
+
+  // ---------- upload new photo ----------
+  const handlePhotoUpload = async (file: File | null) => {
+    if (!file) return;
+    if (!studentId) return;
+
+    setUploadingPhoto(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${studentId}.${fileExt}`;
+      const filePath = `students/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("student-profiles")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error(uploadError);
+        setError("Photo upload failed.");
+        return;
+      }
+
+      const { error: updatePhotoError } = await supabase
+        .from("students")
+        .update({ profile_photo_path: filePath })
+        .eq("id", studentId);
+
+      if (updatePhotoError) {
+        console.error(updatePhotoError);
+        setError("Student saved, but unable to link photo.");
+        return;
+      }
+
+      setProfilePhotoPath(filePath);
+      setMessage("Photo updated.");
+    } catch (e) {
+      console.error(e);
+      setError("Unexpected error while uploading photo.");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,94 +412,150 @@ export const TeacherStudentDetailPage: React.FC = () => {
             </Alert>
           )}
 
-          <Group grow align="flex-start">
-            <Stack gap="sm">
-              <TextInput
-                label="Name"
-                required
-                value={name}
-                onChange={(e) => setName(e.currentTarget.value)}
-              />
-              <TextInput
-                label="Nickname"
-                value={nickname}
-                onChange={(e) => setNickname(e.currentTarget.value)}
-              />
-              <Select
-                label="Grade level"
-                placeholder="Select grade"
-                value={gradeLevel}
-                onChange={setGradeLevel}
-                data={Array.from({ length: 12 }, (_, i) => {
-                  const val = String(i + 1);
-                  return { value: val, label: `Grade ${val}` };
-                })}
-                clearable
-              />
-              <TextInput
-                label="Village / community"
-                value={village ?? ""}
-                onChange={(e) => setVillage(e.currentTarget.value)}
-              />
-              <DateInput
-                label="Birthdate"
-                value={birthdate}
-                onChange={setBirthdate}
-                clearable
-              />
-              <Select
-                label="School"
-                placeholder="Select school"
-                data={schools}
-                value={schoolId}
-                onChange={setSchoolId}
-                clearable
-              />
-              <TextInput
-                label="Expected monthly support (THB)"
-                value={monthlySupport}
-                onChange={(e) => setMonthlySupport(e.currentTarget.value)}
-                placeholder="e.g. 1000"
-              />
-            </Stack>
+          <Grid gutter="md">
+            {/* LEFT COLUMN: Photo */}
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Stack gap="sm">
+                <Text fw={500} size="sm">
+                  Photo
+                </Text>
+                <Divider />
 
-            <Stack gap="sm">
-              <Text fw={500} size="sm">
-                Guardian / contact details
-              </Text>
-              <TextInput
-                label="Guardian name"
-                required
-                value={contactGuardian}
-                onChange={(e) => setContactGuardian(e.currentTarget.value)}
-              />
-              <TextInput
-                label="Phone number"
-                required
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.currentTarget.value)}
-              />
-              <TextInput
-                label="Address"
-                value={contactAddress}
-                onChange={(e) => setContactAddress(e.currentTarget.value)}
-              />
-              <TextInput
-                label="LINE / WhatsApp"
-                value={contactLineOrWhatsApp}
-                onChange={(e) =>
-                  setContactLineOrWhatsApp(e.currentTarget.value)
-                }
-              />
-              <Textarea
-                label="Background / notes"
-                minRows={4}
-                autosize
-                value={bio ?? ""}
-                onChange={(e) => setBio(e.currentTarget.value)}
-              />
-            </Stack>
-          </Group>
+                <Group>
+                  <Avatar
+                    size={96}
+                    radius="xl"
+                    src={profilePhotoUrl ?? undefined}
+                  />
+                </Group>
+
+                <FileInput
+                  label="Profile photo"
+                  placeholder="Upload image"
+                  value={profilePhotoFile}
+                  onChange={setProfilePhotoFile}
+                  accept="image/*"
+                  disabled={uploadingPhoto}
+                />
+                <Button
+                  size="xs"
+                  mt="xs"
+                  onClick={() => handlePhotoUpload(profilePhotoFile)}
+                  loading={uploadingPhoto}
+                  disabled={!profilePhotoFile}
+                >
+                  Upload
+                </Button>
+              </Stack>
+            </Grid.Col>
+
+            {/* RIGHT COLUMN: Main fields */}
+            <Grid.Col span={{ base: 12, md: 8 }}>
+              <Stack gap="sm">
+                <TextInput
+                  label="Name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.currentTarget.value)}
+                />
+                <TextInput
+                  label="Nickname"
+                  value={nickname}
+                  onChange={(e) => setNickname(e.currentTarget.value)}
+                />
+                <Group grow>
+                  <Select
+                    label="Grade level"
+                    placeholder="Select grade"
+                    value={gradeLevel}
+                    onChange={setGradeLevel}
+                    data={Array.from({ length: 12 }, (_, i) => {
+                      const val = String(i + 1);
+                      return { value: val, label: `Grade ${val}` };
+                    })}
+                    clearable
+                  />
+                  <TextInput
+                    label="Village / community"
+                    value={village ?? ""}
+                    onChange={(e) => setVillage(e.currentTarget.value)}
+                  />
+                </Group>
+                <Group grow>
+                  <DateInput
+                    label="Birthdate"
+                    value={birthdate}
+                    onChange={setBirthdate}
+                    clearable
+                  />
+                  <Select
+                    label="School"
+                    placeholder="Select school"
+                    data={schools}
+                    value={schoolId}
+                    onChange={setSchoolId}
+                    clearable
+                  />
+                </Group>
+                <TextInput
+                  label="Expected monthly support (THB)"
+                  value={monthlySupport}
+                  onChange={(e) => setMonthlySupport(e.currentTarget.value)}
+                  placeholder="e.g. 1000"
+                />
+              </Stack>
+            </Grid.Col>
+          </Grid>
+
+          <Divider my="sm" />
+
+          <Grid gutter="md">
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Stack gap="sm">
+                <Text fw={500} size="sm">
+                  Guardian / contact details
+                </Text>
+                <TextInput
+                  label="Guardian name"
+                  required
+                  value={contactGuardian}
+                  onChange={(e) => setContactGuardian(e.currentTarget.value)}
+                />
+                <TextInput
+                  label="Phone number"
+                  required
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.currentTarget.value)}
+                />
+                <TextInput
+                  label="Address"
+                  value={contactAddress}
+                  onChange={(e) => setContactAddress(e.currentTarget.value)}
+                />
+                <TextInput
+                  label="LINE / WhatsApp"
+                  value={contactLineOrWhatsApp}
+                  onChange={(e) =>
+                    setContactLineOrWhatsApp(e.currentTarget.value)
+                  }
+                />
+              </Stack>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Stack gap="sm">
+                <Text fw={500} size="sm">
+                  Background / notes
+                </Text>
+                <Textarea
+                  minRows={4}
+                  autosize
+                  value={bio ?? ""}
+                  onChange={(e) => setBio(e.currentTarget.value)}
+                />
+              </Stack>
+            </Grid.Col>
+          </Grid>
 
           <Group justify="flex-end" mt="sm">
             <Button type="submit" loading={saving}>
@@ -438,7 +568,17 @@ export const TeacherStudentDetailPage: React.FC = () => {
       {/* Recent reports */}
       <Card withBorder>
         <Stack gap="sm">
-          <Text fw={500}>Recent term updates</Text>
+          <Group justify="space-between" align="center">
+            <Text fw={500}>Recent term updates</Text>
+            <Button
+              component={Link}
+              to={`/teacher/reports/new?studentId=${studentId}`}
+              size="xs"
+              variant="subtle"
+            >
+              New report
+            </Button>
+          </Group>
           {reports.length === 0 ? (
             <Text size="sm" c="dimmed">
               No reports have been created for this student yet.
