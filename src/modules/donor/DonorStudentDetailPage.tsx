@@ -13,8 +13,11 @@ import {
   SimpleGrid,
   Stack,
   Text,
+  ActionIcon,
+  Tooltip,
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
+import { IconDownload, IconFile, IconPhoto } from "@tabler/icons-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
 
@@ -25,6 +28,7 @@ type DonorRow = {
 type StudentRow = {
   id: string;
   name: string | null;
+  nickname: string | null;
   grade_level: string | null;
   village: string | null;
   profile_photo_path: string | null;
@@ -62,8 +66,16 @@ type ReportPhoto = {
   url: string;
 };
 
+type ProcessedAttachment = {
+  path: string;
+  url: string;
+  isImage: boolean;
+  fileName: string;
+};
+
 type DecoratedReport = ReportRow & {
   photos: ReportPhoto[];
+  processedAttachments: ProcessedAttachment[];
 };
 
 type SummaryStats = {
@@ -139,6 +151,7 @@ export const DonorStudentDetailPage: React.FC = () => {
             `
             id,
             name,
+            nickname,
             grade_level,
             village,
             profile_photo_path,
@@ -258,29 +271,39 @@ export const DonorStudentDetailPage: React.FC = () => {
               is_public?: boolean | null;
             }[];
 
-            // Only images AND explicitly marked as public
-            const imageAttachments = attachments.filter(
-              (a) =>
-                a?.path &&
-                a.is_public === true &&
-                /\.(jpe?g|png|webp|gif)$/i.test(
-                  (a.path.split("?")[0] ?? "").toLowerCase()
-                )
+            // Filter for public attachments
+            const publicAttachments = attachments.filter(
+              (a) => a?.path && a.is_public === true
             );
 
+            const processedAttachments: ProcessedAttachment[] = [];
             const photos: ReportPhoto[] = [];
 
-            for (const att of imageAttachments) {
+            for (const att of publicAttachments) {
               try {
                 const { data, error } = await supabase.storage
                   .from("progress-photos")
                   .createSignedUrl(att.path, 60 * 60); // 1 hour
 
                 if (!error && data?.signedUrl) {
-                  photos.push({
+                  const isImage = /\.(jpe?g|png|webp|gif)$/i.test(
+                    (att.path.split("?")[0] ?? "").toLowerCase()
+                  );
+                  const fileName = att.path.split("/").pop() ?? "file";
+
+                  processedAttachments.push({
                     path: att.path,
                     url: data.signedUrl,
+                    isImage,
+                    fileName,
                   });
+
+                  if (isImage) {
+                    photos.push({
+                      path: att.path,
+                      url: data.signedUrl,
+                    });
+                  }
                 }
               } catch (e) {
                 console.error("Error creating signed URL for report photo", e);
@@ -290,6 +313,7 @@ export const DonorStudentDetailPage: React.FC = () => {
             return {
               ...r,
               photos,
+              processedAttachments,
             };
           })
         );
@@ -364,7 +388,7 @@ export const DonorStudentDetailPage: React.FC = () => {
         })} ${summary.currency || "THB"}`
       : "—";
 
-  const displayName = student.name ?? "(no name)";
+  const displayName = student.nickname || student.name || "(no name)";
   const schoolName = student.school?.name ?? null;
 
   return (
@@ -606,6 +630,48 @@ export const DonorStudentDetailPage: React.FC = () => {
                               </Badge>
                             )}
                           </Group>
+                        )}
+
+                        {/* Document list */}
+                        {r.processedAttachments.filter((a) => !a.isImage)
+                          .length > 0 && (
+                          <Stack gap="xs" mt="xs">
+                            {r.processedAttachments
+                              .filter((a) => !a.isImage)
+                              .map((att) => (
+                                <Card
+                                  key={att.path}
+                                  withBorder
+                                  padding="xs"
+                                  radius="sm"
+                                >
+                                  <Group gap="sm">
+                                    <IconFile size={20} color="gray" />
+                                    <Text
+                                      size="sm"
+                                      style={{ flex: 1 }}
+                                      truncate
+                                    >
+                                      {att.fileName}
+                                    </Text>
+                                    <Tooltip label="Download">
+                                      <ActionIcon
+                                        component="a"
+                                        href={att.url}
+                                        download={att.fileName}
+                                        variant="light"
+                                        color="blue"
+                                        size="sm"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <IconDownload size={16} />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                  </Group>
+                                </Card>
+                              ))}
+                          </Stack>
                         )}
                       </Stack>
                     </Card>

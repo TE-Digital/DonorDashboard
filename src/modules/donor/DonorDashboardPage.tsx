@@ -20,6 +20,7 @@ import { useAuth } from "../auth/AuthContext";
 type StudentCard = {
   studentId: string;
   name: string;
+  nickname: string | null;
   gradeLevel: string | null;
   schoolName: string | null;
   profilePhotoUrl: string | null;
@@ -113,6 +114,7 @@ export const DonorDashboardPage: React.FC = () => {
             student:students (
               id,
               name,
+              nickname,
               grade_level,
               profile_photo_path,
               school:schools ( name )
@@ -325,6 +327,7 @@ export const DonorDashboardPage: React.FC = () => {
 
             return {
               studentId: sid,
+              nickname: studentInfo?.nickname ?? null,
               name: studentInfo?.name ?? "(no name)",
               gradeLevel: studentInfo?.grade_level ?? null,
               schoolName: studentInfo?.school?.name ?? null,
@@ -482,7 +485,8 @@ const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
         })} ${student.currency || "THB"}`
       : null;
 
-  const initials = student.name?.trim().charAt(0) || "?";
+  const displayName = student.nickname || student.name;
+  const initials = displayName?.trim().charAt(0) || "?";
 
   return (
     <Card withBorder radius="md" shadow="xs">
@@ -491,7 +495,7 @@ const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
           <div style={{ position: "relative" }}>
             <Image
               src={coverPhoto}
-              alt={student.name}
+              alt={displayName}
               radius="md"
               height={160}
               fit="cover"
@@ -522,7 +526,7 @@ const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
           <Group justify="space-between" align="flex-start">
             <div>
               <Text fw={600}>
-                {student.name}
+                {displayName}
                 {student.gradeLevel ? ` – Grade ${student.gradeLevel}` : ""}
               </Text>
               <Text size="xs" c="dimmed">
