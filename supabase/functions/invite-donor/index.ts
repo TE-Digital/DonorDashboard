@@ -124,8 +124,29 @@ serve(async (req) => {
     let authUserId: string;
 
     if (profile) {
-      // Existing user → reuse its id, no new invite sent
+      // Existing user → reuse its id
       authUserId = profile.id;
+
+      // If the user exists, we send a password recovery email so they can log in (or set their password for the first time)
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email,
+        {
+          redirectTo,
+        }
+      );
+
+      if (resetError) {
+        console.error("invite-donor: resetPasswordForEmail error", resetError);
+        return new Response(
+          JSON.stringify({
+            error: "User exists, but failed to send login email.",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
     } else {
       // 4) No user yet → create + send invite email
       const { data: inviteResult, error: inviteError } =

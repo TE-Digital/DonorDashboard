@@ -471,43 +471,37 @@ export const AdminEditDonorPage: React.FC = () => {
               Linked account & invitations
             </Text>
             <Stack gap={4}>
-              {userEmail ? (
+              {userEmail && (
                 <>
                   <Text size="sm">
                     Linked user: <strong>{userEmail}</strong>
                   </Text>
-                  <Text size="xs" c="dimmed">
-                    This donor already has a user account. Ask them to log in
-                    with this email and, if needed, use the{" "}
-                    <strong>"Forgot password"</strong> option on the login page.
-                    No additional invitation email is required.
-                  </Text>
-                </>
-              ) : (
-                <>
-                  {!email && (
-                    <Text size="xs" c="red">
-                      Add an email address before sending an invitation.
-                    </Text>
-                  )}
-
-                  <Button
-                    size="xs"
-                    variant="light"
-                    onClick={handleSendInvitation}
-                    disabled={!email || inviteLoading}
-                    loading={inviteLoading}
-                  >
-                    Send login invitation email
-                  </Button>
-
-                  <Text size="xs" c="dimmed">
-                    This will create an account for the donor (if none exists)
-                    and send them a login link. Use only when they agreed to use
-                    the online dashboard.
-                  </Text>
                 </>
               )}
+
+              {!email && (
+                <Text size="xs" c="red">
+                  Add an email address before sending an invitation.
+                </Text>
+              )}
+
+              <Button
+                size="xs"
+                variant="light"
+                onClick={handleSendInvitation}
+                disabled={!email || inviteLoading}
+                loading={inviteLoading}
+              >
+                {userEmail
+                  ? "Resend login invitation"
+                  : "Send login invitation email"}
+              </Button>
+
+              <Text size="xs" c="dimmed">
+                This will {userEmail ? "send a login link" : "create an account"}{" "}
+                for the donor and send them a login link. Use only when they
+                agreed to use the online dashboard.
+              </Text>
 
               {error && (
                 <Text size="sm" c="red">

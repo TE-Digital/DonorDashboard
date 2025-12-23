@@ -42,6 +42,7 @@ export const AdminCreateDonorPage: React.FC = () => {
 
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -70,6 +71,25 @@ export const AdminCreateDonorPage: React.FC = () => {
 
     load();
   }, []);
+
+  const checkEmail = async (val: string) => {
+    if (!val) {
+      setEmailWarning(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", val.trim())
+      .maybeSingle();
+    if (data) {
+      setEmailWarning(
+        "This email is already associated with a user account. The donor will be automatically linked."
+      );
+    } else {
+      setEmailWarning(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,13 +169,24 @@ const { data: inserted, error: insertError } = await supabase
             onChange={(e) => setAddress(e.currentTarget.value)}
           />
 
-          <Group grow>
-            <TextInput
-              label="Email"
-              value={email}
-              onChange={(e) => setEmail(e.currentTarget.value)}
-              placeholder="name@example.com"
-            />
+          <Group grow align="flex-start">
+            <Stack gap={0}>
+              <TextInput
+                label="Email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.currentTarget.value);
+                  setEmailWarning(null);
+                }}
+                onBlur={() => checkEmail(email)}
+                placeholder="name@example.com"
+              />
+              {emailWarning && (
+                <Text size="xs" c="orange" mt={4}>
+                  {emailWarning}
+                </Text>
+              )}
+            </Stack>
             <TextInput
               label="Phone"
               value={phone}
