@@ -1,4 +1,4 @@
-DONOR DASH
+DONOR DASHBOARD
 
 The Donor Dashboard is basically built with Sopabase (backend, database, and authentication) and React frontend. It uses the Vita and Mantine frameworks for easy use. 
 
