@@ -13,4 +13,4 @@ npm install @tabler/icons-react
 
 2. SMTP configuration
 DEV: Use Supabase default settings (sender email not configurable!)
-PROD: [tbd]
+PROD: [tbd] 1
