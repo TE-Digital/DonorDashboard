@@ -12,7 +12,7 @@ export const HeroSection: React.FC = () => {
         {branding.logo_url && (
           <Image
             src={branding.logo_url}
-            height={59}
+            height={56}
             fit="contain"
             alt="Logo"
           />
