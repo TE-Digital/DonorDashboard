@@ -17,6 +17,7 @@ import {
   Button,
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
+import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
 
 type ContactRequestRow = {
   id: string;
@@ -164,23 +165,17 @@ export const AdminContactRequestsPage: React.FC = () => {
   };
 
   return (
-    <Card withBorder shadow="sm" radius="md" p="lg">
+    <Card p="lg">
       <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <div>
-            <Text fw={700} size="lg">
-              Contact & renewal requests
-            </Text>
-            <Text size="sm" c="dimmed">
-              Overview of donor renewal requests and other contact leads
-              submitted via the dashboards or future public forms.
-            </Text>
-          </div>
-
-          <Button variant="outline" size="xs" onClick={loadRequests}>
-            Refresh
-          </Button>
-        </Group>
+        <PageHeader
+          title="Contact & renewal requests"
+          subtitle="Overview of donor renewal requests and other contact leads submitted via the dashboards or future public forms."
+          actions={
+            <Button variant="outline" size="xs" onClick={loadRequests}>
+              Refresh
+            </Button>
+          }
+        />
 
         {error && (
           <Text c="red" size="sm">
@@ -223,16 +218,12 @@ export const AdminContactRequestsPage: React.FC = () => {
         </Group>
 
         {loading ? (
-          <Center mt="md">
-            <Loader />
-          </Center>
+          <LoadingState />
         ) : filteredRequests.length === 0 ? (
-          <Text size="sm" c="dimmed" mt="md">
-            No contact requests found for the selected filters.
-          </Text>
+          <EmptyState title="No contact requests found for the selected filters." />
         ) : (
           <ScrollArea mah={500}>
-            <Table striped highlightOnHover withTableBorder withColumnBorders>
+            <Table withTableBorder withColumnBorders>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Created</Table.Th>
@@ -351,15 +342,11 @@ export const AdminContactRequestsPage: React.FC = () => {
                   {openedRequest.grant_types.name}
                 </Badge>
               )}
-              {openedRequest.handled ? (
-                <Badge size="sm" color="gray" variant="light">
-                  Handled
-                </Badge>
-              ) : (
-                <Badge size="sm" color="red" variant="light">
-                  New
-                </Badge>
-              )}
+              <StatusBadge
+                kind="contact"
+                value={openedRequest.handled ? "handled" : "open"}
+                label={openedRequest.handled ? "Handled" : "New"}
+              />
             </Group>
 
             <Text fw={500}>

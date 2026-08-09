@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
-import { SimpleGrid, Card, Text, Loader, Stack, Center } from "@mantine/core";
+import { SimpleGrid, Stack } from "@mantine/core";
+import { LoadingState, PageHeader, StatCard } from "../../design-system";
 
 type ReportStatus = "ok" | "missing" | "overdue";
 
@@ -153,18 +154,12 @@ export const TeacherDashboardPage: React.FC = () => {
   }, [profile]);
 
   if (loading) {
-    return (
-      <Center mih="60vh">
-        <Loader />
-      </Center>
-    );
+    return <LoadingState />;
   }
 
   return (
     <Stack>
-      <Text fw={700} size="lg">
-        Teacher dashboard
-      </Text>
+      <PageHeader title="Teacher dashboard" />
 
       <SimpleGrid cols={{ base: 2, sm: 3 }}>
         <StatCard label="My students" value={stats.students} />
@@ -177,20 +172,6 @@ export const TeacherDashboardPage: React.FC = () => {
     </Stack>
   );
 };
-
-const StatCard: React.FC<{ label: string; value: number }> = ({
-  label,
-  value,
-}) => (
-  <Card withBorder radius="md" shadow="xs">
-    <Text size="sm" c="dimmed">
-      {label}
-    </Text>
-    <Text fw={700} size="xl">
-      {value}
-    </Text>
-  </Card>
-);
 
 export default TeacherDashboardPage;
 

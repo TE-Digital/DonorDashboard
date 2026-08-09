@@ -11,6 +11,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useBranding } from "../theme/BrandingContext";
+import { color } from "../../design-system";
 
 export const WelcomeSetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -81,7 +82,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
       <div
         style={{
           minHeight: "100vh",
-          backgroundColor: "#edf2ff",
+          backgroundColor: color.surface.auth,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -103,7 +104,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#edf2ff",
+        backgroundColor: color.surface.auth,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

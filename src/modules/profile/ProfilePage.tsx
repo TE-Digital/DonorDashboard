@@ -8,11 +8,11 @@ import {
   Group,
   Button,
   PasswordInput,
-  LoadingOverlay,
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import { InlineMessage, LoadingState, PageHeader } from "../../design-system";
 
 export const ProfilePage: React.FC = () => {
   const { session, role, loading: authLoading } = useAuth();
@@ -254,28 +254,13 @@ export const ProfilePage: React.FC = () => {
     : "You are editing this user's contact details as an admin.";
 
   return (
-    <Card withBorder pos="relative">
-      <LoadingOverlay visible={loading} />
+    <Card pos="relative">
+      <LoadingState variant="overlay" visible={loading} />
       <Stack gap="lg">
-        <div>
-          <Text fw={700} size="lg" mb={4}>
-            {heading}
-          </Text>
-          <Text size="sm" c="dimmed">
-            {subtitle}
-          </Text>
-        </div>
+        <PageHeader title={heading} subtitle={subtitle} />
 
-        {error && (
-          <Text size="sm" c="red">
-            {error}
-          </Text>
-        )}
-        {message && (
-          <Text size="sm" c="green">
-            {message}
-          </Text>
-        )}
+        <InlineMessage tone="error">{error}</InlineMessage>
+        <InlineMessage tone="success">{message}</InlineMessage>
 
         {/* Contact details */}
         <form onSubmit={handleSaveProfile}>

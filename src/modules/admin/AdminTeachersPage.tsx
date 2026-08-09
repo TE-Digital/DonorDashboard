@@ -5,7 +5,6 @@ import {
   Card,
   Table,
   Text,
-  Loader,
   Stack,
   Anchor,
   Group,
@@ -15,6 +14,7 @@ import {
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { IconUsers } from "@tabler/icons-react";
+import { EmptyState, LoadingState, PageHeader } from "../../design-system";
 
 interface TeacherRow {
   id: string; // profiles.id (user id)
@@ -207,23 +207,14 @@ export const AdminTeachersPage: React.FC = () => {
     load();
   }, []);
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <Text fw={700} size="lg">
-        Teachers
-      </Text>
+      <PageHeader title="Teachers" />
 
-      <Card withBorder>
-        <Table
-          striped
-          highlightOnHover
-          withTableBorder
-          withColumnBorders
-          horizontalSpacing="md"
-          verticalSpacing="xs"
-        >
+      <Card>
+        <Table withTableBorder withColumnBorders>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
@@ -242,7 +233,7 @@ export const AdminTeachersPage: React.FC = () => {
             {teachers.length === 0 && (
               <Table.Tr>
                 <Table.Td colSpan={7}>
-                  <Text c="dimmed">No teachers found.</Text>
+                  <EmptyState title="No teachers found." />
                 </Table.Td>
               </Table.Tr>
             )}

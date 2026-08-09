@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
-  Badge,
   Button,
   Card,
   Group,
-  Loader,
   Select,
   Stack,
   Table,
@@ -13,6 +11,13 @@ import {
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  EmptyState,
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+} from "../../design-system";
 
 type RelatedName = {
   id: string;
@@ -140,44 +145,13 @@ export const AdminScholarshipsPage: React.FC = () => {
       .map((y) => ({ value: String(y), label: String(y) }));
   }, [scholarships]);
 
-  const renderStatusBadge = (status: string | null | undefined) => {
-    if (!status) {
-      return (
-        <Badge size="xs" variant="light" color="gray">
-          —
-        </Badge>
-      );
-    }
+  const renderStatusBadge = (status: string | null | undefined) => (
+    <StatusBadge kind="scholarship" value={status} size="xs" />
+  );
 
-    const s = status.toLowerCase();
-    let color: string = "gray";
-
-    if (s === "active") color = "green";
-    else if (s === "planned") color = "yellow";
-    else if (s === "completed") color = "blue";
-    else if (s === "cancelled") color = "red";
-
-    return (
-      <Badge size="xs" variant="light" color={color}>
-        {status}
-      </Badge>
-    );
-  };
-
-  const renderPaidBadge = (isPaid: boolean | null | undefined) => {
-    if (isPaid) {
-      return (
-        <Badge size="xs" color="green" variant="light">
-          Paid
-        </Badge>
-      );
-    }
-    return (
-      <Badge size="xs" color="red" variant="light">
-        Not paid
-      </Badge>
-    );
-  };
+  const renderPaidBadge = (isPaid: boolean | null | undefined) => (
+    <StatusBadge kind="payment" value={isPaid ? "paid" : "unpaid"} size="xs" />
+  );
 
   const handleExport = () => {
     const rowsToExport = filtered;
@@ -260,32 +234,25 @@ export const AdminScholarshipsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Text fw={600} size="lg">
-          Scholarships
-        </Text>
-        <Group gap="xs">
-          <Button
-            variant="outline"
-            size="xs"
-            onClick={handleExport}
-          >
-            Export to Excel
-          </Button>
-          <Button
-            size="xs"
-            onClick={() => navigate("/admin/scholarships/new")}
-          >
-            Add scholarship
-          </Button>
-        </Group>
-      </Group>
+      <PageHeader
+        title="Scholarships"
+        actions={
+          <>
+            <Button variant="outline" size="xs" onClick={handleExport}>
+              Export to Excel
+            </Button>
+            <Button size="xs" onClick={() => navigate("/admin/scholarships/new")}>
+              Add scholarship
+            </Button>
+          </>
+        }
+      />
 
-      <Card withBorder>
+      <Card>
         <Stack gap="sm">
           <Group grow>
             <TextInput
@@ -312,23 +279,12 @@ export const AdminScholarshipsPage: React.FC = () => {
             />
           </Group>
 
-          {error && (
-            <Text size="sm" c="red">
-              {error}
-            </Text>
-          )}
+          <InlineMessage tone="error">{error}</InlineMessage>
 
           {filtered.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No scholarships found.
-            </Text>
+            <EmptyState title="No scholarships found." />
           ) : (
-            <Table
-              striped
-              highlightOnHover
-              horizontalSpacing="md"
-              verticalSpacing="xs"
-            >
+            <Table>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Student</Table.Th>

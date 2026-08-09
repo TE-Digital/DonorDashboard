@@ -9,7 +9,6 @@ import {
   Card,
   FileInput,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Switch,
@@ -30,6 +29,7 @@ import {
   IconFileTypeXls,
   IconFileTypePpt,
 } from "@tabler/icons-react";
+import { LoadingState, color } from "../../design-system";
 
 const STORAGE_BUCKET = "progress-photos"; 
 
@@ -388,7 +388,7 @@ export const AdminReportFormPage: React.FC = () => {
   // ───────────────────────────────────────── UI ──────────────────────────────
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   const title = isEditMode
@@ -536,7 +536,7 @@ export const AdminReportFormPage: React.FC = () => {
                                 height: 40,
                                 objectFit: "cover",
                                 borderRadius: 4,
-                                border: "1px solid #ddd",
+                                border: `1px solid ${color.border.default}`,
                               }}
                             />
                           </Anchor>
@@ -618,10 +618,10 @@ export const AdminReportFormPage: React.FC = () => {
                       style={{
                         width: 150,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${color.border.default}`,
                         overflow: "hidden",
                         position: "relative",
-                        backgroundColor: "#f8f9fa",
+                        backgroundColor: color.surface.sunken,
                       }}
                     >
                       {isImage && p.previewUrl ? (

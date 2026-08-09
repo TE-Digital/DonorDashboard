@@ -11,11 +11,11 @@ import {
   Badge,
   ActionIcon,
   Table,
-  Loader,
   Checkbox,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { IconPencil } from "@tabler/icons-react";
+import { EmptyState, LoadingState, PageHeader } from "../../design-system";
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
@@ -97,32 +97,21 @@ export const AdminUsersRolesPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
     <Stack>
-      <Group justify="space-between" align="flex-end">
-        <Text fw={700} size="lg">
-          Users &amp; roles
-        </Text>
-        {saving && (
-          <Badge color="blue" variant="light">
-            Saving…
-          </Badge>
-        )}
-      </Group>
+      <PageHeader
+        title="Users & roles"
+        actions={saving && <Badge color="blue">Saving…</Badge>}
+      />
 
-      <Card withBorder shadow="xs" radius="md">
+      <Card>
         {users.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            No users found.
-          </Text>
+          <EmptyState title="No users found." />
         ) : (
           <Table
-            striped
-            highlightOnHover
-            verticalSpacing="xs"
             horizontalSpacing="md"
           >
             <Table.Thead>

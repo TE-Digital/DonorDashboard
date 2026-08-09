@@ -11,7 +11,6 @@ import {
   FileInput,
   Grid,
   Group,
-  Loader,
   Select,
   Stack,
   Table,
@@ -23,6 +22,9 @@ import {
 import { DateInput } from "@mantine/dates";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  LoadingState,
+} from "../../design-system";
 
 type StudentContact = {
   phone: string | null;
@@ -360,9 +362,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Center mih="60vh">
-        <Loader />
-      </Center>
+      <LoadingState />
     );
   }
 

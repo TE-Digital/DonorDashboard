@@ -4,15 +4,19 @@ import { supabase } from "../../lib/supabaseClient";
 import {
   Card,
   Stack,
-  Text,
   Table,
-  Loader,
+  Text,
   Group,
   Button,
   Anchor,
-  Badge,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
+import {
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+} from "../../design-system";
 
 type StudentRow = {
   id: string;
@@ -263,47 +267,43 @@ export const AdminStudentsPage: React.FC = () => {
   };
 
   return (
-    <Card withBorder shadow="sm" radius="md" p="lg" pos="relative">
+    <Card p="lg" pos="relative">
       {loading && (
         <Group justify="center" mb="md">
-          <Loader />
+          <LoadingState variant="inline" />
         </Group>
       )}
 
       <Stack gap="md">
-        <Group justify="space-between">
-          <div>
-            <Text fw={700} size="lg">
-              Students
-            </Text>
-            <Text size="sm" c="dimmed">
-              Overview of all registered students, their schools, teachers, and
-              report status.
-            </Text>
-          </div>
-          <Group>
-            <Button
-              variant="outline"
-              size="xs"
-              onClick={handleExport}
-              loading={exporting}
-            >
-              Export CSV
-            </Button>
-            <Button component={Link} to="/admin/students/create" size="xs">
-              Add student
-            </Button>
-          </Group>
-        </Group>
+        <PageHeader
+          title="Students"
+          subtitle="Overview of all registered students, their schools, teachers, and report status."
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={handleExport}
+                loading={exporting}
+              >
+                Export CSV
+              </Button>
+              <Button component={Link} to="/admin/students/create" size="xs">
+                Add student
+              </Button>
+            </>
+          }
+        />
 
         {!loading && students.length === 0 && (
-          <Text size="sm" c="dimmed">
-            No students found. Start by adding a new student.
-          </Text>
+          <EmptyState
+            title="No students found."
+            description="Start by adding a new student."
+          />
         )}
 
         {!loading && students.length > 0 && (
-          <Table striped highlightOnHover withTableBorder withColumnBorders>
+          <Table withTableBorder withColumnBorders>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Student</Table.Th>
@@ -373,15 +373,11 @@ export const AdminStudentsPage: React.FC = () => {
                   <Table.Td>{s.age_years != null ? s.age_years : "-"}</Table.Td>
                   <Table.Td>{s.last_report_date || "-"}</Table.Td>
                   <Table.Td>
-                    {s.overdue ? (
-                      <Badge color="red" size="sm">
-                        Overdue
-                      </Badge>
-                    ) : (
-                      <Badge color="green" size="sm">
-                        OK
-                      </Badge>
-                    )}
+                    <StatusBadge
+                      kind="report"
+                      value={s.overdue ? "overdue" : "ok"}
+                      label={s.overdue ? "Overdue" : "OK"}
+                    />
                   </Table.Td>
                 </Table.Tr>
               ))}

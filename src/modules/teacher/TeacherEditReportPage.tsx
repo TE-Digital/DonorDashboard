@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Text,
@@ -21,6 +20,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { IconTrash } from "@tabler/icons-react";
+import { LoadingState, color } from "../../design-system";
 
 type StudentRow = {
   id: string;
@@ -357,7 +357,7 @@ export const TeacherEditReportPage: React.FC = () => {
     }
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   if (!report) {
     return <Text>Report not found.</Text>;
@@ -452,7 +452,7 @@ export const TeacherEditReportPage: React.FC = () => {
                       style={{
                         width: 100,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${color.border.default}`,
                         overflow: "hidden",
                         position: "relative",
                       }}
@@ -553,7 +553,7 @@ export const TeacherEditReportPage: React.FC = () => {
                       style={{
                         width: 100,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${color.border.default}`,
                         overflow: "hidden",
                         position: "relative",
                       }}

@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useBranding } from "../theme/BrandingContext";
+import { color } from "../../design-system";
 
 type Mode = "checking" | "request" | "reset";
 
@@ -147,7 +148,7 @@ export const ResetPasswordPage: React.FC = () => {
       <div
         style={{
           minHeight: "100vh",
-          backgroundColor: "#edf2ff",
+          backgroundColor: color.surface.auth,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -169,7 +170,7 @@ export const ResetPasswordPage: React.FC = () => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#edf2ff",
+        backgroundColor: color.surface.auth,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",

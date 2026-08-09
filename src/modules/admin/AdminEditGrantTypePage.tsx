@@ -3,7 +3,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Text,
@@ -13,6 +12,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { LoadingState, PageHeader } from "../../design-system";
 
 type GrantType = {
   id: string;
@@ -124,7 +124,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
   };
 
   if (initialLoading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   if (error && !initialLoading) {
@@ -141,16 +141,18 @@ export const AdminEditGrantTypePage: React.FC = () => {
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>Edit grant type</Title>
-        <Button
-          variant="subtle"
-          size="xs"
-          onClick={() => navigate("/admin/grant-types")}
-        >
-          Back to list
-        </Button>
-      </Group>
+      <PageHeader
+        title="Edit grant type"
+        actions={
+          <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => navigate("/admin/grant-types")}
+            >
+              Back to list
+            </Button>
+        }
+      />
 
       <Card withBorder component="form" onSubmit={handleSubmit}>
         <Stack gap="md">

@@ -7,13 +7,15 @@ import {
   TextInput,
   Group,
   Button,
-  LoadingOverlay,
   Switch,
   Alert,
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../auth/AuthContext";
+import {
+  LoadingState,
+} from "../../design-system";
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
@@ -133,7 +135,7 @@ export const AdminCreateUserPage: React.FC = () => {
 
   return (
     <Card withBorder shadow="sm" radius="md" p="lg" pos="relative">
-      <LoadingOverlay visible={submitting} />
+      <LoadingState variant="overlay" visible={submitting} />
 
       <form onSubmit={handleSubmit}>
         <Stack gap="sm">

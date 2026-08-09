@@ -1,13 +1,15 @@
 import React from "react";
 import { Box, Center, Image, Loader, Stack, Text } from "@mantine/core";
 import { useBranding } from "../modules/theme/BrandingContext";
+import { brandDefaults, textRole } from "../design-system";
 
 export const BrandedLoadingScreen: React.FC = () => {
-  const { branding } = useBranding();
+  // useBranding() returns the settings object directly, not { branding }.
+  const branding = useBranding();
 
   // Fallbacks only used BEFORE branding is loaded from DB
-  const primary = branding?.primary_color ?? "#2563eb";
-  const secondary = branding?.secondary_color ?? "#0f172a";
+  const primary = branding?.primary_color ?? brandDefaults.primaryColor;
+  const secondary = branding?.secondary_color ?? brandDefaults.secondaryColor;
   const heroTitle = branding?.hero_title ?? "iCare Donor Dashboard";
   const heroSubtitle =
     branding?.hero_subtitle ??
@@ -35,10 +37,10 @@ export const BrandedLoadingScreen: React.FC = () => {
 
           <Loader size="lg" />
 
-          <Text fw={600} mt="xs">
+          <Text {...textRole("cardTitle")} mt="xs">
             {heroTitle}
           </Text>
-          <Text size="sm" c="dimmed" ta="center" maw={320}>
+          <Text {...textRole("body")} c="dimmed" ta="center" maw={320}>
             {heroSubtitle}
           </Text>
         </Stack>

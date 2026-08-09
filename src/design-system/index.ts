@@ -1,0 +1,34 @@
+// src/design-system/index.ts
+//
+// Single import surface for the presentation layer.
+// Pages should import from here, never from the individual files.
+
+export * from "./tokens";
+export * from "./typography";
+export * from "./semantic";
+export * from "./branding";
+export * from "./theme";
+
+export { PageHeader } from "./components/PageHeader";
+export type { PageHeaderProps } from "./components/PageHeader";
+
+export { SectionCard } from "./components/SectionCard";
+export type { SectionCardProps } from "./components/SectionCard";
+
+export { StatCard } from "./components/StatCard";
+export type { StatCardProps } from "./components/StatCard";
+
+export { StatusBadge } from "./components/StatusBadge";
+export type { StatusBadgeProps } from "./components/StatusBadge";
+
+export { EmptyState } from "./components/EmptyState";
+export type { EmptyStateProps } from "./components/EmptyState";
+
+export { LoadingState } from "./components/LoadingState";
+export type { LoadingStateProps } from "./components/LoadingState";
+
+export { InlineMessage } from "./components/InlineMessage";
+export type { InlineMessageProps, MessageTone } from "./components/InlineMessage";
+
+export { FormActions } from "./components/FormActions";
+export type { FormActionsProps } from "./components/FormActions";

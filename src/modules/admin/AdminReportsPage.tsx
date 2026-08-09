@@ -17,6 +17,7 @@ import {
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { Link } from "react-router-dom";
+import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
 
 type ColumnType = "text" | "number" | "date" | "boolean";
 
@@ -531,20 +532,12 @@ export const AdminReportsPage: React.FC = () => {
       : tableDef?.columns.map((c) => c.name) ?? [];
 
   return (
-    <Card withBorder shadow="sm" radius="md" p="lg">
+    <Card p="lg">
       <Stack gap="md">
-        <Group justify="space-between" align="flex-start">
-          <div>
-            <Text fw={700} size="lg">
-              Reports &amp; Data Explorer
-            </Text>
-            <Text size="sm" c="dimmed">
-              Build ad-hoc reports across students, donors, scholarships, term
-              updates, schools, users, and grant types. Select a table, choose columns, add filters, sort results, and export
-              your data.
-            </Text>
-          </div>
-          <Group gap="xs" align="flex-end">
+        <PageHeader
+          title="Reports & Data Explorer"
+          subtitle="Build ad-hoc reports across students, donors, scholarships, term updates, schools, users, and grant types. Select a table, choose columns, add filters, sort results, and export your data."
+          actions={
             <Button
               variant="outline"
               size="xs"
@@ -553,11 +546,11 @@ export const AdminReportsPage: React.FC = () => {
             >
               Export CSV
             </Button>
-          </Group>
-        </Group>
+          }
+        />
 
         {/* Table & configuration */}
-        <Card withBorder radius="md">
+        <Card>
           <Stack gap="md">
             <Group align="flex-end" grow>
               <Select
@@ -691,7 +684,7 @@ export const AdminReportsPage: React.FC = () => {
         </Card>
 
         {/* Results */}
-        <Card withBorder radius="md">
+        <Card>
           <Stack gap="sm">
             <Group justify="space-between" align="center">
               <Text fw={500}>Results</Text>
@@ -741,15 +734,15 @@ export const AdminReportsPage: React.FC = () => {
 
             {loading && (
               <Group justify="center" mt="md">
-                <Loader />
+                <LoadingState variant="inline" />
               </Group>
             )}
 
             {!loading && (!rows || rows.length === 0) && (
-              <Text size="sm" c="dimmed">
-                No data to display yet. Configure a report above and click{" "}
-                <strong>Run report</strong>.
-              </Text>
+              <EmptyState
+                title="No data to display yet."
+                description="Configure a report above and click Run report."
+              />
             )}
 
             {!loading && rows.length > 0 && (
@@ -832,13 +825,7 @@ export const AdminReportsPage: React.FC = () => {
                           if (typeof value === "boolean") {
                             return (
                               <Table.Td key={c}>
-                                <Badge
-                                  size="sm"
-                                  color={value ? "green" : "gray"}
-                                  variant="light"
-                                >
-                                  {value ? "Yes" : "No"}
-                                </Badge>
+                                <StatusBadge kind="boolean" value={value} />
                               </Table.Td>
                             );
                           }

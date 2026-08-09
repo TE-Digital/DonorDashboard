@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Text,
@@ -21,6 +20,7 @@ import { DateInput } from "@mantine/dates";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { IconTrash, IconFileDescription } from "@tabler/icons-react";
+import { LoadingState, color } from "../../design-system";
 
 type StudentOption = {
   value: string;
@@ -249,7 +249,7 @@ export const AdminNewReportPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
@@ -382,10 +382,10 @@ export const AdminNewReportPage: React.FC = () => {
                       style={{
                         width: 150,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${color.border.default}`,
                         overflow: "hidden",
                         position: "relative",
-                        backgroundColor: "#f8f9fa",
+                        backgroundColor: color.surface.sunken,
                       }}
                     >
                       {isImage && p.previewUrl ? (

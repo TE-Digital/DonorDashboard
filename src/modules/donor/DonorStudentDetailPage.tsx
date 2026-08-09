@@ -5,10 +5,8 @@ import {
   Badge,
   Button,
   Card,
-  Center,
   Group,
   Image,
-  Loader,
   Modal,
   SimpleGrid,
   Stack,
@@ -20,6 +18,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { IconDownload, IconFile, IconPhoto } from "@tabler/icons-react";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
+import {
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+} from "../../design-system";
 
 type DonorRow = {
   id: string;
@@ -333,11 +336,7 @@ export const DonorStudentDetailPage: React.FC = () => {
   }, [profile, studentId]);
 
   if (loading) {
-    return (
-      <Center mih="60vh">
-        <Loader />
-      </Center>
-    );
+    return <LoadingState />;
   }
 
   if (error) {
@@ -503,13 +502,6 @@ export const DonorStudentDetailPage: React.FC = () => {
                         })} ${a.currency || "THB"}`
                       : "—";
 
-                  const status = (a.status || "").toLowerCase();
-                  let statusColor: string = "gray";
-                  if (status === "active") statusColor = "green";
-                  else if (status === "planned") statusColor = "yellow";
-                  else if (status === "completed") statusColor = "blue";
-                  else if (status === "cancelled") statusColor = "red";
-
                   return (
                     <Group
                       key={a.id}
@@ -529,9 +521,11 @@ export const DonorStudentDetailPage: React.FC = () => {
                           {amountLabel}
                         </Text>
                         {a.status && (
-                          <Badge size="xs" variant="light" color={statusColor}>
-                            {a.status}
-                          </Badge>
+                          <StatusBadge
+                            kind="scholarship"
+                            value={a.status}
+                            size="xs"
+                          />
                         )}
                       </Group>
                     </Group>

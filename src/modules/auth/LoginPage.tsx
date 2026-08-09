@@ -13,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { useBranding } from "../theme/BrandingContext";
+import { InlineMessage, textRole } from "../../design-system";
+import { color } from "../../design-system";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,7 +48,7 @@ export const LoginPage: React.FC = () => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#edf2ff",
+        backgroundColor: color.surface.auth,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -65,24 +67,20 @@ export const LoginPage: React.FC = () => {
             />
           )}
 
-          <Text fw={700} fz={28}>
+          <Text {...textRole("metricValue")}>
             {branding.login_title ?? "Welcome back"}
           </Text>
 
-          <Text fz="sm" c="dimmed" ta="center">
+          <Text {...textRole("pageSubtitle")} ta="center">
             {branding.login_subtitle ??
               "Sign in to manage students, donors and reports."}
           </Text>
         </Stack>
 
-        <Card withBorder shadow="sm" radius="md" p="lg">
+        <Card p="lg">
           <form onSubmit={handleSubmit}>
             <Stack gap="sm">
-              {error && (
-                <Text c="red" fz="sm">
-                  {error}
-                </Text>
-              )}
+              <InlineMessage tone="error">{error}</InlineMessage>
 
               <TextInput
                 label="Email"

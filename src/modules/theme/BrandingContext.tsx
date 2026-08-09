@@ -1,6 +1,7 @@
 // src/modules/theme/BrandingContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { brandDefaults, color, space } from "../../design-system/tokens";
 
 export type BrandingSettings = {
   logo_url: string | null;
@@ -18,11 +19,10 @@ export type BrandingSettings = {
 // Default used ONLY as seed + last-resort fallback
 export const defaultBranding: BrandingSettings = {
   logo_url: null,
-  primary_color: "#1c7ed6",
-  secondary_color: "#228be6",
-  font_family:
-    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-  button_radius: "md",
+  primary_color: brandDefaults.primaryColor,
+  secondary_color: brandDefaults.secondaryColor,
+  font_family: brandDefaults.fontFamily,
+  button_radius: brandDefaults.buttonRadius,
   hero_title: "iCare Donor Dashboard",
   hero_subtitle: "Helping children in remote schools, together.",
   login_title: "Welcome back",
@@ -151,12 +151,12 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#f1f5ff",
+          backgroundColor: color.surface.auth,
           fontFamily: defaultBranding.font_family,
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <h1 style={{ marginBottom: 8 }}>
+          <h1 style={{ marginBottom: space.xs }}>
             {defaultBranding.hero_title ?? "Dashboard"}
           </h1>
           <p style={{ opacity: 0.7 }}>

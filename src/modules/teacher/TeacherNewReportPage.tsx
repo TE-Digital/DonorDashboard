@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Text,
@@ -20,6 +19,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { IconTrash } from "@tabler/icons-react";
+import { LoadingState, color } from "../../design-system";
 
 type ProgressPhotoDraft = {
   file: File;
@@ -219,7 +219,7 @@ export const TeacherNewReportPage: React.FC = () => {
     }
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   if (!studentId) {
     return <Text>Missing studentId in URL.</Text>;
@@ -344,7 +344,7 @@ export const TeacherNewReportPage: React.FC = () => {
                             width: 80,
                             height: 80,
                             borderRadius: 8,
-                            border: "1px solid #ddd",
+                            border: `1px solid ${color.border.default}`,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",

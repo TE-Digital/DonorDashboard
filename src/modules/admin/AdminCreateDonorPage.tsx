@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Select,
   Stack,
   Switch,
@@ -15,6 +14,7 @@ import {
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { LoadingState, PageHeader } from "../../design-system";
 
 type AgentOption = { value: string; label: string };
 
@@ -137,16 +137,18 @@ const { data: inserted, error: insertError } = await supabase
     }
   };
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>New donor</Title>
-        <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
-          Back
-        </Button>
-      </Group>
+      <PageHeader
+        title="New donor"
+        actions={
+          <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
+              Back
+            </Button>
+        }
+      />
 
       <Card withBorder component="form" onSubmit={handleSubmit}>
         <Stack gap="sm">

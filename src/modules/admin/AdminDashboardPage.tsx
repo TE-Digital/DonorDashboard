@@ -1,18 +1,10 @@
 // src/modules/admin/AdminDashboardPage.tsx
 import React, { useEffect, useState } from "react";
-import {
-  SimpleGrid,
-  Card,
-  Text,
-  Group,
-  Loader,
-  Stack,
-  Center,
-  Button,
-} from "@mantine/core";
+import { SimpleGrid, Stack, Button } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { HeroSection } from "../../components/HeroSection";
+import { LoadingState, PageHeader, StatCard } from "../../design-system";
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -133,41 +125,38 @@ export const AdminDashboardPage: React.FC = () => {
     load();
   }, []);
 
-  if (loading)
-    return (
-      <Center mih="60vh">
-        <Loader />
-      </Center>
-    );
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
       <HeroSection />
 
-      <Group justify="space-between" mt="xs" align="center">
-        <Text fw={700} size="lg">
-          Dashboard Overview
-        </Text>
-
-        <Group gap="xs">
-          <Button size="xs" onClick={() => navigate("/admin/students/new")}>
-            Add student
-          </Button>
-          <Button size="xs" onClick={() => navigate("/admin/scholarships/new")}>
-            Add scholarship
-          </Button>
-          <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
-            Add donor
-          </Button>
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => navigate("/admin/teachers")}
-          >
-            View teachers
-          </Button>
-        </Group>
-      </Group>
+      <PageHeader
+        title="Dashboard Overview"
+        actions={
+          <>
+            <Button size="xs" onClick={() => navigate("/admin/students/new")}>
+              Add student
+            </Button>
+            <Button
+              size="xs"
+              onClick={() => navigate("/admin/scholarships/new")}
+            >
+              Add scholarship
+            </Button>
+            <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
+              Add donor
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => navigate("/admin/teachers")}
+            >
+              View teachers
+            </Button>
+          </>
+        }
+      />
 
       <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mt="xs">
         <StatCard label="Students" value={stats.students} />
@@ -185,19 +174,3 @@ export const AdminDashboardPage: React.FC = () => {
     </Stack>
   );
 };
-
-const StatCard: React.FC<{ label: string; value: number }> = ({
-  label,
-  value,
-}) => (
-  <Card shadow="xs" radius="md" withBorder>
-    <Group justify="space-between" align="flex-end">
-      <Text size="sm" c="dimmed">
-        {label}
-      </Text>
-      <Text fw={700} size="xl">
-        {value}
-      </Text>
-    </Group>
-  </Card>
-);

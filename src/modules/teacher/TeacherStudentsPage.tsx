@@ -24,6 +24,7 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useNavigate } from "react-router-dom";
+import { EmptyState, LoadingState, PageHeader, color } from "../../design-system";
 
 type ReportStatus = "ok" | "missing" | "overdue";
 
@@ -297,11 +298,7 @@ export const TeacherStudentsPage: React.FC = () => {
 
   return (
     <Stack>
-      <Group justify="space-between">
-        <Text fw={700} size="lg">
-          My students
-        </Text>
-      </Group>
+      <PageHeader title="My students" />
 
       {/* Filters */}
       {isMobile ? (
@@ -338,14 +335,12 @@ export const TeacherStudentsPage: React.FC = () => {
       )}
 
       {loading ? (
-        <Loader />
+        <LoadingState variant="inline" />
       ) : isMobile ? (
         // ---------- MOBILE: cards ----------
         <Stack gap="sm">
           {filteredData.length === 0 && (
-            <Text c="dimmed" size="sm">
-              No students found.
-            </Text>
+            <EmptyState title="No students found." />
           )}
 
           {filteredData.map((row) => {
@@ -394,7 +389,7 @@ export const TeacherStudentsPage: React.FC = () => {
         // ---------- DESKTOP: table ----------
         <Box
           style={{
-            border: "1px solid #eee",
+            border: `1px solid ${color.border.subtle}`,
             borderRadius: 8,
             overflow: "hidden",
           }}
@@ -451,7 +446,7 @@ export const TeacherStudentsPage: React.FC = () => {
                         key={cell.id}
                         style={{
                           padding: "8px 12px",
-                          borderTop: "1px solid #eee",
+                          borderTop: `1px solid ${color.border.subtle}`,
                         }}
                       >
                         {flexRender(

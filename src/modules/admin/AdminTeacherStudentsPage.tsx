@@ -4,7 +4,6 @@ import {
   Card,
   Stack,
   Text,
-  Loader,
   Table,
   Button,
   Group,
@@ -15,6 +14,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { EmptyState, LoadingState } from "../../design-system";
 
 interface TeacherStudent {
   id: string;
@@ -233,7 +233,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
 
   const overdueCount = students.filter((s) => s.isOverdue).length;
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   return (
     <>
@@ -264,7 +264,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
         </Stack>
       </Modal>
 
-      <Card withBorder>
+      <Card>
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start">
             <div>
@@ -304,9 +304,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
           </Group>
 
           {students.length === 0 ? (
-            <Text size="sm" c="dimmed" mt="sm">
-              No students assigned yet.
-            </Text>
+            <EmptyState title="No students assigned yet." />
           ) : (
             <Table
               striped

@@ -16,6 +16,13 @@ import { useMediaQuery } from "@mantine/hooks";
 import { IconSettings } from "@tabler/icons-react";
 import { useAuth } from "../modules/auth/AuthContext";
 import { useBranding } from "../modules/theme/BrandingContext";
+import {
+  brandDefaults,
+  color,
+  layout,
+  space,
+  zIndex,
+} from "../design-system";
 
 type AppRole = "admin" | "teacher" | "donor";
 
@@ -114,7 +121,7 @@ export const AppShellLayout: React.FC = () => {
     );
   }
 
-  const navBg = branding.primary_color || "#1c7ed6";
+  const navBg = branding.primary_color || brandDefaults.primaryColor;
 
   // ─────────────────────────────────────────────────────────────
   // BASE STYLES
@@ -137,7 +144,7 @@ export const AppShellLayout: React.FC = () => {
 
   // Mobile link style → readable on white drawer
   const mobileLinkStyle: React.CSSProperties = {
-    color: branding.primary_color || "#1c7ed6",
+    color: branding.primary_color || brandDefaults.primaryColor,
     textDecoration: "none",
     fontSize: 16,
     padding: "10px 0",
@@ -199,7 +206,7 @@ export const AppShellLayout: React.FC = () => {
 
           {/* COLLAPSIBLE ADMIN SETTINGS */}
           {effectiveRoles.includes("admin") && (
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: space.md }}>
               <button
                 type="button"
                 onClick={() => setShowAdminSettings((v) => !v)}
@@ -224,7 +231,7 @@ export const AppShellLayout: React.FC = () => {
               </button>
 
               {showAdminSettings && (
-                <div style={{ marginTop: 4, paddingLeft: 20 }}>
+                <div style={{ marginTop: space["2xs"], paddingLeft: space.lg }}>
                   {adminSettingsNav.map((item) => (
                     <Link
                       key={item.to}
@@ -252,7 +259,7 @@ export const AppShellLayout: React.FC = () => {
       </div>
 
       {/* FOOTER: PROFILE + LOGOUT */}
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: space.lg }}>
         {profile && (
           <Link
             to="/profile"
@@ -291,21 +298,21 @@ export const AppShellLayout: React.FC = () => {
             top: 0,
             left: 0,
             right: 0,
-            height: 56,
+            height: layout.mobileBarHeight,
             backgroundColor: "white",
-            borderBottom: "1px solid #eee",
+            borderBottom: `1px solid ${color.border.subtle}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "0 16px",
-            zIndex: 1000,
+            padding: `0 ${space.md}px`,
+            zIndex: zIndex.nav,
           }}
         >
           <Group>
             <Burger
               opened={mobileOpen}
               onClick={() => setMobileOpen((o) => !o)}
-              color={branding.primary_color || "#1c7ed6"}
+              color={branding.primary_color || brandDefaults.primaryColor}
               aria-label="Toggle navigation"
             />
 
@@ -314,7 +321,7 @@ export const AppShellLayout: React.FC = () => {
             )}
           </Group>
 
-          <Text size="sm" fw={600} c={branding.primary_color || "#1c7ed6"}>
+          <Text size="sm" fw={600} c={branding.primary_color || brandDefaults.primaryColor}>
             Impact Center
           </Text>
         </div>
@@ -324,10 +331,10 @@ export const AppShellLayout: React.FC = () => {
       {!isMobile && (
         <aside
           style={{
-            width: 220,
+            width: layout.navWidth,
             backgroundColor: navBg,
             color: "white",
-            padding: "24px 16px",
+            padding: layout.navPadding,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -343,7 +350,7 @@ export const AppShellLayout: React.FC = () => {
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
           padding="md"
-          size="260px"
+          size={layout.drawerWidth}
           overlayProps={{ opacity: 0.5, blur: 2 }}
         >
           <ScrollArea h="100%">{SidebarNav}</ScrollArea>
@@ -354,7 +361,9 @@ export const AppShellLayout: React.FC = () => {
       <main
         style={{
           flex: 1,
-          padding: isMobile ? "72px 16px 24px" : "32px 40px",
+          padding: isMobile
+            ? layout.pagePadding.mobile
+            : layout.pagePadding.desktop,
         }}
       >
         <Outlet />

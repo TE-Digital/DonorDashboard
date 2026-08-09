@@ -7,10 +7,12 @@ import {
   Textarea,
   Group,
   Button,
-  LoadingOverlay,
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { useNavigate } from "react-router-dom";
+import {
+  LoadingState,
+} from "../../design-system";
 
 export const AdminCreateSchoolPage: React.FC = () => {
   const navigate = useNavigate();
@@ -61,7 +63,7 @@ export const AdminCreateSchoolPage: React.FC = () => {
 
   return (
     <Card withBorder shadow="sm" radius="md" pos="relative" p="lg">
-      <LoadingOverlay visible={saving} />
+      <LoadingState variant="overlay" visible={saving} />
 
       <Stack gap="lg">
         <div>

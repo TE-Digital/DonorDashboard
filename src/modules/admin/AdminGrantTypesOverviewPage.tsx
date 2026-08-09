@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Paper,
   Stack,
   Table,
@@ -15,6 +14,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { IconEdit, IconTrash } from "@tabler/icons-react";
+import { EmptyState, InlineMessage, LoadingState, PageHeader } from "../../design-system";
 
 type GrantType = {
   id: string;
@@ -123,29 +123,30 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
   ));
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>Grant Types</Title>
-        <Button onClick={() => navigate("/admin/grant-types/new")}>
-          Add new grant type
-        </Button>
-      </Group>
+      <PageHeader
+        title="Grant Types"
+        actions={
+          <Button onClick={() => navigate("/admin/grant-types/new")}>
+              Add new grant type
+            </Button>
+        }
+      />
 
-      {error && (
-        <Text size="sm" c="red">
-          {error}
-        </Text>
-      )}
+      <InlineMessage tone="error">{error}</InlineMessage>
 
       <Paper withBorder p="md">
         {grantTypes.length === 0 ? (
-          <Text c="dimmed">No grant types found. Click "Add new grant type" to create one.</Text>
+          <EmptyState
+            title="No grant types found."
+            description='Click "Add new grant type" to create one.'
+          />
         ) : (
-          <Table striped highlightOnHover verticalSpacing="sm">
+          <Table>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>

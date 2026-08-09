@@ -6,7 +6,6 @@ import {
   Card,
   FileInput,
   Group,
-  Loader,
   NumberInput,
   Stack,
   Switch,
@@ -29,6 +28,7 @@ import {
   IconFileTypeXls,
   IconFileTypePpt,
 } from "@tabler/icons-react";
+import { LoadingState, color } from "../../design-system";
 
 type RouteParams = {
   reportId: string;
@@ -355,7 +355,7 @@ export const AdminEditReportPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
@@ -493,7 +493,7 @@ export const AdminEditReportPage: React.FC = () => {
                               height: 40,
                               objectFit: "cover",
                               borderRadius: 4,
-                              border: "1px solid #ddd",
+                              border: `1px solid ${color.border.default}`,
                             }}
                           />
                         </Anchor>
@@ -574,10 +574,10 @@ export const AdminEditReportPage: React.FC = () => {
                       style={{
                         width: 150,
                         borderRadius: 8,
-                        border: "1px solid #ddd",
+                        border: `1px solid ${color.border.default}`,
                         overflow: "hidden",
                         position: "relative",
-                        backgroundColor: "#f8f9fa",
+                        backgroundColor: color.surface.sunken,
                       }}
                     >
                       {isImage && p.previewUrl ? (

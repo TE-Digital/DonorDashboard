@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { PageHeader } from "../../design-system";
 
 export const AdminCreateGrantTypePage: React.FC = () => {
   const navigate = useNavigate();
@@ -79,18 +80,20 @@ export const AdminCreateGrantTypePage: React.FC = () => {
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>Add grant type</Title>
-        <Button
-          variant="subtle"
-          size="xs"
-          onClick={() =>
-            navigate(returnTo || "/admin/scholarships", { replace: true })
-          }
-        >
-          Back
-        </Button>
-      </Group>
+      <PageHeader
+        title="Add grant type"
+        actions={
+          <Button
+              variant="subtle"
+              size="xs"
+              onClick={() =>
+                navigate(returnTo || "/admin/scholarships", { replace: true })
+              }
+            >
+              Back
+            </Button>
+        }
+      />
 
       <Card withBorder component="form" onSubmit={handleSubmit}>
         <Stack gap="md">

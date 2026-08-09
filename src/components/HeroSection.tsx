@@ -2,12 +2,13 @@
 import React from "react";
 import { Card, Group, Image, Stack, Text } from "@mantine/core";
 import { useBranding } from "../modules/theme/BrandingContext";
+import { textRole } from "../design-system";
 
 export const HeroSection: React.FC = () => {
   const branding = useBranding();
 
   return (
-    <Card withBorder radius="lg" shadow="xs" mb="md">
+    <Card mb="md">
       <Group align="center" gap="md">
         {branding.logo_url && (
           <Image
@@ -18,10 +19,10 @@ export const HeroSection: React.FC = () => {
           />
         )}
         <Stack gap={2}>
-          <Text fw={700} size="lg">
+          <Text {...textRole("pageTitle")}>
             {branding.hero_title || "iCare Donor Dashboard"}
           </Text>
-          <Text size="sm" c="dimmed">
+          <Text {...textRole("pageSubtitle")}>
             {branding.hero_subtitle ||
               "Helping children in remote schools, together."}
           </Text>

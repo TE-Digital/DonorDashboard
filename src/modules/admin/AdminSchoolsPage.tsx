@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import {
-  Card,
-  Stack,
-  Text,
-  Group,
-  Button,
-  Table,
-  Loader,
-} from "@mantine/core";
+import { Card, Stack, Text, Button, Table } from "@mantine/core";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  textRole,
+} from "../../design-system";
 
 type School = {
   id: string;
@@ -47,45 +45,29 @@ export const AdminSchoolsPage: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
     <Stack>
-      <Group justify="space-between">
-        <Stack gap={2}>
-          <Text fw={700} size="lg">
-            Schools
-          </Text>
-          <Text size="sm" c="dimmed">
-            Manage schools that students can be linked to.
-          </Text>
-        </Stack>
+      <PageHeader
+        title="Schools"
+        subtitle="Manage schools that students can be linked to."
+        actions={
+          <Button component={Link} to="/admin/schools/new">
+            Add school
+          </Button>
+        }
+      />
 
-        <Button
-          component={Link}
-          to="/admin/schools/new"
-          size="sm"
-          variant="filled"
-        >
-          Add school
-        </Button>
-      </Group>
-
-      <Card withBorder shadow="xs" radius="md">
+      <Card>
         {schools.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            No schools found.
-          </Text>
+          <EmptyState
+            title="No schools found."
+            description="Add a school to link students to it."
+          />
         ) : (
-          <Table
-            striped
-            highlightOnHover
-            withTableBorder
-            withColumnBorders
-            verticalSpacing="xs"
-            horizontalSpacing="md"
-          >
+          <Table withTableBorder withColumnBorders>
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Name</Table.Th>
@@ -101,17 +83,15 @@ export const AdminSchoolsPage: React.FC = () => {
                   onClick={() => navigate(`/admin/schools/${s.id}`)}
                 >
                   <Table.Td>
-                    <Text size="sm" fw={500}>
-                      {s.name}
-                    </Text>
+                    <Text {...textRole("fieldLabel")}>{s.name}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" c="dimmed">
+                    <Text {...textRole("body")} c="dimmed">
                       {s.address || "—"}
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" c="dimmed">
+                    <Text {...textRole("body")} c="dimmed">
                       {s.created_at
                         ? new Date(s.created_at).toLocaleDateString()
                         : "—"}

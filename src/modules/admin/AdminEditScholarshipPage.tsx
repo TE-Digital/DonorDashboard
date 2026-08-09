@@ -4,7 +4,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   NumberInput,
   Select,
   Stack,
@@ -17,6 +16,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { LoadingState, PageHeader } from "../../design-system";
 
 type Option = { value: string; label: string };
 
@@ -298,21 +298,23 @@ export const AdminEditScholarshipPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Loader />;
+    return <LoadingState />;
   }
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>Edit scholarship</Title>
-        <Button
-          variant="subtle"
-          size="xs"
-          onClick={() => navigate("/admin/scholarships")}
-        >
-          Back to overview
-        </Button>
-      </Group>
+      <PageHeader
+        title="Edit scholarship"
+        actions={
+          <Button
+              variant="subtle"
+              size="xs"
+              onClick={() => navigate("/admin/scholarships")}
+            >
+              Back to overview
+            </Button>
+        }
+      />
 
       <Card withBorder component="form" onSubmit={handleSubmit}>
         <Stack gap="md">

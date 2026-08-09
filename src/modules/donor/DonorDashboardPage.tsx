@@ -4,9 +4,7 @@ import {
   Badge,
   Button,
   Card,
-  Center,
   Group,
-  Loader,
   SimpleGrid,
   Stack,
   Text,
@@ -16,6 +14,13 @@ import {
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
+import {
+  EmptyState,
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  StatCard,
+} from "../../design-system";
 
 type StudentCard = {
   studentId: string;
@@ -362,23 +367,15 @@ export const DonorDashboardPage: React.FC = () => {
   }, [profile]);
 
   if (loading) {
-    return (
-      <Center mih="60vh">
-        <Loader />
-      </Center>
-    );
+    return <LoadingState />;
   }
 
   if (dashboardDisabledMessage) {
     return (
       <Stack>
-        <Text fw={700} size="lg">
-          Donor dashboard
-        </Text>
-        <Card withBorder>
-          <Text size="sm" c="dimmed">
-            {dashboardDisabledMessage}
-          </Text>
+        <PageHeader title="Donor dashboard" />
+        <Card>
+          <EmptyState title={dashboardDisabledMessage} />
         </Card>
       </Stack>
     );
@@ -387,13 +384,9 @@ export const DonorDashboardPage: React.FC = () => {
   if (error) {
     return (
       <Stack>
-        <Text fw={700} size="lg">
-          Donor dashboard
-        </Text>
-        <Card withBorder>
-          <Text c="red" size="sm">
-            {error}
-          </Text>
+        <PageHeader title="Donor dashboard" />
+        <Card>
+          <InlineMessage tone="error">{error}</InlineMessage>
         </Card>
       </Stack>
     );
@@ -412,37 +405,28 @@ export const DonorDashboardPage: React.FC = () => {
 
   return (
     <Stack>
-      <Group justify="space-between">
-        <Stack gap={2}>
-          <Text fw={700} size="lg">
-            Your impact dashboard
-          </Text>
-          <Text size="sm" c="dimmed">
-            Thank you for supporting education. Here are the latest updates
-            from the students you support.
-          </Text>
-        </Stack>
-
-        <Button component={Link} to="/donor/renew" size="sm">
-          Continue your impact
-        </Button>
-      </Group>
+      <PageHeader
+        title="Your impact dashboard"
+        subtitle="Thank you for supporting education. Here are the latest updates from the students you support."
+        actions={
+          <Button component={Link} to="/donor/renew">
+            Continue your impact
+          </Button>
+        }
+      />
 
       <SimpleGrid cols={{ base: 1, sm: 3 }}>
-        <SummaryCard
+        <StatCard
           label="Students supported"
           value={summary.totalStudents.toString()}
         />
-        <SummaryCard label="Total awarded" value={summaryAmountLabel} />
-        <SummaryCard label="Last scholarship" value={lastScholarshipLabel} />
+        <StatCard label="Total awarded" value={summaryAmountLabel} />
+        <StatCard label="Last scholarship" value={lastScholarshipLabel} />
       </SimpleGrid>
 
       {students.length === 0 ? (
-        <Card withBorder mt="md">
-          <Text size="sm" c="dimmed">
-            No scholarships are linked to your donor account yet. Once a
-            scholarship award is created for you, updates will appear here.
-          </Text>
+        <Card mt="md">
+          <EmptyState title="No scholarships are linked to your donor account yet. Once a scholarship award is created for you, updates will appear here." />
         </Card>
       ) : (
         <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} mt="md">
@@ -455,19 +439,6 @@ export const DonorDashboardPage: React.FC = () => {
   );
 };
 
-const SummaryCard: React.FC<{ label: string; value: string }> = ({
-  label,
-  value,
-}) => (
-  <Card withBorder radius="md" shadow="xs">
-    <Text size="sm" c="dimmed">
-      {label}
-    </Text>
-    <Text fw={700} size="lg">
-      {value}
-    </Text>
-  </Card>
-);
 
 const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
   student,

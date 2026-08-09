@@ -2,7 +2,8 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
-import { Loader, Center } from "@mantine/core";
+import { Center } from "@mantine/core";
+import { LoadingState } from "../../design-system";
 
 type AppRole = "admin" | "teacher" | "donor";
 
@@ -15,7 +16,7 @@ export const ProtectedRoute: React.FC = () => {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader />
+        <LoadingState variant="inline" />
       </Center>
     );
   }
@@ -41,7 +42,7 @@ export const RoleRoute: React.FC<RoleRouteProps> = ({ allowed }) => {
   if (loading) {
     return (
       <Center h="100vh">
-        <Loader />
+        <LoadingState variant="inline" />
       </Center>
     );
   }

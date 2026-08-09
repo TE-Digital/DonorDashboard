@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Group,
-  Loader,
   Stack,
   Table,
   Text,
@@ -13,6 +12,7 @@ import {
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { EmptyState, LoadingState, PageHeader, color } from "../../design-system";
 
 type DonorContact = {
   address?: string | null;
@@ -172,20 +172,20 @@ export const AdminDonorsPage: React.FC = () => {
     );
   });
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Text fw={600} size="lg">
-          Donors
-        </Text>
-        <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
-          Add donor
-        </Button>
-      </Group>
+      <PageHeader
+        title="Donors"
+        actions={
+          <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
+            Add donor
+          </Button>
+        }
+      />
 
-      <Card withBorder>
+      <Card>
         <Stack gap="sm">
           <TextInput
             placeholder="Search by name, email, phone, agent…"
@@ -194,9 +194,7 @@ export const AdminDonorsPage: React.FC = () => {
           />
 
           {filtered.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No donors found.
-            </Text>
+            <EmptyState title="No donors found." />
           ) : (
             <Table
               striped
@@ -243,7 +241,7 @@ export const AdminDonorsPage: React.FC = () => {
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm">
-                          {c.email || <span style={{ color: "#999" }}>—</span>}
+                          {c.email || <span style={{ color: color.text.dimmed }}>—</span>}
                         </Text>
                         <Text size="xs" c="dimmed">
                           {c.phone || "—"}

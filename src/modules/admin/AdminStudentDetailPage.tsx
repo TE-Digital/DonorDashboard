@@ -9,7 +9,6 @@ import {
   Group,
   Button,
   Select,
-  LoadingOverlay,
   Textarea,
   Grid,
   Divider,
@@ -21,6 +20,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { LoadingState, StatusBadge } from "../../design-system";
 
 type School = { id: string; name: string };
 type TeacherOption = { value: string; label: string };
@@ -557,7 +557,7 @@ export const AdminStudentDetailPage: React.FC = () => {
 
   return (
     <Card withBorder shadow="sm" radius="md" pos="relative" p="lg">
-      <LoadingOverlay visible={loading || saving} />
+      <LoadingState variant="overlay" visible={loading || saving} />
 
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start">
@@ -836,14 +836,7 @@ export const AdminStudentDetailPage: React.FC = () => {
 
     <Table.Tbody>
       {scholarships.map((aw) => {
-        // Status helper
         const statusLabel = aw.status ?? "unknown";
-        const statusColor =
-          statusLabel === "active"
-            ? "green"
-            : statusLabel === "inactive"
-            ? "red"
-            : "gray";
 
         return (
           <Table.Tr key={aw.id}>
@@ -882,9 +875,7 @@ export const AdminStudentDetailPage: React.FC = () => {
 
             {/* STATUS */}
             <Table.Td>
-              <Badge size="sm" color={statusColor} variant="light">
-                {statusLabel}
-              </Badge>
+              <StatusBadge kind="scholarship" value={aw.status} />
             </Table.Td>
           </Table.Tr>
         );

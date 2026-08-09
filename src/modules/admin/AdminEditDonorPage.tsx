@@ -2,11 +2,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
   Anchor,
-  Badge,
   Button,
   Card,
   Group,
-  Loader,
   Select,
   Stack,
   Switch,
@@ -14,10 +12,15 @@ import {
   Text,
   Textarea,
   TextInput,
-  Title,
 } from "@mantine/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+} from "../../design-system";
 
 type DonorContact = {
   address?: string | null;
@@ -357,7 +360,7 @@ export const AdminEditDonorPage: React.FC = () => {
     };
   }, [awards]);
 
-  if (loading) return <Loader />;
+  if (loading) return <LoadingState />;
 
   const lastDonationLabel = lastDonationDate
     ? lastDonationDate.toLocaleDateString()
@@ -365,21 +368,11 @@ export const AdminEditDonorPage: React.FC = () => {
 
   return (
     <Stack>
-      <Group justify="space-between" mb="sm">
-        <Title order={3}>Edit donor</Title>
-        <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
-          Back
-        </Button>
-      </Group>
+      <PageHeader title="Edit donor" onBack={() => navigate(-1)} />
 
       <Group align="flex-start" grow>
         {/* LEFT: donor details form */}
-        <Card
-          withBorder
-          component="form"
-          onSubmit={handleSubmit}
-          style={{ flex: 1 }}
-        >
+        <Card component="form" onSubmit={handleSubmit} style={{ flex: 1 }}>
           <Stack gap="sm">
             <Text size="sm" c="dimmed">
               All fields are optional. You can keep this donor partially or fully
@@ -554,13 +547,11 @@ const RightSideAwardsAndStudents: React.FC<{
   return (
     <Stack style={{ flex: 1 }} gap="sm">
       {/* SUMMARY CARD */}
-      <Card withBorder>
+      <Card>
         <Stack gap="xs">
           <Text fw={600}>Donor overview</Text>
           {awards.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No scholarship awards recorded for this donor yet.
-            </Text>
+            <EmptyState title="No scholarship awards recorded for this donor yet." />
           ) : (
             <Group gap="lg" wrap="wrap">
               <Stack gap={2}>
@@ -600,7 +591,7 @@ const RightSideAwardsAndStudents: React.FC<{
         </Stack>
       </Card>
 
-      <Card withBorder>
+      <Card>
         <Stack gap="xs">
           <Group justify="space-between" align="center">
             <Text fw={600}>Scholarships awarded</Text>
@@ -617,17 +608,9 @@ const RightSideAwardsAndStudents: React.FC<{
           </Group>
 
           {awards.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No scholarship awards recorded for this donor yet.
-            </Text>
+            <EmptyState title="No scholarship awards recorded for this donor yet." />
           ) : (
-            <Table
-              striped
-              highlightOnHover
-              horizontalSpacing="md"
-              verticalSpacing="xs"
-              mt="xs"
-            >
+            <Table mt="xs">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Student</Table.Th>
@@ -654,13 +637,6 @@ const RightSideAwardsAndStudents: React.FC<{
                           maximumFractionDigits: 0,
                         })} ${a.currency || "THB"}`
                       : "—";
-
-                  const status = (a.status || "").toLowerCase();
-                  let statusColor: string = "gray";
-                  if (status === "active") statusColor = "green";
-                  else if (status === "planned") statusColor = "yellow";
-                  else if (status === "completed") statusColor = "blue";
-                  else if (status === "cancelled") statusColor = "red";
 
                   return (
                     <Table.Tr key={a.id}>
@@ -693,21 +669,17 @@ const RightSideAwardsAndStudents: React.FC<{
                       </Table.Td>
                       <Table.Td>
                         <Stack gap={2}>
-                          <Badge
+                          <StatusBadge
+                            kind="scholarship"
+                            value={a.status}
                             size="xs"
-                            variant="light"
-                            color={statusColor}
-                          >
-                            {a.status || "—"}
-                          </Badge>
+                          />
                           {a.is_paid != null && (
-                            <Badge
+                            <StatusBadge
+                              kind="payment"
+                              value={a.is_paid ? "paid" : "unpaid"}
                               size="xs"
-                              variant="light"
-                              color={a.is_paid ? "green" : "red"}
-                            >
-                              {a.is_paid ? "Paid" : "Not paid"}
-                            </Badge>
+                            />
                           )}
                         </Stack>
                       </Table.Td>
@@ -720,20 +692,13 @@ const RightSideAwardsAndStudents: React.FC<{
         </Stack>
       </Card>
 
-      <Card withBorder>
+      <Card>
         <Stack gap="xs">
           <Text fw={600}>Students supported</Text>
           {supportedStudents.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No students linked via scholarship awards yet.
-            </Text>
+            <EmptyState title="No students linked via scholarship awards yet." />
           ) : (
-            <Table
-              striped
-              highlightOnHover
-              horizontalSpacing="md"
-              verticalSpacing="xs"
-            >
+            <Table>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Student</Table.Th>
