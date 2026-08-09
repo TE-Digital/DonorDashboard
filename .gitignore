@@ -67,3 +67,4 @@ Thumbs.db
 # IntelliJ/WebStorm
 .idea
 *.iml
+.env.local

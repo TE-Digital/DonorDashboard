@@ -71,7 +71,10 @@ export const AdminCreateUserPage: React.FC = () => {
       return;
     }
 
-    const authHeader =
+    // Typed as a plain string map: without the annotation the ternary widens
+    // to a union whose second branch has no `Authorization` key, which does
+    // not satisfy fetch's HeadersInit.
+    const authHeader: Record<string, string> =
       session?.access_token != null
         ? { Authorization: `Bearer ${session.access_token}` }
         : {};

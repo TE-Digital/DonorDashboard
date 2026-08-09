@@ -223,14 +223,14 @@ export const AdminEditScholarshipPage: React.FC = () => {
     }
 
     // Suggest period end if none yet and periodStart set
-    if (
-      periodStart &&
-      gt.default_duration_months &&
-      gt.default_duration_months > 0
-    ) {
+    // Hoisted out of the condition: the `> 0` narrowing does not survive into
+    // the setPeriodEnd callback, so `default_duration_months` would still read
+    // as `number | null` in there.
+    const durationMonths = gt.default_duration_months;
+    if (periodStart && durationMonths && durationMonths > 0) {
       setPeriodEnd((prev) => {
         if (prev) return prev; // don't override if admin already set an end date
-        return addMonths(periodStart, gt.default_duration_months);
+        return addMonths(periodStart, durationMonths);
       });
     }
   };

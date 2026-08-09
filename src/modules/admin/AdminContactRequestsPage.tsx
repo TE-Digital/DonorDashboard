@@ -17,6 +17,7 @@ import {
   Button,
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
+import { asRows } from "../../lib/supabaseRelations";
 import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
 
 type ContactRequestRow = {
@@ -85,7 +86,7 @@ export const AdminContactRequestsPage: React.FC = () => {
       return;
     }
 
-    setRequests((data ?? []) as ContactRequestRow[]);
+    setRequests(asRows<ContactRequestRow>(data));
     setLoading(false);
   };
 

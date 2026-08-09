@@ -22,6 +22,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { asRow } from "../../lib/supabaseRelations";
 import {
   LoadingState,
 } from "../../design-system";
@@ -146,7 +147,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
           return;
         }
 
-        const s = data as StudentDetail;
+        const s = asRow<StudentDetail>(data);
         setStudent(s);
 
         // populate form fields

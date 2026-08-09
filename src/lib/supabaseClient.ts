@@ -13,6 +13,18 @@ export type Json =
   | { [key: string]: Json }
   | Json[];
 
+/**
+ * public.profiles — one row per authenticated user, keyed by auth.users.id.
+ * Columns mirror the table definition in full_schema.sql.
+ */
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  phone: string | null;
+  email: string | null;
+  created_at: string | null;
+}
+
 export interface Teacher {
   id: string;
   user_id: string | null;

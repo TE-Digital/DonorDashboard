@@ -52,6 +52,12 @@ export const color = {
   },
 } as const;
 
+/**
+ * Spacing scale. Every step is a multiple of 4 except `3xs`, which exists only
+ * for optical nudges (icon / text baseline alignment) and never for layout.
+ *
+ * Inside a card: `md`. Between cards: `lg`. Between page sections: `xl`.
+ */
 export const space = {
   none: 0,
   "3xs": 2,
@@ -61,7 +67,7 @@ export const space = {
   md: 16,
   lg: 24,
   xl: 32,
-  "2xl": 48,
+  "2xl": 40,
 } as const;
 
 export const radius = {

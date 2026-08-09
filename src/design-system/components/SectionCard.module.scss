@@ -1,0 +1,73 @@
+// src/design-system/components/SectionCard.module.scss
+//
+// WORKED EXAMPLE — copy this file's shape when styling any other component.
+//
+// Three rules:
+//   1. `@use` the mixins with `as *` so `respond-to`, `hover` etc. are bare.
+//   2. Every value is a `var(--dd-*)` token. No raw hex, no raw px spacing.
+//   3. Class names are local to this file — CSS Modules hashes them, so
+//      `.root` here cannot collide with `.root` anywhere else.
+
+@use "../../styles/mixins" as *;
+
+.root {
+  // Applied to every SectionCard. Currently nothing — the visual defaults
+  // still come from the Card entry in theme.ts. This is the hook for anything
+  // the theme cannot express.
+  position: relative;
+}
+
+// Opt-in via <SectionCard interactive>. Off by default, so adding this file
+// changed nothing that was already on screen.
+.interactive {
+  @include interactive;
+
+  @include hover {
+    border-color: var(--dd-color-border-strong);
+    box-shadow: var(--dd-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: none;
+  }
+
+  // transform is not in the @include interactive transition list, so add it.
+  @include transition(transform, box-shadow, border-color);
+}
+
+.header {
+  // Below the `sm` breakpoint the title and its action buttons stack, so long
+  // titles stop squeezing the buttons into a single-character column.
+  display: flex;
+  flex-direction: column;
+  gap: var(--dd-space-xs);
+
+  @include respond-to(sm) {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--dd-space-md);
+  }
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dd-space-3xs);
+  min-width: 0; // lets .title actually truncate inside a flex row
+}
+
+.title {
+  @include truncate;
+}
+
+.description {
+  @include line-clamp(2);
+}
+
+.actions {
+  display: flex;
+  gap: var(--dd-space-xs);
+  flex-shrink: 0;
+}

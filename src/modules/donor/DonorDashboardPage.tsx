@@ -13,6 +13,7 @@ import {
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toOne } from "../../lib/supabaseRelations";
 import { useAuth } from "../auth/AuthContext";
 import {
   EmptyState,
@@ -246,7 +247,7 @@ export const DonorDashboardPage: React.FC = () => {
           studentIds.map(async (sid) => {
             const studentAwards = awardsByStudent.get(sid) ?? [];
             const firstAward = studentAwards[0];
-            const studentInfo = firstAward?.student;
+            const studentInfo = toOne(firstAward?.student);
 
             // total awarded for that student (all periods)
             const totalForStudent = studentAwards.reduce(
@@ -335,7 +336,7 @@ export const DonorDashboardPage: React.FC = () => {
               nickname: studentInfo?.nickname ?? null,
               name: studentInfo?.name ?? "(no name)",
               gradeLevel: studentInfo?.grade_level ?? null,
-              schoolName: studentInfo?.school?.name ?? null,
+              schoolName: toOne(studentInfo?.school)?.name ?? null,
               profilePhotoUrl,
               latestReportDate,
               latestReportSummary,

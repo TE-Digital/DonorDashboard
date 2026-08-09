@@ -24,6 +24,12 @@ interface AuthContextValue {
 
   // actions
   refresh: () => Promise<void>;
+  /**
+   * Re-reads the profile and roles for the CURRENT session without re-fetching
+   * the session itself. Call after a flow mutates the profile row (accepting an
+   * invite, editing your own name) so the UI picks the change up.
+   */
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -39,6 +45,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAdmin: false,
   isTeacher: false,
   refresh: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -108,6 +115,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     else primary = "unknown";
 
     setRole(primary);
+  };
+
+  const refreshProfile = async () => {
+    await loadUser(session);
   };
 
   const refresh = async () => {
@@ -187,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAdmin: hasRole("admin"),
     isTeacher: hasRole("teacher"),
     refresh,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

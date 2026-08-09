@@ -10,7 +10,7 @@ import { Notifications } from "@mantine/notifications";
 import App from "./App";
 import { AuthProvider } from "./modules/auth/AuthContext";
 import { BrandingProvider, useBranding } from "./modules/theme/BrandingContext";
-import { buildTheme } from "./design-system";
+import { buildTheme, cssVariablesResolver } from "./design-system";
 
 const ThemedApp: React.FC = () => {
   // useBranding() returns the settings object itself, already defaulted by
@@ -20,7 +20,10 @@ const ThemedApp: React.FC = () => {
   const theme = React.useMemo(() => buildTheme(branding), [branding]);
 
   return (
-    <MantineProvider theme={theme}>
+    // cssVariablesResolver publishes every design token from tokens.ts onto
+    // :root as a `--dd-*` custom property, so .module.scss files read the same
+    // values these components do. See design-system/cssVars.ts.
+    <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver}>
       <Notifications />
       <App />
     </MantineProvider>

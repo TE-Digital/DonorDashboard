@@ -17,6 +17,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { IconDownload, IconFile, IconPhoto } from "@tabler/icons-react";
 import { supabase } from "../../lib/supabaseClient";
+import { asRow, asRows } from "../../lib/supabaseRelations";
 import { useAuth } from "../auth/AuthContext";
 import {
   LoadingState,
@@ -171,7 +172,7 @@ export const DonorStudentDetailPage: React.FC = () => {
           return;
         }
 
-        const s = studentData as StudentRow;
+        const s = asRow<StudentRow>(studentData);
         setStudent(s);
 
         // student profile photo (public bucket "student-profiles")
@@ -209,7 +210,7 @@ export const DonorStudentDetailPage: React.FC = () => {
           );
         }
 
-        const awardsData = (awardRows ?? []) as ScholarshipAwardRow[];
+        const awardsData = asRows<ScholarshipAwardRow>(awardRows);
         setAwards(awardsData);
 
         // summary: total amount & last scholarship date

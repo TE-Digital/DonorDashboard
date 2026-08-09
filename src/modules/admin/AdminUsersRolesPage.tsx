@@ -19,9 +19,10 @@ import { EmptyState, LoadingState, PageHeader } from "../../design-system";
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
+// `email` is already on Profile — redeclaring it here as optional made this
+// interface incompatible with the one it extends.
 interface UserWithRoles extends Profile {
   roles: UiRole[];
-  email?: string | null;
 }
 
 const ALL_ROLES: UiRole[] = ["admin", "teacher", "donor", "agent"];
@@ -52,7 +53,8 @@ export const AdminUsersRolesPage: React.FC = () => {
         phone: p.phone,
         email: p.email,
         created_at: p.created_at,
-        role: p.role, // legacy column, not used in UI
+        // The legacy `profiles.role` column is deliberately not carried over —
+        // person_roles is the source of truth for authorisation.
         roles: (p.person_roles ?? []).map((r: any) => r.role as UiRole),
       })) ?? [];
 

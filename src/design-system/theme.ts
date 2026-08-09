@@ -12,18 +12,24 @@ import type { MantineThemeOverride } from "@mantine/core";
 import {
   breakpoint,
   color,
+  duration,
   fontSize,
   iconSize,
+  layout,
   lineHeight,
   radius,
   shadow,
   space,
+  zIndex,
 } from "./tokens";
 import { headings } from "./typography";
 import { brandingToThemeOverride } from "./branding";
 import type { BrandingLike } from "./branding";
 
 const px = (value: number) => rem(value);
+
+/** Kept in step with `color.surface.overlay` — one scrim strength product-wide. */
+const OVERLAY_OPACITY = 0.55;
 
 export function buildTheme(
   branding?: BrandingLike | null
@@ -42,6 +48,9 @@ export function buildTheme(
     colors: { brand, accent },
 
     breakpoints: { ...breakpoint },
+
+    // Focus must always be visible, and must never shift layout.
+    focusRing: "auto",
 
     spacing: {
       xs: px(space.xs),
@@ -86,6 +95,14 @@ export function buildTheme(
     headings,
 
     other: {
+      space,
+      shadow,
+      duration,
+      layout,
+      zIndex,
+      border: color.border,
+      surface: color.surface,
+      textColor: color.text,
       iconSize,
       statusColors: color.status,
     },
@@ -109,17 +126,22 @@ export function buildTheme(
         defaultProps: {
           centered: true,
           radius: "md",
-          overlayProps: { backgroundOpacity: 0.55, blur: 2 },
+          padding: "lg",
+          overlayProps: { backgroundOpacity: OVERLAY_OPACITY, blur: 2 },
         },
       },
       Drawer: {
         defaultProps: {
           padding: "md",
-          overlayProps: { backgroundOpacity: 0.5, blur: 2 },
+          overlayProps: { backgroundOpacity: OVERLAY_OPACITY, blur: 2 },
         },
       },
 
       // ── Actions ────────────────────────────────────────────────
+      // Only the primary action on a screen region is filled. Secondary
+      // actions must pass variant="default", dismissals variant="subtle".
+      // The default stays "filled" so existing primary actions keep working;
+      // the rule is enforced by review, not by a silent theme flip.
       Button: {
         defaultProps: {
           size: "sm",
@@ -131,11 +153,18 @@ export function buildTheme(
           size: "md",
         },
       },
+      Anchor: {
+        defaultProps: {
+          underline: "hover",
+        },
+      },
 
       // ── Data display ───────────────────────────────────────────
+      // No zebra striping: hover is the only row emphasis, so colour in a
+      // table always means status rather than position.
       Table: {
         defaultProps: {
-          striped: true,
+          striped: false,
           highlightOnHover: true,
           horizontalSpacing: "md",
           verticalSpacing: "sm",
@@ -146,6 +175,36 @@ export function buildTheme(
           variant: "light",
           size: "sm",
           radius: "sm",
+        },
+      },
+      Tooltip: {
+        defaultProps: {
+          withArrow: true,
+          openDelay: 250,
+          radius: "sm",
+        },
+      },
+      Avatar: {
+        defaultProps: {
+          radius: "xl",
+        },
+      },
+      Menu: {
+        defaultProps: {
+          radius: "md",
+          shadow: "md",
+          withinPortal: true,
+        },
+      },
+      Notification: {
+        defaultProps: {
+          radius: "md",
+        },
+      },
+      Alert: {
+        defaultProps: {
+          radius: "md",
+          variant: "light",
         },
       },
       Loader: {

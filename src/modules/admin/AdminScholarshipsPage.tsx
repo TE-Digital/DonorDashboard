@@ -11,6 +11,7 @@ import {
 } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { asRows } from "../../lib/supabaseRelations";
 import {
   EmptyState,
   InlineMessage,
@@ -84,7 +85,7 @@ export const AdminScholarshipsPage: React.FC = () => {
         setError("Could not load scholarships.");
         setScholarships([]);
       } else {
-        setScholarships((data ?? []) as ScholarshipRow[]);
+        setScholarships(asRows<ScholarshipRow>(data));
       }
 
       setLoading(false);

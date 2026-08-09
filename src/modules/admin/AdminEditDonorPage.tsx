@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { asRows, toOne } from "../../lib/supabaseRelations";
 import {
   EmptyState,
   LoadingState,
@@ -158,7 +159,7 @@ export const AdminEditDonorPage: React.FC = () => {
       setNoteInternal(donor.note_internal ?? "");
 
       setUserId(donor.user_id ?? null);
-      const userProfile = donor.user_profile;
+      const userProfile = toOne(donor.user_profile);
       setUserEmail(userProfile?.email ?? null);
 
       // scholarship awards and supported students
@@ -189,7 +190,7 @@ export const AdminEditDonorPage: React.FC = () => {
       if (awardError) {
         console.error("Error loading scholarship awards for donor", awardError);
       } else {
-        setAwards((awardRows ?? []) as AwardRow[]);
+        setAwards(asRows<AwardRow>(awardRows));
       }
 
       setLoading(false);
@@ -293,7 +294,7 @@ export const AdminEditDonorPage: React.FC = () => {
 
       if (!donorError && donor) {
         setUserId(donor.user_id ?? null);
-        setUserEmail(donor.user_profile?.email ?? null);
+        setUserEmail(toOne(donor.user_profile)?.email ?? null);
       }
     } catch (err: any) {
       console.error("Unexpected error sending invitation", err);
@@ -312,7 +313,18 @@ export const AdminEditDonorPage: React.FC = () => {
     currency,
     supportedStudents,
     lastDonationDate,
-  } = useMemo(() => {
+  } = useMemo((): {
+    totalAwards: number;
+    totalAmount: number;
+    currency: string | null;
+    supportedStudents: SupportedStudent[];
+    lastDonationDate: Date | null;
+  } => {
+    // Return type annotated explicitly: `currency` and `lastDonation` are only
+    // ever assigned inside the forEach callbacks below, and TypeScript's
+    // control-flow analysis does not track assignments across a callback
+    // boundary. Without this it infers both from their `null` initialiser and
+    // collapses `lastDonationDate` to `never`.
     const totalAwards = awards.length;
 
     let totalAmount = 0;
@@ -339,7 +351,7 @@ export const AdminEditDonorPage: React.FC = () => {
 
     const studentMap = new Map<string, SupportedStudent>();
     awards.forEach((a) => {
-      const s = a.student;
+      const s = toOne(a.student);
       if (!s) return;
       if (!studentMap.has(s.id)) {
         studentMap.set(s.id, {
