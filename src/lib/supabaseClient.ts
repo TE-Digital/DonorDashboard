@@ -23,6 +23,7 @@ export interface Profile {
   phone: string | null;
   email: string | null;
   created_at: string | null;
+  role?: string | null;
 }
 
 export interface Teacher {

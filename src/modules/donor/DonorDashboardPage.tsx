@@ -410,7 +410,7 @@ export const DonorDashboardPage: React.FC = () => {
         title="Your impact dashboard"
         subtitle="Thank you for supporting education. Here are the latest updates from the students you support."
         actions={
-          <Button component={Link} to="/donor/renew">
+          <Button variant="default" component={Link} to="/donor/renew">
             Continue your impact
           </Button>
         }

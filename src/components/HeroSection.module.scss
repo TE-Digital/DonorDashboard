@@ -1,0 +1,32 @@
+.root {
+  position: relative;
+  overflow: hidden;
+  padding: var(--dd-space-lg);
+  background: var(--dd-color-surface-card);
+  border-color: var(--dd-color-border-default);
+  box-shadow: none;
+}
+
+.root::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--dd-space-3xs);
+  background: var(--mantine-primary-color-filled);
+  opacity: 0.78;
+  content: "";
+}
+
+.content {
+  min-width: 0;
+}
+
+.title {
+  color: var(--dd-color-text-primary);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.subtitle {
+  color: var(--dd-color-text-secondary);
+  line-height: var(--dd-line-height-relaxed);
+}

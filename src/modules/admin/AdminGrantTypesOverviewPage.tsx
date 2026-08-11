@@ -1,20 +1,19 @@
 import React, { useEffect, useState } from "react";
-import {
-  ActionIcon,
-  Badge,
-  Button,
-  Card,
-  Group,
-  Paper,
-  Stack,
-  Table,
-  Text,
-  Title,
-} from "@mantine/core";
+import { Stack } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { IconEdit, IconTrash } from "@tabler/icons-react";
-import { EmptyState, InlineMessage, LoadingState, PageHeader } from "../../design-system";
+import {
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  TableSection,
+  type TableKpi,
+} from "../../design-system";
+import {
+  Button as LumenButton,
+  IconButton,
+  type DataColumn,
+} from "../../design-system/lumen";
 
 type GrantType = {
   id: string;
@@ -78,49 +77,87 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
     }
   };
 
-  const rows = grantTypes.map((item) => (
-    <Table.Tr key={item.id}>
-      <Table.Td>
-        <Text fw={500}>{item.name}</Text>
-      </Table.Td>
-      <Table.Td>
-        {item.amount_per_period ? (
-          <Badge variant="light" color="blue">
-            {new Intl.NumberFormat().format(item.amount_per_period)} {item.currency}
-          </Badge>
-        ) : (
-          <Text c="dimmed" size="sm">—</Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        {item.default_duration_months ? (
-          <Text size="sm">{item.default_duration_months} months</Text>
-        ) : (
-          <Text c="dimmed" size="sm">—</Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        <Group gap="xs" justify="flex-end" wrap="nowrap">
-          <ActionIcon
-            variant="subtle"
-            color="blue"
+  const kpis: TableKpi[] = (() => {
+    const priced = grantTypes.filter((g) => g.amount_per_period != null);
+    const total = priced.reduce((sum, g) => sum + (g.amount_per_period ?? 0), 0);
+    const avg = priced.length ? Math.round(total / priced.length) : null;
+    const durations = grantTypes
+      .map((g) => g.default_duration_months)
+      .filter((d): d is number => d != null);
+    const avgMonths = durations.length
+      ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+      : null;
+    const currency = priced[0]?.currency ?? "THB";
+
+    return [
+      { label: "Grant types", value: grantTypes.length, footnote: "available", accent: "blue" },
+      {
+        label: "With an amount",
+        value: priced.length,
+        footnote: `${grantTypes.length - priced.length} unpriced`,
+        accent: priced.length === grantTypes.length ? "teal" : "amber",
+      },
+      {
+        label: "Average award",
+        value: avg != null ? new Intl.NumberFormat().format(avg) : "—",
+        footnote: currency,
+        accent: "teal",
+      },
+      {
+        label: "Typical duration",
+        value: avgMonths ?? "—",
+        footnote: avgMonths ? "months" : "not set",
+        accent: "plum",
+      },
+    ];
+  })();
+
+  const columns: DataColumn<GrantType>[] = [
+    { key: "name", label: "Name", width: 260 },
+    {
+      key: "amount_per_period",
+      label: "Standard amount",
+      align: "right",
+      numeric: true,
+      width: 170,
+      render: (g) =>
+        g.amount_per_period != null
+          ? `${new Intl.NumberFormat().format(g.amount_per_period)} ${g.currency}`
+          : "—",
+    },
+    {
+      key: "default_duration_months",
+      label: "Default duration",
+      align: "right",
+      numeric: true,
+      width: 160,
+      render: (g) => (g.default_duration_months ? `${g.default_duration_months} months` : "—"),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      align: "right",
+      width: 130,
+      sortable: false,
+      filterable: false,
+      render: (g) => (
+        <div style={{ display: "inline-flex", gap: 4 }} onClick={(e) => e.stopPropagation()}>
+          <IconButton
+            icon="pencil"
             size="sm"
-            onClick={() => navigate(`/admin/grant-types/edit/${item.id}`)}
-          >
-            <IconEdit size={16} />
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            color="red"
+            label="Edit grant type"
+            onClick={() => navigate(`/admin/grant-types/edit/${g.id}`)}
+          />
+          <IconButton
+            icon="trash-2"
             size="sm"
-            onClick={() => handleDelete(item.id, item.name)}
-          >
-            <IconTrash size={16} />
-          </ActionIcon>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
-  ));
+            label="Delete grant type"
+            onClick={() => handleDelete(g.id, g.name)}
+          />
+        </div>
+      ),
+    },
+  ];
 
   if (loading) {
     return <LoadingState />;
@@ -129,36 +166,41 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
   return (
     <Stack>
       <PageHeader
-        title="Grant Types"
-        actions={
-          <Button onClick={() => navigate("/admin/grant-types/new")}>
-              Add new grant type
-            </Button>
-        }
+        title="Grant types"
+        subtitle="The award templates a scholarship can be created from."
       />
 
       <InlineMessage tone="error">{error}</InlineMessage>
 
-      <Paper withBorder p="md">
-        {grantTypes.length === 0 ? (
-          <EmptyState
-            title="No grant types found."
-            description='Click "Add new grant type" to create one.'
-          />
-        ) : (
-          <Table>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Standard Amount</Table.Th>
-                <Table.Th>Default Duration</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
-        )}
-      </Paper>
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={grantTypes}
+        searchKeys={["name", "description"]}
+        emptyTitle="No grant types found"
+        emptyDescription="Add a grant type to create scholarships from it."
+        emptyIcon="hand-coins"
+        emptyAction={
+          <LumenButton
+            variant="secondary"
+            icon="plus"
+            onClick={() => navigate("/admin/grant-types/new")}
+          >
+            Add grant type
+          </LumenButton>
+        }
+        actions={
+          <LumenButton
+            variant="primary"
+            icon="plus"
+            onClick={() => navigate("/admin/grant-types/new")}
+          >
+            Add grant type
+          </LumenButton>
+        }
+      />
     </Stack>
   );
 };
+
+export default AdminGrantTypesOverviewPage;

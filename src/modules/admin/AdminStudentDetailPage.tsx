@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Anchor,  
-  Card,
   Stack,
   Text,
   TextInput,
@@ -556,7 +555,7 @@ export const AdminStudentDetailPage: React.FC = () => {
   const title = isNew ? "Add student" : "Student details";
 
   return (
-    <Card withBorder shadow="sm" radius="md" pos="relative" p="lg">
+    <div style={{ position: "relative" }}>
       <LoadingState variant="overlay" visible={loading || saving} />
 
       <Stack gap="lg">
@@ -620,7 +619,7 @@ export const AdminStudentDetailPage: React.FC = () => {
                     accept="image/*"
                     disabled={uploadingPhoto}
                   />
-                  <Button
+                  <Button variant="default"
                     size="xs"
                     mt="xs"
                     onClick={() => handlePhotoUpload(profilePhotoFile)}
@@ -993,7 +992,7 @@ export const AdminStudentDetailPage: React.FC = () => {
           )}
         </Stack>
       </Stack>
-    </Card>
+    </div>
   );
 };
 

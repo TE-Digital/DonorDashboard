@@ -15,6 +15,7 @@ import { useAuth } from "./AuthContext";
 import { useBranding } from "../theme/BrandingContext";
 import { InlineMessage, textRole } from "../../design-system";
 import { color } from "../../design-system";
+import classes from "./AuthSurface.module.scss";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div
+      className={classes.page}
       style={{
         minHeight: "100vh",
         backgroundColor: color.surface.auth,
@@ -56,28 +58,33 @@ export const LoginPage: React.FC = () => {
         fontFamily: branding.font_family,
       }}
     >
-      <Container size={420}>
-        <Stack align="center" gap="xs" mb="md">
+      <Container size={420} className={classes.container}>
+        <Stack align="center" gap="xs" className={classes.header}>
           {branding.logo_url && (
             <Image
               src={branding.logo_url}
               height={48} // smaller logo
               fit="contain"
               alt={branding.hero_title ?? "Logo"}
+              className={classes.logo}
             />
           )}
 
-          <Text {...textRole("metricValue")}>
+          <Text {...textRole("metricValue")} className={classes.title}>
             {branding.login_title ?? "Welcome back"}
           </Text>
 
-          <Text {...textRole("pageSubtitle")} ta="center">
+          <Text
+            {...textRole("pageSubtitle")}
+            ta="center"
+            className={classes.subtitle}
+          >
             {branding.login_subtitle ??
               "Sign in to manage students, donors and reports."}
           </Text>
         </Stack>
 
-        <Card p="lg">
+        <Card p="lg" className={classes.card}>
           <form onSubmit={handleSubmit}>
             <Stack gap="sm">
               <InlineMessage tone="error">{error}</InlineMessage>

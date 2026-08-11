@@ -1,22 +1,16 @@
 // src/modules/admin/AdminStudentsPage.tsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { Anchor, Group, Stack, Text } from "@mantine/core";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Card,
-  Stack,
-  Table,
-  Text,
-  Group,
-  Button,
-  Anchor,
-} from "@mantine/core";
-import { Link } from "react-router-dom";
-import {
-  EmptyState,
   LoadingState,
   PageHeader,
   StatusBadge,
+  TableSection,
+  type TableKpi,
 } from "../../design-system";
+import { Button, type DataColumn } from "../../design-system/lumen";
 
 type StudentRow = {
   id: string;
@@ -34,7 +28,6 @@ type StudentRow = {
   last_report_date: string | null;
   overdue: boolean;
 };
-
 export const AdminStudentsPage: React.FC = () => {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -266,8 +259,102 @@ export const AdminStudentsPage: React.FC = () => {
     setExporting(false);
   };
 
+  const navigate = useNavigate();
+
+  // Nothing here is stored as a metric; each one is derived from the rows the
+  // page already loads.
+  const kpis: TableKpi[] = React.useMemo(() => {
+    const overdue = students.filter((s) => s.overdue).length;
+    const schools = new Set(students.map((s) => s.school_id).filter(Boolean)).size;
+    const withAge = students.filter((s) => s.age_years != null);
+    const avgAge = withAge.length
+      ? Math.round(withAge.reduce((sum, s) => sum + (s.age_years ?? 0), 0) / withAge.length)
+      : null;
+
+    return [
+      { label: "Students", value: students.length, footnote: "on the register", accent: "blue" },
+      {
+        label: "Reports overdue",
+        value: overdue,
+        footnote: overdue ? "need chasing" : "all up to date",
+        accent: overdue ? "amber" : "teal",
+      },
+      { label: "Schools represented", value: schools, footnote: "with a student", accent: "teal" },
+      {
+        label: "Average age",
+        value: avgAge ?? "—",
+        footnote: avgAge ? "years" : "no birthdates on file",
+        accent: "plum",
+      },
+    ];
+  }, [students]);
+
+  const columns: DataColumn<StudentRow & { id: string }>[] = [
+    {
+      key: "name",
+      label: "Student",
+      width: 200,
+      render: (s) => (
+        <div>
+          <Anchor component={Link} to={`/admin/students/${s.id}`} size="sm">
+            {s.name || "(no name)"}
+          </Anchor>
+          {s.nickname && (
+            <Text size="xs" c="dimmed">
+              Nickname: {s.nickname}
+            </Text>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "school_name",
+      label: "School",
+      width: 170,
+      render: (s) =>
+        s.school_id ? (
+          <Anchor component={Link} to={`/admin/schools/${s.school_id}`} size="sm">
+            {s.school_name || "School"}
+          </Anchor>
+        ) : (
+          "–"
+        ),
+    },
+    {
+      key: "teacher_name",
+      label: "Teacher",
+      width: 160,
+      render: (s) =>
+        s.responsible_teacher_id ? (
+          <Anchor component={Link} to={`/admin/teachers/${s.responsible_teacher_id}`} size="sm">
+            {s.teacher_name || "Teacher"}
+          </Anchor>
+        ) : (
+          "–"
+        ),
+    },
+    { key: "grade_level", label: "Grade", width: 90 },
+    { key: "village", label: "Village", width: 130 },
+    { key: "scholarship", label: "Scholarship", width: 140 },
+    { key: "age_years", label: "Age", align: "right", numeric: true, width: 80 },
+    { key: "last_report_date", label: "Last report", width: 120, muted: true },
+    {
+      key: "overdue",
+      label: "Reports",
+      width: 110,
+      filterValue: (s) => (s.overdue ? "Overdue" : "OK"),
+      render: (s) => (
+        <StatusBadge
+          kind="report"
+          value={s.overdue ? "overdue" : "ok"}
+          label={s.overdue ? "Overdue" : "OK"}
+        />
+      ),
+    },
+  ];
+
   return (
-    <Card p="lg" pos="relative">
+    <>
       {loading && (
         <Group justify="center" mb="md">
           <LoadingState variant="inline" />
@@ -278,113 +365,36 @@ export const AdminStudentsPage: React.FC = () => {
         <PageHeader
           title="Students"
           subtitle="Overview of all registered students, their schools, teachers, and report status."
-          actions={
-            <>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={handleExport}
-                loading={exporting}
-              >
-                Export CSV
-              </Button>
-              <Button component={Link} to="/admin/students/create" size="xs">
-                Add student
-              </Button>
-            </>
-          }
         />
 
-        {!loading && students.length === 0 && (
-          <EmptyState
-            title="No students found."
-            description="Start by adding a new student."
+        {!loading && (
+          <TableSection
+            kpis={kpis}
+            columns={columns}
+            rows={students}
+            searchKeys={["name", "nickname", "school_name", "teacher_name", "village"]}
+            onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
+            emptyTitle="No students found"
+            emptyDescription="Start by adding a new student."
+            emptyIcon="users"
+            emptyAction={
+              <Button variant="secondary" icon="plus" onClick={() => navigate("/admin/students/new")}>
+                Add student
+              </Button>
+            }
+            actions={
+              <>
+                <Button variant="secondary" icon="download" onClick={handleExport} disabled={exporting}>
+                  {exporting ? "Exporting…" : "Export CSV"}
+                </Button>
+                <Button variant="primary" icon="plus" onClick={() => navigate("/admin/students/new")}>
+                  Add student
+                </Button>
+              </>
+            }
           />
         )}
-
-        {!loading && students.length > 0 && (
-          <Table withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Student</Table.Th>
-                <Table.Th>School</Table.Th>
-                <Table.Th>Teacher</Table.Th>
-                <Table.Th>Grade</Table.Th>
-                <Table.Th>Village</Table.Th>
-                <Table.Th>Scholarship</Table.Th>
-                <Table.Th>Age</Table.Th>
-                <Table.Th>Last report</Table.Th>
-                <Table.Th>Reports</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {students.map((s) => (
-                <Table.Tr key={s.id}>
-                  <Table.Td>
-                    <Anchor
-                      component={Link}
-                      to={`/admin/students/${s.id}`}
-                      size="sm"
-                    >
-                      {s.name || "(no name)"}
-                    </Anchor>
-                    {s.nickname && (
-                      <Text size="xs" c="dimmed">
-                        Nickname: {s.nickname}
-                      </Text>
-                    )}
-                  </Table.Td>
-
-                  <Table.Td>
-                    {s.school_id ? (
-                      <Anchor
-                        component={Link}
-                        to={`/admin/schools/${s.school_id}`}
-                        size="sm"
-                      >
-                        {s.school_name || "School"}
-                      </Anchor>
-                    ) : (
-                      <Text size="xs" c="dimmed">
-                        –
-                      </Text>
-                    )}
-                  </Table.Td>
-
-                  <Table.Td>
-                    {s.responsible_teacher_id ? (
-                      <Anchor
-                        component={Link}
-                        to={`/admin/teachers/${s.responsible_teacher_id}`}
-                        size="sm"
-                      >
-                        {s.teacher_name || "Teacher"}
-                      </Anchor>
-                    ) : (
-                      <Text size="xs" c="dimmed">
-                        –
-                      </Text>
-                    )}
-                  </Table.Td>
-
-                  <Table.Td>{s.grade_level || "-"}</Table.Td>
-                  <Table.Td>{s.village || "-"}</Table.Td>
-                  <Table.Td>{s.scholarship || "-"}</Table.Td>
-                  <Table.Td>{s.age_years != null ? s.age_years : "-"}</Table.Td>
-                  <Table.Td>{s.last_report_date || "-"}</Table.Td>
-                  <Table.Td>
-                    <StatusBadge
-                      kind="report"
-                      value={s.overdue ? "overdue" : "ok"}
-                      label={s.overdue ? "Overdue" : "OK"}
-                    />
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
       </Stack>
-    </Card>
+    </>
   );
 };

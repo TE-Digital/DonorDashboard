@@ -1,8 +1,6 @@
 // src/design-system/components/SectionCard.tsx
 import React from "react";
-import { Card, Stack, Text } from "@mantine/core";
-import { textRole } from "../typography";
-import classes from "./SectionCard.module.scss";
+import { Card } from "../lumen";
 
 export interface SectionCardProps {
   title?: React.ReactNode;
@@ -20,12 +18,15 @@ export interface SectionCardProps {
   interactive?: boolean;
 }
 
+/** Mantine spacing keys the `gap` prop still accepts, in px. */
+const GAP: Record<string, number> = { xs: 8, sm: 12, md: 16, lg: 24, xl: 32 };
+
 /**
- * A bordered panel with an optional title row. Replaces the four different
- * `<Card ...>` prop combinations that were in circulation.
+ * A bordered panel with an optional title row, now built on the design
+ * system's Card: one 8px radius, one 1px stroke, ringless shadow, and a header
+ * rule when there is a title.
  *
- * Card defaults (border, radius, shadow) come from the theme; layout, hover
- * and responsive behaviour come from SectionCard.module.scss.
+ * The prop shape is unchanged, so the ~20 pages using it needed no edit.
  */
 export const SectionCard: React.FC<SectionCardProps> = ({
   title,
@@ -35,34 +36,40 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   gap = "sm",
   padding,
   interactive = false,
-}) => (
-  <Card
-    p={padding}
-    className={
-      interactive ? `${classes.root} ${classes.interactive}` : classes.root
-    }
-  >
-    <Stack gap={gap}>
-      {(title || actions) && (
-        <div className={classes.header}>
-          <div className={classes.titleGroup}>
-            {title && (
-              <Text {...textRole("cardTitle")} className={classes.title}>
-                {title}
-              </Text>
-            )}
-            {description && (
-              <Text {...textRole("caption")} className={classes.description}>
-                {description}
-              </Text>
-            )}
-          </div>
-          {actions && <div className={classes.actions}>{actions}</div>}
+}) => {
+  const [hover, setHover] = React.useState(false);
+  const pad = padding ? padding : 16;
+
+  return (
+    <div
+      onMouseEnter={interactive ? () => setHover(true) : undefined}
+      onMouseLeave={interactive ? () => setHover(false) : undefined}
+      style={
+        interactive
+          ? {
+              cursor: "pointer",
+              borderRadius: "var(--radius)",
+              boxShadow: hover ? "var(--shadow-raised)" : undefined,
+              transition: "box-shadow var(--dur-base) var(--ease-standard)",
+            }
+          : undefined
+      }
+    >
+      <Card
+        title={title}
+        action={actions}
+        padding={pad}
+        // A description belongs with the body, not the header rule.
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: GAP[gap] ?? 12 }}>
+          {description && (
+            <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>{description}</div>
+          )}
+          {children}
         </div>
-      )}
-      {children}
-    </Stack>
-  </Card>
-);
+      </Card>
+    </div>
+  );
+};
 
 export default SectionCard;

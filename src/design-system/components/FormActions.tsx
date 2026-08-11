@@ -1,6 +1,6 @@
 // src/design-system/components/FormActions.tsx
 import React from "react";
-import { Button, Group } from "@mantine/core";
+import { Button } from "../lumen";
 
 export interface FormActionsProps {
   submitLabel?: string;
@@ -12,7 +12,12 @@ export interface FormActionsProps {
   secondary?: React.ReactNode;
 }
 
-/** The submit / cancel row repeated at the bottom of every create & edit form. */
+/**
+ * The submit / cancel row at the bottom of every create and edit form.
+ *
+ * Submit is the one filled action in this region — everything beside it is an
+ * outline or a ghost, which is what keeps the blue meaningful.
+ */
 export const FormActions: React.FC<FormActionsProps> = ({
   submitLabel = "Save",
   loading,
@@ -21,19 +26,28 @@ export const FormActions: React.FC<FormActionsProps> = ({
   cancelLabel = "Cancel",
   secondary,
 }) => (
-  <Group justify="space-between" mt="md">
-    <Group gap="xs">{secondary}</Group>
-    <Group gap="xs">
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 16,
+      flexWrap: "wrap",
+    }}
+  >
+    <div style={{ display: "flex", gap: 8 }}>{secondary}</div>
+    <div style={{ display: "flex", gap: 8 }}>
       {onCancel && (
-        <Button variant="subtle" type="button" onClick={onCancel}>
+        <Button variant="ghost" type="button" onClick={onCancel}>
           {cancelLabel}
         </Button>
       )}
-      <Button type="submit" loading={loading} disabled={disabled}>
-        {submitLabel}
+      <Button variant="primary" type="submit" disabled={disabled || loading}>
+        {loading ? "Saving…" : submitLabel}
       </Button>
-    </Group>
-  </Group>
+    </div>
+  </div>
 );
 
 export default FormActions;

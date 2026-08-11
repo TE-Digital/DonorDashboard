@@ -1,20 +1,10 @@
 // src/modules/admin/AdminTeachersPage.tsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import {
-  Card,
-  Table,
-  Text,
-  Stack,
-  Anchor,
-  Group,
-  ActionIcon,
-  Tooltip,
-  Badge,
-} from "@mantine/core";
-import { Link } from "react-router-dom";
-import { IconUsers } from "@tabler/icons-react";
-import { EmptyState, LoadingState, PageHeader } from "../../design-system";
+import { Anchor, Stack, Text } from "@mantine/core";
+import { Link, useNavigate } from "react-router-dom";
+import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { Badge, type DataColumn } from "../../design-system/lumen";
 
 interface TeacherRow {
   id: string; // profiles.id (user id)
@@ -207,115 +197,99 @@ export const AdminTeachersPage: React.FC = () => {
     load();
   }, []);
 
+  const navigate = useNavigate();
+
+  // Derived on the page: caseload and report health per teacher, rolled up.
+  const kpis: TableKpi[] = React.useMemo(() => {
+    const students = teachers.reduce((sum, t) => sum + t.studentCount, 0);
+    const overdue = teachers.reduce((sum, t) => sum + t.overdueCount, 0);
+    const withOverdue = teachers.filter((t) => t.overdueCount > 0).length;
+    const avg = teachers.length ? Math.round((students / teachers.length) * 10) / 10 : 0;
+
+    return [
+      { label: "Teachers", value: teachers.length, footnote: "with an account", accent: "blue" },
+      { label: "Students covered", value: students, footnote: "assigned in total", accent: "teal" },
+      {
+        label: "Teachers with overdue",
+        value: withOverdue,
+        footnote: `${overdue} reports outstanding`,
+        accent: withOverdue ? "amber" : "teal",
+      },
+      { label: "Average caseload", value: avg, footnote: "students per teacher", accent: "plum" },
+    ];
+  }, [teachers]);
+
+  const columns: DataColumn<TeacherRow>[] = [
+    {
+      key: "full_name",
+      label: "Name",
+      width: 200,
+      render: (t) => (
+        <Anchor component={Link} to={`/admin/teachers/${t.id}/students`}>
+          {t.full_name || "(no name)"}
+        </Anchor>
+      ),
+    },
+    {
+      key: "email",
+      label: "Email",
+      width: 230,
+      render: (t) =>
+        t.email ? (
+          <Anchor href={`mailto:${t.email}`}>{t.email}</Anchor>
+        ) : (
+          <Text c="dimmed" size="sm">
+            no email
+          </Text>
+        ),
+    },
+    { key: "phone", label: "Phone", width: 140, render: (t) => t.phone || "—" },
+    {
+      key: "created_at",
+      label: "Created",
+      width: 120,
+      muted: true,
+      render: (t) => (t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"),
+    },
+    { key: "studentCount", label: "Students", align: "right", numeric: true, width: 100 },
+    {
+      key: "overdueCount",
+      label: "Overdue students",
+      align: "right",
+      numeric: true,
+      width: 150,
+      render: (t) =>
+        t.overdueCount > 0 ? (
+          <Badge tone="danger" dot>
+            {t.overdueCount}
+          </Badge>
+        ) : (
+          <Text size="sm" c="dimmed">
+            0
+          </Text>
+        ),
+    },
+  ];
+
   if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <PageHeader title="Teachers" />
+      <PageHeader title="Teachers" subtitle="Caseload and report health for every teacher." />
 
-      <Card>
-        <Table withTableBorder withColumnBorders>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Email</Table.Th>
-              <Table.Th>Phone</Table.Th>
-              <Table.Th>Created</Table.Th>
-              <Table.Th style={{ textAlign: "center" }}>Students</Table.Th>
-              <Table.Th style={{ textAlign: "center" }}>
-                Overdue students
-              </Table.Th>
-              <Table.Th style={{ textAlign: "center" }}>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-
-          <Table.Tbody>
-            {teachers.length === 0 && (
-              <Table.Tr>
-                <Table.Td colSpan={7}>
-                  <EmptyState title="No teachers found." />
-                </Table.Td>
-              </Table.Tr>
-            )}
-
-            {teachers.map((t) => (
-              <Table.Tr
-                key={t.id}
-                style={{
-                  borderBottom: "1px solid var(--mantine-color-gray-3)",
-                }}
-              >
-                {/* Name – clickable to teacher's students */}
-                <Table.Td>
-                  <Anchor
-                    component={Link}
-                    to={`/admin/teachers/${t.id}/students`}
-                  >
-                    {t.full_name || "(no name)"}
-                  </Anchor>
-                </Table.Td>
-
-                {/* Email */}
-                <Table.Td>
-                  {t.email ? (
-                    <Anchor href={`mailto:${t.email}`}>{t.email}</Anchor>
-                  ) : (
-                    <Text c="dimmed" size="sm">
-                      no email
-                    </Text>
-                  )}
-                </Table.Td>
-
-                {/* Phone */}
-                <Table.Td>{t.phone || "—"}</Table.Td>
-
-                {/* Created */}
-                <Table.Td>
-                  {t.created_at
-                    ? new Date(t.created_at).toLocaleDateString()
-                    : "—"}
-                </Table.Td>
-
-                {/* Student count */}
-                <Table.Td style={{ textAlign: "center" }}>
-                  {t.studentCount}
-                </Table.Td>
-
-                {/* Overdue students */}
-                <Table.Td style={{ textAlign: "center" }}>
-                  {t.overdueCount > 0 ? (
-                    <Badge color="red" variant="light">
-                      {t.overdueCount}
-                    </Badge>
-                  ) : (
-                    <Text size="sm" c="dimmed">
-                      0
-                    </Text>
-                  )}
-                </Table.Td>
-
-                {/* Actions */}
-                <Table.Td style={{ textAlign: "center" }}>
-                  <Group gap="xs" justify="center">
-                    <Tooltip label="View & manage students">
-                      <ActionIcon
-                        component={Link}
-                        to={`/admin/teachers/${t.id}/students`}
-                        variant="subtle"
-                        aria-label="Manage students"
-                      >
-                        <IconUsers size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Card>
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={teachers}
+        searchKeys={["full_name", "email", "phone"]}
+        onRowClick={(t) => navigate(`/admin/teachers/${t.id}/students`)}
+        emptyTitle="No teachers found"
+        emptyDescription="Teachers appear here once they have an account."
+        emptyIcon="users"
+      />
     </Stack>
   );
 };
+
 
 export default AdminTeachersPage;

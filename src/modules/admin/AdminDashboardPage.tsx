@@ -135,16 +135,16 @@ export const AdminDashboardPage: React.FC = () => {
         title="Dashboard Overview"
         actions={
           <>
-            <Button size="xs" onClick={() => navigate("/admin/students/new")}>
+            <Button variant="default" size="xs" onClick={() => navigate("/admin/students/new")}>
               Add student
             </Button>
-            <Button
+            <Button variant="default"
               size="xs"
               onClick={() => navigate("/admin/scholarships/new")}
             >
               Add scholarship
             </Button>
-            <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
+            <Button variant="default" size="xs" onClick={() => navigate("/admin/donors/new")}>
               Add donor
             </Button>
             <Button

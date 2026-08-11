@@ -1,24 +1,17 @@
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Card,
-  Group,
-  Select,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Select, Stack, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { asRows } from "../../lib/supabaseRelations";
 import {
-  EmptyState,
   InlineMessage,
   LoadingState,
   PageHeader,
   StatusBadge,
+  TableSection,
+  type TableKpi,
 } from "../../design-system";
+import { Button as LumenButton, type DataColumn } from "../../design-system/lumen";
 
 type RelatedName = {
   id: string;
@@ -237,149 +230,154 @@ export const AdminScholarshipsPage: React.FC = () => {
 
   if (loading) return <LoadingState />;
 
+  // Flat, sortable projection of the joined rows. TableSection owns search and
+  // per-column filtering from here.
+  const tableRows = filtered.map((row) => ({
+    id: row.id,
+    student: row.students?.name || "Unassigned",
+    donor: row.donors?.name || "Unassigned",
+    grant: row.grant_types?.name || "—",
+    period:
+      row.period_start && row.period_end
+        ? `${new Date(row.period_start).toLocaleDateString()} – ${new Date(
+            row.period_end
+          ).toLocaleDateString()}`
+        : "—",
+    amount: row.amount_for_period ?? null,
+    currency: row.currency || "THB",
+    status: row.status ?? null,
+    is_paid: row.is_paid ?? null,
+    payment: row.payment_date ? new Date(row.payment_date).toLocaleDateString() : "—",
+  }));
+
+  const kpis: TableKpi[] = (() => {
+    const total = tableRows.reduce((sum, r) => sum + (r.amount ?? 0), 0);
+    const paid = tableRows.filter((r) => r.is_paid).length;
+    const active = tableRows.filter((r) => r.status === "active").length;
+    const currency = tableRows[0]?.currency ?? "THB";
+    return [
+      { label: "Scholarships", value: tableRows.length, footnote: "in this view", accent: "blue" },
+      {
+        label: "Committed",
+        value: total.toLocaleString("en-US", { maximumFractionDigits: 0 }),
+        footnote: currency,
+        accent: "teal",
+      },
+      { label: "Active now", value: active, footnote: "running this period", accent: "amber" },
+      {
+        label: "Paid",
+        value: paid,
+        footnote: `${tableRows.length - paid} awaiting payment`,
+        accent: "plum",
+      },
+    ];
+  })();
+
+  const columns: DataColumn<(typeof tableRows)[number]>[] = [
+    { key: "student", label: "Student", width: 180 },
+    { key: "donor", label: "Donor", width: 180 },
+    { key: "grant", label: "Grant type", width: 160 },
+    { key: "period", label: "Period", width: 190, muted: true },
+    {
+      key: "amount",
+      label: "Amount (period)",
+      align: "right",
+      numeric: true,
+      width: 150,
+      render: (r) =>
+        r.amount != null
+          ? `${r.amount.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${r.currency}`
+          : "—",
+    },
+    {
+      key: "status",
+      label: "Status",
+      width: 120,
+      filterValue: (r) => r.status ?? "—",
+      render: (r) => renderStatusBadge(r.status),
+    },
+    {
+      key: "is_paid",
+      label: "Payment",
+      width: 140,
+      filterValue: (r) => (r.is_paid ? "Paid" : "Not paid"),
+      render: (r) => (
+        <Stack gap={2}>
+          {renderPaidBadge(r.is_paid)}
+          <Text size="xs" c="dimmed">
+            {r.payment}
+          </Text>
+        </Stack>
+      ),
+    },
+  ];
+
+  if (loading) return <LoadingState />;
+
   return (
     <Stack>
       <PageHeader
         title="Scholarships"
-        actions={
-          <>
-            <Button variant="outline" size="xs" onClick={handleExport}>
-              Export to Excel
-            </Button>
-            <Button size="xs" onClick={() => navigate("/admin/scholarships/new")}>
-              Add scholarship
-            </Button>
-          </>
-        }
+        subtitle="Every award, who funds it, and whether it has been paid."
       />
 
-      <Card>
-        <Stack gap="sm">
-          <Group grow>
-            <TextInput
-		label="Search"
-              placeholder="Search by student, donor, grant type…"
-              value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
-            />
+      <InlineMessage tone="error">{error}</InlineMessage>
+
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={tableRows}
+        searchKeys={["student", "donor", "grant"]}
+        onRowClick={(r) => navigate(`/admin/scholarships/${r.id}/edit`)}
+        controls={
+          <>
             <Select
-              label="Status"
-              placeholder="All"
+              placeholder="All statuses"
               data={statusOptions}
               value={statusFilter}
               onChange={setStatusFilter}
               clearable
+              w={160}
             />
             <Select
-              label="Year"
-              placeholder="All"
+              placeholder="All years"
               data={yearOptions}
               value={year}
               onChange={setYear}
               clearable
+              w={130}
             />
-          </Group>
-
-          <InlineMessage tone="error">{error}</InlineMessage>
-
-          {filtered.length === 0 ? (
-            <EmptyState title="No scholarships found." />
-          ) : (
-            <Table>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Student</Table.Th>
-                  <Table.Th>Donor</Table.Th>
-                  <Table.Th>Grant type</Table.Th>
-                  <Table.Th>Period</Table.Th>
-                  <Table.Th>Amount (period)</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                  <Table.Th>Payment</Table.Th>
-                  <Table.Th></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filtered.map((row) => {
-                  const studentName =
-                    row.students?.name || "Unassigned";
-                  const donorName =
-                    row.donors?.name || "Unassigned";
-                  const grantName =
-                    row.grant_types?.name || "—";
-
-                  const periodLabel =
-                    row.period_start && row.period_end
-                      ? `${new Date(
-                          row.period_start
-                        ).toLocaleDateString()} – ${new Date(
-                          row.period_end
-                        ).toLocaleDateString()}`
-                      : "—";
-
-                  const amountLabel =
-                    row.amount_for_period != null
-                      ? `${row.amount_for_period.toLocaleString(
-                          "en-US",
-                          {
-                            maximumFractionDigits: 0,
-                          }
-                        )} ${row.currency || "THB"}`
-                      : "—";
-
-                  const paymentLabel = row.payment_date
-                    ? new Date(
-                        row.payment_date
-                      ).toLocaleDateString()
-                    : "—";
-
-                  return (
-                    <Table.Tr key={row.id}>
-                      <Table.Td>
-                        <Text size="sm">{studentName}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{donorName}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{grantName}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{periodLabel}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{amountLabel}</Text>
-                      </Table.Td>
-                      <Table.Td>{renderStatusBadge(row.status)}</Table.Td>
-                      <Table.Td>
-                        <Stack gap={2}>
-                          {renderPaidBadge(row.is_paid)}
-                          <Text size="xs" c="dimmed">
-                            {paymentLabel}
-                          </Text>
-                        </Stack>
-                      </Table.Td>
-                      <Table.Td>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() =>
-                            navigate(
-                              `/admin/scholarships/${row.id}/edit`
-                            )
-                          }
-                        >
-                          Edit
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Stack>
-      </Card>
+          </>
+        }
+        emptyTitle="No scholarships found"
+        emptyDescription="Add a scholarship to start tracking an award."
+        emptyIcon="hand-coins"
+        emptyAction={
+          <LumenButton
+            variant="secondary"
+            icon="plus"
+            onClick={() => navigate("/admin/scholarships/new")}
+          >
+            Add scholarship
+          </LumenButton>
+        }
+        actions={
+          <>
+            <LumenButton variant="secondary" icon="download" onClick={handleExport}>
+              Export to Excel
+            </LumenButton>
+            <LumenButton
+              variant="primary"
+              icon="plus"
+              onClick={() => navigate("/admin/scholarships/new")}
+            >
+              Add scholarship
+            </LumenButton>
+          </>
+        }
+      />
     </Stack>
   );
 };
 
+export default AdminScholarshipsPage;

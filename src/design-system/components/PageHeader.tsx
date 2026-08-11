@@ -1,7 +1,6 @@
 // src/design-system/components/PageHeader.tsx
 import React from "react";
-import { Button, Group, Stack, Text } from "@mantine/core";
-import { textRole } from "../typography";
+import { Button, PageHeader as LumenPageHeader } from "../lumen";
 
 export interface PageHeaderProps {
   title: React.ReactNode;
@@ -15,8 +14,12 @@ export interface PageHeaderProps {
 }
 
 /**
- * The header row repeated at the top of ~26 pages:
- * title on the left, action buttons on the right.
+ * The header row repeated at the top of ~26 pages: title left, actions right.
+ *
+ * Now a thin adapter over the design system's PageHeader. The prop shape is
+ * unchanged so no page had to be touched; `size="md"` and `serif={false}` are
+ * the in-app settings — the serif hero is reserved for overview and landing
+ * screens.
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title,
@@ -24,28 +27,26 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
   onBack,
   backLabel = "Back",
-}) => {
-  const hasRight = Boolean(actions || onBack);
-
-  return (
-    <Group justify="space-between" align="flex-start" wrap="nowrap">
-      <Stack gap={2}>
-        <Text {...textRole("pageTitle")}>{title}</Text>
-        {subtitle && <Text {...textRole("pageSubtitle")}>{subtitle}</Text>}
-      </Stack>
-
-      {hasRight && (
-        <Group gap="xs" wrap="wrap" justify="flex-end">
-          {actions}
+}) => (
+  <LumenPageHeader
+    size="md"
+    serif={false}
+    padded={false}
+    title={title}
+    description={subtitle}
+    actions={
+      (actions || onBack) && (
+        <>
           {onBack && (
-            <Button size="xs" variant="subtle" onClick={onBack}>
+            <Button variant="ghost" size="sm" icon="chevron-left" onClick={onBack}>
               {backLabel}
             </Button>
           )}
-        </Group>
-      )}
-    </Group>
-  );
-};
+          {actions}
+        </>
+      )
+    }
+  />
+);
 
 export default PageHeader;

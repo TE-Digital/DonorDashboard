@@ -360,7 +360,7 @@ export const TeacherStudentsPage: React.FC = () => {
                   </Text>
 
                   <Group mt="xs" grow>
-                    <Button
+                    <Button variant="default"
                       size="xs"
                       onClick={() =>
                         navigate(`/teacher/students/${row.id}`)

@@ -221,7 +221,7 @@ export const AdminBrandingPage: React.FC = () => {
       )}
 
       <Group justify="flex-end">
-        <Button onClick={save} loading={saving}>
+        <Button variant="default" onClick={save} loading={saving}>
           Save branding
         </Button>
       </Group>

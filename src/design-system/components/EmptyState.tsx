@@ -1,7 +1,6 @@
 // src/design-system/components/EmptyState.tsx
 import React from "react";
-import { Stack, Text } from "@mantine/core";
-import { textRole } from "../typography";
+import { EmptyState as LumenEmptyState } from "../lumen";
 
 export interface EmptyStateProps {
   /** Primary line, e.g. "No students found." */
@@ -12,30 +11,39 @@ export interface EmptyStateProps {
   action?: React.ReactNode;
   /** `inline` keeps the original left-aligned text; `block` centres it. */
   align?: "inline" | "block";
+  /** Lucide icon name for the block form. */
+  icon?: string;
 }
 
 /**
- * Replaces the ~12 bare `<Text c="dimmed">No X found.</Text>` fragments so
- * every list renders its empty case the same way.
+ * Every list renders its empty case the same way.
+ *
+ * `block` is the design system's EmptyState — icon chip, heading, one line of
+ * guidance, action. `inline` stays a quiet left-aligned line, for an empty
+ * region inside an otherwise populated page.
  */
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
   action,
   align = "inline",
-}) => (
-  <Stack
-    gap="xs"
-    align={align === "block" ? "center" : "flex-start"}
-    ta={align === "block" ? "center" : undefined}
-    py={align === "block" ? "xl" : undefined}
-  >
-    <Text {...textRole("body")} c="dimmed">
-      {title}
-    </Text>
-    {description && <Text {...textRole("caption")}>{description}</Text>}
-    {action}
-  </Stack>
-);
+  icon = "inbox",
+}) => {
+  if (align === "block") {
+    return (
+      <LumenEmptyState icon={icon} title={title} description={description} action={action} />
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+      <div style={{ fontSize: "var(--fs-body)", color: "var(--text-muted)" }}>{title}</div>
+      {description && (
+        <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-subtle)" }}>{description}</div>
+      )}
+      {action}
+    </div>
+  );
+};
 
 export default EmptyState;

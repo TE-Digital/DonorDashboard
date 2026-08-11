@@ -1,21 +1,10 @@
 // src/modules/admin/AdminUsersRolesPage.tsx
 import React, { useEffect, useState } from "react";
 import { supabase, Profile } from "../../lib/supabaseClient";
-import {
-  Card,
-  Stack,
-  Text,
-  Group,
-  Button,
-  Anchor,
-  Badge,
-  ActionIcon,
-  Table,
-  Checkbox,
-} from "@mantine/core";
-import { Link } from "react-router-dom";
-import { IconPencil } from "@tabler/icons-react";
-import { EmptyState, LoadingState, PageHeader } from "../../design-system";
+import { Anchor, Checkbox, Stack, Text } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
+import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { Badge, Button as LumenButton, type DataColumn } from "../../design-system/lumen";
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
@@ -28,6 +17,7 @@ interface UserWithRoles extends Profile {
 const ALL_ROLES: UiRole[] = ["admin", "teacher", "donor", "agent"];
 
 export const AdminUsersRolesPage: React.FC = () => {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -102,120 +92,97 @@ export const AdminUsersRolesPage: React.FC = () => {
     return <LoadingState />;
   }
 
+  const kpis: TableKpi[] = (() => {
+    const counts = (role: UiRole) => users.filter((u) => u.roles.includes(role)).length;
+    const noRole = users.filter((u) => u.roles.length === 0).length;
+    return [
+      { label: "Accounts", value: users.length, footnote: "with a profile", accent: "blue" },
+      { label: "Admins", value: counts("admin"), footnote: "full access", accent: "teal" },
+      { label: "Teachers", value: counts("teacher"), footnote: "submit reports", accent: "amber" },
+      {
+        label: "Without a role",
+        value: noRole,
+        footnote: noRole ? "cannot sign in anywhere" : "everyone assigned",
+        accent: "plum",
+      },
+    ];
+  })();
+
+  const columns: DataColumn<UserWithRoles>[] = [
+    {
+      key: "full_name",
+      label: "User",
+      width: 240,
+      render: (u) => (
+        <Stack gap={2}>
+          <Text size="sm" fw={500}>
+            {u.full_name || "(no name)"}
+          </Text>
+          {u.email ? (
+            <Anchor size="xs" c="dimmed" href={`mailto:${u.email}`} onClick={(e) => e.stopPropagation()}>
+              {u.email}
+            </Anchor>
+          ) : (
+            <Text size="xs" c="dimmed">
+              no email
+            </Text>
+          )}
+        </Stack>
+      ),
+    },
+    { key: "phone", label: "Phone", width: 140, render: (u) => u.phone || "—" },
+    {
+      key: "created_at",
+      label: "Created",
+      width: 120,
+      muted: true,
+      render: (u) => (u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"),
+    },
+    // One column per role, each filterable on Yes/No so you can pull up
+    // "everyone who is a teacher" from the header.
+    ...ALL_ROLES.map<DataColumn<UserWithRoles>>((role) => ({
+      key: `role_${role}`,
+      label: role.charAt(0).toUpperCase() + role.slice(1),
+      width: 96,
+      align: "center",
+      sortable: false,
+      filterValue: (u) => (u.roles.includes(role) ? "Yes" : "No"),
+      render: (u) => (
+        <Checkbox
+          size="xs"
+          checked={u.roles.includes(role)}
+          onChange={(e) => toggleRole(u.id, role, e.currentTarget.checked)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`${role} role for ${u.full_name ?? "user"}`}
+        />
+      ),
+    })),
+  ];
+
   return (
     <Stack>
       <PageHeader
         title="Users & roles"
-        actions={saving && <Badge color="blue">Saving…</Badge>}
+        subtitle="Who can sign in, and what each account is allowed to do."
+        actions={saving ? <Badge tone="info">Saving…</Badge> : undefined}
       />
 
-      <Card>
-        {users.length === 0 ? (
-          <EmptyState title="No users found." />
-        ) : (
-          <Table
-            horizontalSpacing="md"
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>User</Table.Th>
-                <Table.Th>Phone</Table.Th>
-                <Table.Th>Created</Table.Th>
-                {ALL_ROLES.map((r) => (
-                  <Table.Th
-                    key={r}
-                    style={{ textTransform: "capitalize", textAlign: "center" }}
-                  >
-                    {r}
-                  </Table.Th>
-                ))}
-                <Table.Th style={{ width: 60, textAlign: "center" }}>
-                  Edit
-                </Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {users.map((u) => (
-                <Table.Tr key={u.id}>
-                  {/* User + email */}
-                  <Table.Td>
-                    <Stack gap={2}>
-                      <Text size="sm" fw={500}>
-                        {u.full_name || "(no name)"}
-                      </Text>
-                      {u.email ? (
-                        <Anchor
-                          size="xs"
-                          c="dimmed"
-                          href={`mailto:${u.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {u.email}
-                        </Anchor>
-                      ) : (
-                        <Text size="xs" c="dimmed">
-                          no email
-                        </Text>
-                      )}
-                    </Stack>
-                  </Table.Td>
-
-                  {/* Phone */}
-                  <Table.Td>
-                    <Text size="sm">{u.phone || "—"}</Text>
-                  </Table.Td>
-
-                  {/* Created */}
-                  <Table.Td>
-                    <Text size="sm">
-                      {u.created_at
-                        ? new Date(u.created_at).toLocaleDateString()
-                        : "—"}
-                    </Text>
-                  </Table.Td>
-
-                  {/* Roles */}
-                  {ALL_ROLES.map((role) => (
-                    <Table.Td key={role} style={{ textAlign: "center" }}>
-                      <Checkbox
-                        size="xs"
-                        checked={u.roles.includes(role)}
-                        onChange={(e) =>
-                          toggleRole(u.id, role, e.currentTarget.checked)
-                        }
-                      />
-                    </Table.Td>
-                  ))}
-
-                  {/* Edit profile */}
-                  <Table.Td style={{ textAlign: "center" }}>
-                    <ActionIcon
-                      component={Link}
-                      to={`/profile?userId=${u.id}`}
-                      variant="subtle"
-                      aria-label="Edit profile"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <IconPencil size={16} />
-                    </ActionIcon>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
-
-      <Group justify="flex-end">
-        <Button component={Link} to="/admin/users/new" size="sm" variant="outline">
-          Create user
-        </Button>
-      </Group>
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={users}
+        searchKeys={["full_name", "email", "phone"]}
+        emptyTitle="No users found"
+        emptyDescription="Accounts appear here once someone is invited."
+        emptyIcon="users"
+        actions={
+          <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/users/new")}>
+            Add user
+          </LumenButton>
+        }
+      />
     </Stack>
   );
 };
 
 export default AdminUsersRolesPage;
-
-
-

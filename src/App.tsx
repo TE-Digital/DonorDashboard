@@ -7,6 +7,8 @@ import { useAuth } from "./modules/auth/AuthContext";
 
 import { LoginPage } from "./modules/auth/LoginPage";
 import { ResetPasswordPage } from "./modules/auth/ResetPasswordPage";
+import { DesignSystemPage } from "./modules/designsystem/DesignSystemPage";
+import { GrantsConsolePage } from "./modules/designsystem/GrantsConsolePage";
 
 import { AdminDashboardPage } from "./modules/admin/AdminDashboardPage";
 import { AdminTeachersPage } from "./modules/admin/AdminTeachersPage";
@@ -65,6 +67,10 @@ const App: React.FC = () => {
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* Lumen design system: the grants console is the reference screen, the
+          token/component catalogue lives one level down. */}
+      <Route path="/design-system" element={<GrantsConsolePage />} />
+      <Route path="/design-system/reference" element={<DesignSystemPage />} />
  	<Route path="/welcome" element={<WelcomeSetPasswordPage />} />
 
       {/* Auth-protected area */}

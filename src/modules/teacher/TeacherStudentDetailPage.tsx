@@ -438,7 +438,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   accept="image/*"
                   disabled={uploadingPhoto}
                 />
-                <Button
+                <Button variant="default"
                   size="xs"
                   mt="xs"
                   onClick={() => handlePhotoUpload(profilePhotoFile)}

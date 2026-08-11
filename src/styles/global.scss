@@ -1,0 +1,274 @@
+@use "./mixins" as *;
+
+// Global chrome for the Lumen design system.
+//
+// design-system/lumen/tokens.css publishes the raw tokens on :root; tokens.ts
+// publishes the same values as `--dd-*` through Mantine's cssVariablesResolver.
+// This file is where the two meet: it dresses Mantine's own components so a
+// Mantine Table and a Lumen DataTable read as the same product.
+//
+// House rules enforced here: one 8px radius, one 1px border, warm off-white
+// canvas, tabular figures always on, blue reserved for the filled primary action.
+
+html {
+  background: var(--bg-app, #f6f5f2);
+}
+
+body {
+  margin: 0;
+  background: var(--bg-app, #f6f5f2);
+  color: var(--text-body, #332f2a);
+  font-family: var(--font-core);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-heading);
+  letter-spacing: var(--ls-tight);
+}
+
+::selection {
+  background: var(--blue-50);
+  color: var(--text-heading);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  @include transition(background-color, border-color, color, box-shadow);
+}
+
+// ── Buttons ──────────────────────────────────────────────────────────────
+// Only `filled` carries the blue. Everything else is an outline, so the blue
+// never has to compete.
+
+// Mantine 7 paints buttons from --button-* custom properties, so setting those
+// is how a variant gets recoloured — restyling `background` directly loses to
+// Mantine's own rules on hover and disabled.
+
+.mantine-Button-root {
+  --button-radius: var(--radius);
+
+  letter-spacing: 0.002em;
+}
+
+// The one filled action per screen region. This is the only blue.
+.mantine-Button-root[data-variant="filled"] {
+  --button-bg: var(--action-primary);
+  --button-hover: var(--action-primary-hover);
+  --button-color: var(--text-inverse);
+  --button-bd: 1px solid var(--action-primary);
+
+  box-shadow: none;
+}
+
+// Everything else is an outline, so the blue never has to compete.
+.mantine-Button-root[data-variant="default"],
+.mantine-Button-root[data-variant="outline"],
+.mantine-Button-root[data-variant="light"] {
+  --button-bg: var(--n-0);
+  --button-hover: var(--n-50);
+  --button-color: var(--text-body);
+  --button-bd: 1px solid var(--border-default);
+}
+
+.mantine-Button-root[data-variant="default"]:hover,
+.mantine-Button-root[data-variant="outline"]:hover,
+.mantine-Button-root[data-variant="light"]:hover {
+  --button-bd: 1px solid var(--border-strong);
+}
+
+.mantine-Button-root[data-variant="subtle"],
+.mantine-Button-root[data-variant="transparent"] {
+  --button-bg: transparent;
+  --button-hover: var(--surface-hover);
+  --button-color: var(--text-muted);
+  --button-bd: 1px solid transparent;
+}
+
+// Destructive actions read as an outline too — red on white, never a red fill.
+.mantine-Button-root[data-variant="filled"][data-color="red"],
+.mantine-Button-root[data-variant="outline"][data-color="red"],
+.mantine-Button-root[data-variant="light"][data-color="red"] {
+  --button-bg: var(--n-0);
+  --button-hover: var(--red-50);
+  --button-color: var(--red-600);
+  --button-bd: 1px solid var(--red-500);
+}
+
+.mantine-Button-root:disabled,
+.mantine-Button-root[data-disabled] {
+  --button-bg: var(--surface-disabled);
+  --button-color: var(--text-subtle);
+  --button-bd: 1px solid var(--border-subtle);
+}
+
+.mantine-ActionIcon-root {
+  --ai-radius: var(--radius);
+  --ai-bg: transparent;
+  --ai-hover: var(--surface-hover);
+  --ai-color: var(--text-muted);
+  --ai-bd: 1px solid transparent;
+}
+
+.mantine-ActionIcon-root[data-variant="filled"] {
+  --ai-bg: var(--action-primary);
+  --ai-hover: var(--action-primary-hover);
+  --ai-color: var(--text-inverse);
+  --ai-bd: 1px solid var(--action-primary);
+}
+
+.mantine-ActionIcon-root[data-variant="default"],
+.mantine-ActionIcon-root[data-variant="outline"] {
+  --ai-bg: var(--n-0);
+  --ai-hover: var(--n-50);
+  --ai-color: var(--text-muted);
+  --ai-bd: 1px solid var(--border-default);
+}
+
+// ── Inputs ───────────────────────────────────────────────────────────────
+
+.mantine-Input-input {
+  min-height: var(--control-h-md);
+  border-radius: var(--radius);
+  background: var(--n-0);
+  border-color: var(--border-default);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+}
+
+.mantine-Input-input:hover {
+  border-color: var(--border-strong);
+}
+
+.mantine-Input-input:focus,
+.mantine-Input-input:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.mantine-Input-input::placeholder {
+  color: var(--text-subtle);
+}
+
+.mantine-InputWrapper-label {
+  margin-bottom: var(--sp-1);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+.mantine-InputWrapper-description {
+  color: var(--text-subtle);
+  font-size: var(--fs-xs);
+}
+
+.mantine-InputWrapper-error {
+  color: var(--red-500);
+  font-size: var(--fs-xs);
+}
+
+// ── Surfaces. One radius, one 1px stroke, no nested boxes. ───────────────
+
+.mantine-Card-root,
+.mantine-Paper-root {
+  border-radius: var(--radius);
+  border-color: var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card);
+}
+
+// ── Tables. The table is the product. ────────────────────────────────────
+
+.mantine-Table-table {
+  --table-border-color: var(--border-subtle);
+  --table-hover-color: var(--n-25);
+  --table-striped-color: var(--n-25);
+
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-table);
+  line-height: var(--lh-table);
+  font-variant-numeric: tabular-nums;
+}
+
+.mantine-Table-th {
+  height: 40px;
+  padding: 0 var(--sp-4);
+  background: var(--n-50);
+  border-bottom: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+// Numeric columns are right-aligned by the page; keep their figures monospaced
+// in width so the decimal points stack.
+.mantine-Table-td {
+  height: var(--row-h-default);
+  padding: 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.mantine-Table-tr:last-child .mantine-Table-td {
+  border-bottom: 0;
+}
+
+// The grid is a panel in its own right: one 8px radius, one 1px stroke.
+.mantine-Table-tableWrapper,
+.mantine-Table-scrollContainer {
+  border-radius: var(--radius);
+}
+
+// ── Badges. A tone is a claim about state, so keep them quiet and readable. ──
+
+.mantine-Badge-root {
+  height: 20px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+// ── Overlays ─────────────────────────────────────────────────────────────
+
+.mantine-Modal-content,
+.mantine-Drawer-content,
+.mantine-Menu-dropdown,
+.mantine-Popover-dropdown {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
+}
+
+.mantine-Tabs-tab[data-active] {
+  border-color: var(--action-primary);
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

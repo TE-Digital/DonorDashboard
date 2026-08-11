@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useBranding } from "../theme/BrandingContext";
 import { color } from "../../design-system";
+import classes from "./AuthSurface.module.scss";
 
 type Mode = "checking" | "request" | "reset";
 
@@ -120,19 +121,20 @@ export const ResetPasswordPage: React.FC = () => {
   // ---------- UI helpers ----------
 
   const renderHeader = () => (
-    <Stack align="center" gap="xs" mb="md">
+    <Stack align="center" gap="xs" className={classes.header}>
       {branding.logo_url && (
         <Image
           src={branding.logo_url}
           height={80}
           fit="contain"
           alt={branding.hero_title ?? "Logo"}
+          className={classes.logo}
         />
       )}
-      <Text fw={700} fz={28}>
+      <Text fw={700} fz={28} className={classes.title}>
         {branding.hero_title ?? "iCare Donor Dashboard"}
       </Text>
-      <Text fz="sm" c="dimmed" ta="center">
+      <Text fz="sm" c="dimmed" ta="center" className={classes.subtitle}>
         {mode === "reset"
           ? "Choose a new password for your account."
           : "Enter your email and we will send you a password reset link."}
@@ -146,6 +148,7 @@ export const ResetPasswordPage: React.FC = () => {
     // same style as branded loading
     return (
       <div
+        className={classes.page}
         style={{
           minHeight: "100vh",
           backgroundColor: color.surface.auth,
@@ -157,7 +160,7 @@ export const ResetPasswordPage: React.FC = () => {
         }}
       >
         <Stack align="center">
-          <Text fw={700} fz={28}>
+          <Text fw={700} fz={28} className={classes.title}>
             {branding.hero_title ?? "iCare Donor Dashboard"}
           </Text>
           <Text c="dimmed">Preparing password reset page…</Text>
@@ -168,6 +171,7 @@ export const ResetPasswordPage: React.FC = () => {
 
   return (
     <div
+      className={classes.page}
       style={{
         minHeight: "100vh",
         backgroundColor: color.surface.auth,
@@ -178,10 +182,10 @@ export const ResetPasswordPage: React.FC = () => {
         fontFamily: branding.font_family,
       }}
     >
-      <Container size={420}>
+      <Container size={420} className={classes.container}>
         {renderHeader()}
 
-        <Card withBorder shadow="sm" radius="md" p="lg">
+        <Card withBorder shadow="sm" radius="md" p="lg" className={classes.card}>
           {mode === "request" && (
             <form onSubmit={handleRequestLink}>
               <Stack gap="sm">

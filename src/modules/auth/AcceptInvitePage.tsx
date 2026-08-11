@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./AuthContext"; // adjust path if needed
 import { LoadingState } from "../../design-system";
+import classes from "./AuthSurface.module.scss";
 
 export const AcceptInvitePage: React.FC = () => {
   const navigate = useNavigate();
@@ -76,7 +77,13 @@ export const AcceptInvitePage: React.FC = () => {
 
   if (checking) {
     return (
-      <Card withBorder shadow="sm" radius="md" p="lg" style={{ maxWidth: 420, margin: "40px auto" }}>
+      <Card
+        withBorder
+        shadow="sm"
+        radius="md"
+        p="lg"
+        className={`${classes.card} ${classes.inviteCard}`}
+      >
         <LoadingState variant="overlay" />
         <Text size="sm">Checking your invite link…</Text>
       </Card>
@@ -89,6 +96,7 @@ export const AcceptInvitePage: React.FC = () => {
       shadow="sm"
       radius="md"
       p="lg"
+      className={`${classes.card} ${classes.inviteCard}`}
       style={{ maxWidth: 420, margin: "40px auto" }}
     >
       <Stack gap="md">

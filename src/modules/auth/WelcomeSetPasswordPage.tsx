@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useBranding } from "../theme/BrandingContext";
 import { color } from "../../design-system";
+import classes from "./AuthSurface.module.scss";
 
 export const WelcomeSetPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -80,6 +81,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
   if (checking) {
     return (
       <div
+        className={classes.page}
         style={{
           minHeight: "100vh",
           backgroundColor: color.surface.auth,
@@ -91,7 +93,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
         }}
       >
         <Stack align="center">
-          <Text fw={700} fz={28}>
+          <Text fw={700} fz={28} className={classes.title}>
             {branding.hero_title ?? "iCare Donor Dashboard"}
           </Text>
           <Text c="dimmed">Preparing your welcome page…</Text>
@@ -102,6 +104,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
 
   return (
     <div
+      className={classes.page}
       style={{
         minHeight: "100vh",
         backgroundColor: color.surface.auth,
@@ -112,20 +115,21 @@ export const WelcomeSetPasswordPage: React.FC = () => {
         fontFamily: branding.font_family,
       }}
     >
-      <Container size={420}>
-        <Stack align="center" gap="xs" mb="md">
+      <Container size={420} className={classes.container}>
+        <Stack align="center" gap="xs" className={classes.header}>
           {branding.logo_url && (
             <Image
               src={branding.logo_url}
               height={48} // smaller logo
               fit="contain"
               alt={branding.hero_title ?? "Logo"}
+              className={classes.logo}
             />
           )}
-          <Text fw={700} fz={28}>
+          <Text fw={700} fz={28} className={classes.title}>
             {branding.hero_title ?? "iCare Donor Dashboard"}
           </Text>
-          <Text fz="sm" c="dimmed" ta="center">
+          <Text fz="sm" c="dimmed" ta="center" className={classes.subtitle}>
             Welcome! Please choose a password to complete your account setup.
           </Text>
           {email && (
@@ -135,7 +139,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
           )}
         </Stack>
 
-        <Card withBorder shadow="sm" radius="md" p="lg">
+        <Card withBorder shadow="sm" radius="md" p="lg" className={classes.card}>
           <form onSubmit={handleSetPassword}>
             <Stack gap="sm">
               {error && (

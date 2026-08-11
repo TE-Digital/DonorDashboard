@@ -1,24 +1,20 @@
 // src/modules/admin/AdminContactRequestsPage.tsx
 import React, { useEffect, useState, useMemo } from "react";
-import {
-  Card,
-  Stack,
-  Group,
-  Text,
-  TextInput,
-  Select,
-  Table,
-  Badge,
-  Loader,
-  Center,
-  ScrollArea,
-  Anchor,
-  Modal,
-  Button,
-} from "@mantine/core";
+import { Anchor, Badge, Group, Modal, Select, Stack, Text } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { asRows } from "../../lib/supabaseRelations";
-import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
+import {
+  LoadingState,
+  PageHeader,
+  StatusBadge,
+  TableSection,
+  type TableKpi,
+} from "../../design-system";
+import {
+  Badge as LumenBadge,
+  Button as LumenButton,
+  type DataColumn,
+} from "../../design-system/lumen";
 
 type ContactRequestRow = {
   id: string;
@@ -165,17 +161,118 @@ export const AdminContactRequestsPage: React.FC = () => {
     }
   };
 
+  const kpis: TableKpi[] = (() => {
+    const open = requests.filter((r) => !r.handled).length;
+    const renewals = requests.filter((r) => r.contact_type === "donor_renewal").length;
+    const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recent = requests.filter((r) => new Date(r.created_at).getTime() >= week).length;
+    return [
+      { label: "Requests", value: requests.length, footnote: "received in total", accent: "blue" },
+      {
+        label: "Awaiting reply",
+        value: open,
+        footnote: open ? "need handling" : "inbox clear",
+        accent: open ? "amber" : "teal",
+      },
+      { label: "Renewals", value: renewals, footnote: "donor renewals", accent: "teal" },
+      { label: "This week", value: recent, footnote: "in the last 7 days", accent: "plum" },
+    ];
+  })();
+
+  const columns: DataColumn<ContactRequestRow>[] = [
+    {
+      key: "created_at",
+      label: "Created",
+      width: 160,
+      muted: true,
+      render: (r) => new Date(r.created_at).toLocaleString(),
+    },
+    {
+      key: "contact_type",
+      label: "Type",
+      width: 150,
+      filterValue: (r) => getContactTypeLabel(r.contact_type),
+      render: (r) => <LumenBadge tone="info">{getContactTypeLabel(r.contact_type)}</LumenBadge>,
+    },
+    { key: "name", label: "Name", width: 170 },
+    {
+      key: "email",
+      label: "Email",
+      width: 220,
+      render: (r) => (
+        <Anchor href={`mailto:${r.email}`} size="sm" onClick={(e) => e.stopPropagation()}>
+          {r.email}
+        </Anchor>
+      ),
+    },
+    {
+      key: "grant_type",
+      label: "Grant type",
+      width: 150,
+      filterValue: (r) => r.grant_types?.name ?? "—",
+      render: (r) => r.grant_types?.name ?? "–",
+    },
+    { key: "source", label: "Source", width: 130, muted: true, render: (r) => r.source || "–" },
+    {
+      key: "message",
+      label: "Message",
+      width: 260,
+      sortable: false,
+      filterable: false,
+      render: (r) => (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            openMessage(r.id);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.stopPropagation();
+              openMessage(r.id);
+            }
+          }}
+          style={{
+            display: "inline-block",
+            maxWidth: 240,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            color: "var(--text-link)",
+            cursor: "pointer",
+          }}
+        >
+          {r.message}
+        </span>
+      ),
+    },
+    {
+      key: "handled",
+      label: "Status",
+      width: 170,
+      filterValue: (r) => (r.handled ? "Handled" : "New"),
+      render: (r) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <LumenButton
+            size="sm"
+            variant="secondary"
+            disabled={updating}
+            onClick={() => toggleHandled(r.id, !r.handled)}
+          >
+            {r.handled ? "Mark as unhandled" : "Mark as handled"}
+          </LumenButton>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <Card p="lg">
+    <>
       <Stack gap="md">
         <PageHeader
           title="Contact & renewal requests"
           subtitle="Overview of donor renewal requests and other contact leads submitted via the dashboards or future public forms."
-          actions={
-            <Button variant="outline" size="xs" onClick={loadRequests}>
-              Refresh
-            </Button>
-          }
         />
 
         {error && (
@@ -184,140 +281,46 @@ export const AdminContactRequestsPage: React.FC = () => {
           </Text>
         )}
 
-        {/* Filters */}
-        <Group grow align="flex-end">
-          <Select
-            label="Type"
-            placeholder="All types"
-            value={typeFilter}
-            onChange={setTypeFilter}
-            data={[
-              { value: "all", label: "All types" },
-              { value: "donor_renewal", label: "Donor renewal" },
-              { value: "donor_new", label: "New donor lead" },
-              { value: "general", label: "General inquiry" },
-            ]}
-          />
-
-          <Select
-            label="Status"
-            placeholder="Status"
-            value={statusFilter}
-            onChange={setStatusFilter}
-            data={[
-              { value: "unhandled", label: "Unhandled only" },
-              { value: "all", label: "All requests" },
-            ]}
-          />
-
-          <TextInput
-            label="Search"
-            placeholder="Search name, email, message, grant, source…"
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-          />
-        </Group>
-
-        {loading ? (
-          <LoadingState />
-        ) : filteredRequests.length === 0 ? (
-          <EmptyState title="No contact requests found for the selected filters." />
-        ) : (
-          <ScrollArea mah={500}>
-            <Table withTableBorder withColumnBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Created</Table.Th>
-                  <Table.Th>Type</Table.Th>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Email</Table.Th>
-                  <Table.Th>Grant type</Table.Th>
-                  <Table.Th>Source</Table.Th>
-                  <Table.Th>Message</Table.Th>
-                  <Table.Th>Status</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filteredRequests.map((r) => (
-                  <Table.Tr
-                    key={r.id}
-                    style={r.handled ? { opacity: 0.8 } : undefined}
-                  >
-                    <Table.Td>
-                      {new Date(r.created_at).toLocaleString()}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge size="sm" variant="light">
-                        {getContactTypeLabel(r.contact_type)}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{r.name}</Table.Td>
-                    <Table.Td>
-                      <Anchor href={`mailto:${r.email}`} size="sm">
-                        {r.email}
-                      </Anchor>
-                    </Table.Td>
-                    <Table.Td>
-                      {r.grant_types?.name ? (
-                        <Badge size="sm" variant="outline">
-                          {r.grant_types.name}
-                        </Badge>
-                      ) : (
-                        <Text size="xs" c="dimmed">
-                          –
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {r.source ? (
-                        <Text size="xs">{r.source}</Text>
-                      ) : (
-                        <Text size="xs" c="dimmed">
-                          –
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="xs" lineClamp={2}>
-                        {r.message}
-                      </Text>
-                      <Button
-                        variant="subtle"
-                        size="xs"
-                        mt={4}
-                        onClick={() => openMessage(r.id)}
-                      >
-                        View
-                      </Button>
-                    </Table.Td>
-                    <Table.Td>
-                      {r.handled ? (
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          color="gray"
-                          onClick={() => toggleHandled(r.id, false)}
-                          loading={updating}
-                        >
-                          Mark as unhandled
-                        </Button>
-                      ) : (
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => toggleHandled(r.id, true)}
-                          loading={updating}
-                        >
-                          Mark as handled
-                        </Button>
-                      )}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
-        )}
+        <TableSection
+          kpis={kpis}
+          columns={columns}
+          rows={filteredRequests}
+          searchKeys={["name", "email", "message", "source"]}
+          controls={
+            <>
+              <Select
+                placeholder="All types"
+                value={typeFilter}
+                onChange={setTypeFilter}
+                w={170}
+                data={[
+                  { value: "all", label: "All types" },
+                  { value: "donor_renewal", label: "Donor renewal" },
+                  { value: "donor_new", label: "New donor lead" },
+                  { value: "general", label: "General inquiry" },
+                ]}
+              />
+              <Select
+                placeholder="Status"
+                value={statusFilter}
+                onChange={setStatusFilter}
+                w={170}
+                data={[
+                  { value: "unhandled", label: "Unhandled only" },
+                  { value: "all", label: "All requests" },
+                ]}
+              />
+            </>
+          }
+          emptyTitle="No contact requests"
+          emptyDescription="Requests submitted from the dashboards appear here."
+          emptyIcon="inbox"
+          actions={
+            <LumenButton variant="secondary" icon="download" onClick={loadRequests}>
+              Refresh
+            </LumenButton>
+          }
+        />
       </Stack>
 
       {/* Modal with full message */}
@@ -384,37 +387,22 @@ export const AdminContactRequestsPage: React.FC = () => {
               </Anchor>
 
               <Group gap="xs">
-                {openedRequest.handled ? (
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    color="gray"
-                    onClick={() => toggleHandled(openedRequest.id, false)}
-                    loading={updating}
-                  >
-                    Mark as unhandled
-                  </Button>
-                ) : (
-                  <Button
-                    size="xs"
-                    onClick={() => toggleHandled(openedRequest.id, true)}
-                    loading={updating}
-                  >
-                    Mark as handled
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onClick={closeMessage}
-                >
+                <LumenButton variant="secondary" onClick={closeMessage}>
                   Close
-                </Button>
+                </LumenButton>
+                {/* Handling is the primary action in this dialog. */}
+                <LumenButton
+                  variant="primary"
+                  disabled={updating}
+                  onClick={() => toggleHandled(openedRequest.id, !openedRequest.handled)}
+                >
+                  {openedRequest.handled ? "Mark as unhandled" : "Mark as handled"}
+                </LumenButton>
               </Group>
             </Group>
           </Stack>
         )}
       </Modal>
-    </Card>
+    </>
   );
 };

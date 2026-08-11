@@ -532,7 +532,7 @@ export const AdminReportsPage: React.FC = () => {
       : tableDef?.columns.map((c) => c.name) ?? [];
 
   return (
-    <Card p="lg">
+    <>
       <Stack gap="md">
         <PageHeader
           title="Reports & Data Explorer"
@@ -667,7 +667,7 @@ export const AdminReportsPage: React.FC = () => {
                 </Stack>
 
                 <Group justify="flex-end">
-                  <Button
+                  <Button variant="default"
                     onClick={() => {
                       setPage(1);
                       runQuery();
@@ -849,7 +849,7 @@ export const AdminReportsPage: React.FC = () => {
           </Stack>
         </Card>
       </Stack>
-    </Card>
+    </>
   );
 };
 

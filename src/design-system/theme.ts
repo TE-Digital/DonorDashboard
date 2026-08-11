@@ -14,6 +14,7 @@ import {
   color,
   duration,
   fontSize,
+  fontWeight,
   iconSize,
   layout,
   lineHeight,
@@ -142,15 +143,41 @@ export function buildTheme(
       // actions must pass variant="default", dismissals variant="subtle".
       // The default stays "filled" so existing primary actions keep working;
       // the rule is enforced by review, not by a silent theme flip.
+      // Lumen geometry: 36px control height, the single 8px radius, medium
+      // weight. The blue only ever appears on `filled`; every other variant is
+      // an outline or a ghost, which is what keeps the blue meaningful.
       Button: {
         defaultProps: {
           size: "sm",
+          radius: "md",
+        },
+        styles: {
+          root: {
+            height: px(36),
+            minHeight: px(36),
+            paddingInline: px(space.md),
+            fontSize: px(fontSize.md),
+            fontWeight: fontWeight.medium,
+            letterSpacing: "0.002em",
+            borderWidth: 1,
+            borderStyle: "solid",
+          },
+          label: { gap: px(space.xs) },
         },
       },
       ActionIcon: {
         defaultProps: {
           variant: "subtle",
           size: "md",
+          radius: "md",
+        },
+        styles: {
+          root: {
+            width: px(36),
+            height: px(36),
+            borderWidth: 1,
+            borderStyle: "solid",
+          },
         },
       },
       Anchor: {
@@ -162,12 +189,41 @@ export function buildTheme(
       // ── Data display ───────────────────────────────────────────
       // No zebra striping: hover is the only row emphasis, so colour in a
       // table always means status rather than position.
+      // The table is the product. Users come from Excel: a sunken 40px header
+      // row with a hard rule under it, 44px body rows separated by hairlines,
+      // 13px type and tabular figures so columns of money line up.
       Table: {
         defaultProps: {
           striped: false,
           highlightOnHover: true,
           horizontalSpacing: "md",
-          verticalSpacing: "sm",
+          verticalSpacing: 0,
+        },
+        styles: {
+          table: {
+            borderCollapse: "separate",
+            borderSpacing: 0,
+            fontSize: px(13),
+            lineHeight: "18px",
+            fontVariantNumeric: "tabular-nums",
+          },
+          thead: { position: "sticky", top: 0, zIndex: 2 },
+          th: {
+            height: px(40),
+            background: color.neutral[2],
+            borderBottom: `1px solid ${color.border.default}`,
+            color: color.text.dimmed,
+            fontSize: px(fontSize.xs),
+            fontWeight: fontWeight.semibold,
+            letterSpacing: "0.02em",
+            whiteSpace: "nowrap",
+            textTransform: "none",
+          },
+          td: {
+            height: px(44),
+            borderBottom: `1px solid ${color.border.subtle}`,
+            color: color.text.primary,
+          },
         },
       },
       Badge: {
@@ -175,6 +231,17 @@ export function buildTheme(
           variant: "light",
           size: "sm",
           radius: "sm",
+        },
+        styles: {
+          root: {
+            height: px(20),
+            paddingInline: px(space.xs),
+            border: "1px solid transparent",
+            fontSize: px(11),
+            fontWeight: fontWeight.semibold,
+            letterSpacing: "0.01em",
+            textTransform: "none",
+          },
         },
       },
       Tooltip: {

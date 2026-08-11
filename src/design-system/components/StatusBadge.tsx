@@ -1,7 +1,7 @@
 // src/design-system/components/StatusBadge.tsx
 import React from "react";
-import { Badge } from "@mantine/core";
 import type { MantineSize } from "@mantine/core";
+import { Badge, type BadgeTone } from "../lumen";
 import { getStatusMeta } from "../semantic";
 import type { StatusKind } from "../semantic";
 
@@ -14,19 +14,36 @@ export interface StatusBadgeProps {
 }
 
 /**
- * Renders a status using the shared colour map in semantic.ts, replacing the
- * eight copies of the same if/else colour ladder across the app.
+ * semantic.ts states its colours as Mantine keys. This maps them onto the
+ * design system's badge tones, where a tone is a claim about state: green means
+ * done, amber means waiting, red means the user must act.
  */
-export const StatusBadge: React.FC<StatusBadgeProps> = ({
-  kind,
-  value,
-  label,
-  size = "sm",
-}) => {
+const TONE: Record<string, BadgeTone> = {
+  green: "success",
+  yellow: "warning",
+  orange: "warning",
+  red: "danger",
+  blue: "info",
+  teal: "teal",
+  grape: "plum",
+  violet: "plum",
+  pink: "pink",
+  gray: "neutral",
+};
+
+/** Tones that carry a dot, because they report live state rather than a label. */
+const DOTTED = new Set<BadgeTone>(["success", "warning", "danger"]);
+
+/**
+ * Renders a status using the shared colour map in semantic.ts. `size` is
+ * accepted for source compatibility; the design system has one badge size.
+ */
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ kind, value, label }) => {
   const meta = getStatusMeta(kind, value, label);
+  const tone = TONE[meta.color] ?? "neutral";
 
   return (
-    <Badge size={size} color={meta.color} variant={meta.variant}>
+    <Badge tone={tone} dot={DOTTED.has(tone)}>
       {meta.label}
     </Badge>
   );

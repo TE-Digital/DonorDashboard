@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import {
-  Card,
   Stack,
   Text,
   TextInput,
@@ -62,7 +61,7 @@ export const AdminCreateSchoolPage: React.FC = () => {
   };
 
   return (
-    <Card withBorder shadow="sm" radius="md" pos="relative" p="lg">
+    <div style={{ position: "relative" }}>
       <LoadingState variant="overlay" visible={saving} />
 
       <Stack gap="lg">
@@ -117,7 +116,7 @@ export const AdminCreateSchoolPage: React.FC = () => {
           </Stack>
         </form>
       </Stack>
-    </Card>
+    </div>
   );
 };
 

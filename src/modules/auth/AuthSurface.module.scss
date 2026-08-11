@@ -1,0 +1,90 @@
+@use "../../styles/mixins" as *;
+
+.page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--dd-color-surface-auth) !important;
+}
+
+.page::before {
+  position: fixed;
+  inset: 0 auto 0 clamp(var(--dd-space-lg), 9vw, 8rem);
+  z-index: -1;
+  width: var(--dd-space-3xs);
+  background: var(--mantine-primary-color-filled);
+  opacity: 0.42;
+  content: "";
+}
+
+.page::after {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: var(--dd-space-2xs);
+  background: var(--mantine-primary-color-filled);
+  content: "";
+}
+
+.container {
+  width: 100%;
+}
+
+.header {
+  margin-bottom: var(--dd-space-lg);
+}
+
+.logo {
+  width: auto !important;
+  max-width: 11rem;
+  height: auto !important;
+  max-height: 6.5rem;
+  object-fit: contain;
+}
+
+.title {
+  color: var(--dd-color-text-primary);
+  font-weight: var(--dd-font-weight-semibold) !important;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.subtitle {
+  max-width: 28rem;
+  color: var(--dd-color-text-secondary) !important;
+  line-height: var(--dd-line-height-relaxed);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  border-color: var(--dd-color-border-default);
+  box-shadow: var(--dd-shadow-md);
+}
+
+.card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--dd-space-2xs);
+  background: var(--mantine-primary-color-filled);
+  content: "";
+}
+
+.inviteCard {
+  width: min(calc(100% - var(--dd-space-xl)), var(--dd-layout-auth-max-width));
+  margin: var(--dd-space-2xl) auto !important;
+}
+
+@include below(xs) {
+  .page {
+    padding: var(--dd-space-md) !important;
+  }
+
+  .page::before {
+    left: var(--dd-space-sm);
+  }
+
+  .card {
+    box-shadow: var(--dd-shadow-sm);
+  }
+}

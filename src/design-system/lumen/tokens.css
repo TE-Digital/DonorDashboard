@@ -1,0 +1,285 @@
+/* Lumen design system tokens.
+ *
+ * Ported verbatim from the Claude Design project
+ * https://claude.ai/design/p/354c0197-0167-45a3-95d9-0eac77d9e4b4
+ * (tokens/fonts.css, colors.css, typography.css, spacing.css, elevation.css, motion.css, base.css).
+ *
+ * These live alongside the existing `--dd-*` Mantine tokens; there is no name
+ * collision. The element-level base styles from the original base.css are scoped
+ * to `.lumen` instead of `body`, so importing this file cannot restyle the
+ * existing Mantine app.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&display=swap");
+
+:root {
+  /* ---- Warm neutrals — a hint of clay keeps surfaces from reading cold ---- */
+  --n-0: #ffffff;
+  --n-25: #fcfbf9;
+  --n-50: #f7f6f3;
+  --n-100: #f0eeea;
+  --n-200: #e7e4df;
+  --n-300: #d4d0c9;
+  --n-400: #aca49b;
+  --n-500: #857c72;
+  --n-600: #655d54;
+  --n-700: #4a443d;
+  --n-800: #332f2a;
+  --n-900: #211e1b;
+
+  /* ---- Warm blue — primary, reserved for the single most important action ---- */
+  --blue-25: #f3f5fe;
+  --blue-50: #e6eafc;
+  --blue-100: #c9d1f8;
+  --blue-200: #93a3f0;
+  --blue-300: #5b71e5;
+  --blue-400: #2544d6;
+  --blue-500: #072ac8;
+  --blue-600: #0622a6;
+  --blue-700: #051b83;
+  --blue-800: #041461;
+
+  /* ---- Accent families ---- */
+  /* Success — vivid emerald, deepening to #156064 */
+  --green-50: #e0f7ef;
+  --green-100: #b3ecd8;
+  --green-500: #00b37e;
+  --green-600: #00916a;
+  --green-700: #156064;
+
+  /* Danger — coral #F25757 */
+  --red-50: #ffecec;
+  --red-100: #ffd0d0;
+  --red-500: #f25757;
+  --red-600: #e03535;
+  --red-700: #b02020;
+
+  /* Active / status — vivid teal */
+  --teal-50: #e0f7f7;
+  --teal-100: #b0eaea;
+  --teal-500: #0fb5ba;
+  --teal-600: #0c9497;
+  --teal-700: #44a1a0;
+
+  /* Violet — the "fun" hue, #9C95DC as its soft step */
+  --plum-50: #f0edff;
+  --plum-100: #9c95dc;
+  --plum-500: #6d4aff;
+  --plum-600: #5735e0;
+  --plum-700: #4527b0;
+
+  /* Warning — vivid amber */
+  --amber-50: #fff5e0;
+  --amber-100: #ffe3ad;
+  --amber-500: #ffab00;
+  --amber-600: #dd8f00;
+  --amber-700: #9a6200;
+
+  /* Orange */
+  --orange-50: #ffeee5;
+  --orange-100: #ffd2bd;
+  --orange-500: #ff6b35;
+  --orange-600: #e04f19;
+  --orange-700: #a83a12;
+
+  /* Rose — #D81E5B */
+  --pink-50: #fde8ee;
+  --pink-100: #f8c0d1;
+  --pink-500: #d81e5b;
+  --pink-600: #b8154b;
+  --pink-700: #8c0f39;
+
+  /* Chart series — use in order so any two adjacent series stay distinguishable */
+  --chart-1: var(--blue-500);
+  --chart-2: var(--teal-500);
+  --chart-3: var(--plum-500);
+  --chart-4: var(--amber-500);
+  --chart-5: var(--green-500);
+  --chart-6: var(--pink-500);
+  --chart-7: var(--orange-500);
+  --chart-8: var(--red-500);
+  --chart-1-soft: var(--blue-100);
+  --chart-2-soft: var(--teal-100);
+  --chart-3-soft: var(--plum-100);
+  --chart-4-soft: var(--amber-100);
+  --chart-5-soft: var(--green-100);
+  --chart-6-soft: var(--pink-100);
+
+  /* ---- Semantic aliases ---- */
+  --bg-app: #f6f5f2;
+  --surface-card: var(--n-0);
+  --surface-raised: var(--n-0);
+  --surface-sunken: var(--n-25);
+  --surface-nav: #f6f5f2;
+  --surface-rail: #efedea;
+  --nav-item-active: #ffffff;
+  --surface-hover: var(--n-100);
+  --surface-selected: var(--blue-50);
+  --surface-disabled: var(--n-100);
+
+  --text-heading: var(--n-900);
+  --text-body: var(--n-800);
+  --text-muted: var(--n-600);
+  --text-subtle: var(--n-500);
+  --text-inverse: var(--n-0);
+  --text-link: var(--blue-600);
+  --text-link-hover: var(--blue-700);
+
+  --border-subtle: var(--n-200);
+  --border-default: var(--n-300);
+  --border-strong: var(--n-400);
+  --border-focus: var(--blue-500);
+
+  --action-primary: var(--blue-500);
+  --action-primary-hover: var(--blue-600);
+  --action-primary-press: var(--blue-700);
+  --action-neutral: var(--n-900);
+  --action-neutral-hover: var(--n-800);
+  --action-neutral-press: #000;
+
+  --status-success: var(--green-500);
+  --status-warning: var(--amber-500);
+  --status-danger: var(--red-500);
+  --status-active: var(--teal-500);
+  --status-info: var(--blue-500);
+  --status-neutral: var(--n-400);
+
+  --focus-ring: 0 0 0 3px rgba(7, 42, 200, 0.2);
+
+  /* ---- Typography ---- */
+  --font-core: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-numeric: var(--font-core);
+
+  --fs-hero: 44px;
+  --lh-hero: 52px;
+  --fs-display: 32px;
+  --lh-display: 38px;
+  --fs-h1: 24px;
+  --lh-h1: 30px;
+  --fs-h2: 19px;
+  --lh-h2: 26px;
+  --fs-h3: 16px;
+  --lh-h3: 22px;
+  --fs-body: 14px;
+  --lh-body: 21px;
+  --fs-sm: 13px;
+  --lh-sm: 19px;
+  --fs-xs: 12px;
+  --lh-xs: 17px;
+  --fs-micro: 11px;
+  --lh-micro: 15px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --ls-tight: -0.015em;
+  --ls-normal: 0;
+  --ls-caps: 0.06em;
+
+  --text-table: 13px;
+  --lh-table: 18px;
+
+  /* ---- Space & shape. Everything is a multiple of 4. ---- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 48px;
+  --sp-10: 64px;
+  --sp-11: 80px;
+
+  /* One radius. The aliases exist only so component code reads naturally.
+     True circles (avatars, switches, dots) use --radius-pill. */
+  --radius: 8px;
+  --radius-xs: var(--radius);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius);
+  --radius-pill: 999px;
+
+  --control-h-sm: 28px;
+  --control-h-md: 36px;
+  --control-h-lg: 44px;
+  --row-h-compact: 36px;
+  --row-h-default: 44px;
+  --row-h-relaxed: 56px;
+  --nav-w: 236px;
+  --nav-w-collapsed: 56px;
+  --rail-w: 56px;
+
+  /* ---- Elevation. Shadows carry no ring. ---- */
+  --shadow-none: none;
+  --shadow-hairline: none;
+  --shadow-card: 0 1px 2px rgba(60, 50, 30, 0.04);
+  --shadow-panel: 0 1px 3px rgba(60, 50, 30, 0.05), 0 10px 26px -16px rgba(60, 50, 30, 0.16);
+  --shadow-raised: 0 2px 6px rgba(60, 50, 30, 0.07);
+  --shadow-overlay: 0 12px 30px -8px rgba(60, 50, 30, 0.22);
+  --shadow-sticky: 6px 0 12px -10px rgba(60, 50, 30, 0.28);
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.2, 0.6, 0.25, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 0.7, 0.3);
+  --dur-instant: 80ms;
+  --dur-fast: 130ms;
+  --dur-base: 190ms;
+  --dur-slow: 280ms;
+  --motion-hover: background-color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+}
+
+/* base.css, scoped. Apply `.lumen` to any subtree that should adopt the system. */
+.lumen,
+.lumen *,
+.lumen *::before,
+.lumen *::after {
+  box-sizing: border-box;
+}
+
+.lumen {
+  font-family: var(--font-core);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-body);
+  background: var(--bg-app);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+.lumen h1,
+.lumen h2,
+.lumen h3,
+.lumen h4 {
+  margin: 0;
+  color: var(--text-heading);
+  letter-spacing: var(--ls-tight);
+  font-weight: var(--fw-semibold);
+}
+
+.lumen a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+
+.lumen a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+.lumen :focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+.lumen table {
+  border-collapse: separate;
+  border-spacing: 0;
+}

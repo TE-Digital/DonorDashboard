@@ -1,7 +1,6 @@
 // src/modules/admin/AdminCreateUserPage.tsx
 import React, { useState } from "react";
 import {
-  Card,
   Stack,
   Text,
   TextInput,
@@ -137,7 +136,7 @@ export const AdminCreateUserPage: React.FC = () => {
   };
 
   return (
-    <Card withBorder shadow="sm" radius="md" p="lg" pos="relative">
+    <div style={{ position: "relative" }}>
       <LoadingState variant="overlay" visible={submitting} />
 
       <form onSubmit={handleSubmit}>
@@ -220,7 +219,7 @@ export const AdminCreateUserPage: React.FC = () => {
 </Group>
         </Stack>
       </form>
-    </Card>
+    </div>
   );
 };
 

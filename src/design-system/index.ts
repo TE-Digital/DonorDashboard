@@ -34,3 +34,8 @@ export type { InlineMessageProps, MessageTone } from "./components/InlineMessage
 
 export { FormActions } from "./components/FormActions";
 export type { FormActionsProps } from "./components/FormActions";
+
+// The standard list-screen shape: KPI row, filter bar, sortable + filterable
+// grid, pagination. Every table in the product is built from this.
+export { TableSection } from "./components/TableSection";
+export type { TableKpi, TableSectionProps } from "./components/TableSection";

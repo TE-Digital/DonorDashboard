@@ -2,6 +2,11 @@
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/notifications/styles.css";
+import "./styles/global.scss";
+// Lumen design-system tokens. Publishes the `--n-*`, `--blue-*`, `--fs-*`… custom
+// properties on :root; element styling is scoped to `.lumen`, so this cannot
+// restyle the existing Mantine surfaces.
+import "./design-system/lumen/tokens.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

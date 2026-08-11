@@ -2,43 +2,64 @@
 //
 // Raw design values. No Mantine import, no React.
 // Every literal colour / size / spacing value in the app should live here.
-// Current values intentionally mirror what the app already renders, so
-// introducing these tokens is a no-op visually. Retuning happens here later.
+//
+// Retuned to the Lumen design system (design-system/lumen/tokens.css). These
+// values ARE those values — warm clay neutrals, one 8px radius, ringless
+// shadows — so the Mantine surfaces and the Lumen components render as one
+// system. Keep the two files in step: change a colour here, change it there.
 
 export const color = {
-  // Neutral ramp. Replaces the ad-hoc #ddd / #eee / #999 / #f8f9fa literals.
+  // Warm neutral ramp — a hint of clay keeps surfaces from reading cold.
+  // Mirrors --n-0 … --n-900.
   neutral: {
     0: "#ffffff",
-    1: "#f8f9fa",
-    2: "#f1f3f5",
-    3: "#e9ecef",
-    4: "#dee2e6",
-    5: "#ced4da",
-    6: "#adb5bd",
-    7: "#868e96",
-    8: "#495057",
-    9: "#212529",
+    1: "#fcfbf9",
+    2: "#f7f6f3",
+    3: "#f0eeea",
+    4: "#e7e4df",
+    5: "#d4d0c9",
+    6: "#aca49b",
+    7: "#857c72",
+    8: "#4a443d",
+    9: "#211e1b",
   },
 
   surface: {
-    page: "#ffffff",
+    page: "#f6f5f2",
     card: "#ffffff",
-    sunken: "#f8f9fa",
-    auth: "#edf2ff",
-    overlay: "rgba(0, 0, 0, 0.55)",
+    sunken: "#fcfbf9",
+    auth: "#f6f5f2",
+    overlay: "rgba(33, 30, 27, 0.34)",
   },
 
   border: {
-    subtle: "#eeeeee",
-    default: "#dddddd",
-    strong: "#ced4da",
+    subtle: "#e7e4df",
+    default: "#d4d0c9",
+    strong: "#aca49b",
   },
 
   text: {
-    primary: "#212529",
-    secondary: "#495057",
-    dimmed: "#868e96",
+    primary: "#211e1b",
+    secondary: "#4a443d",
+    dimmed: "#857c72",
     inverse: "#ffffff",
+  },
+
+  // Warm blue — the primary. Reserved for the single most important action per
+  // screen region; everything else is an outline. Mirrors --blue-25 … --blue-800
+  // in design-system/lumen/tokens.css, and is the ramp documented by
+  // guidelines/colors-primary.card.html in the design project.
+  blue: {
+    25: "#f3f5fe",
+    50: "#e6eafc",
+    100: "#c9d1f8",
+    200: "#93a3f0",
+    300: "#5b71e5",
+    400: "#2544d6",
+    500: "#072ac8",
+    600: "#0622a6",
+    700: "#051b83",
+    800: "#041461",
   },
 
   // Semantic status colours are expressed as Mantine colour keys so that
@@ -51,6 +72,26 @@ export const color = {
     neutral: "gray",
   },
 } as const;
+
+/**
+ * The primary as Mantine wants it: a ten-step tuple, index 6 being the shade
+ * `variant="filled"` uses. These are the design system's own steps rather than
+ * an HSL approximation of them, so a filled button is exactly #072AC8.
+ *
+ * Order maps 25/50/100/200/300/400/500/600/700/800 onto Mantine's 0…9.
+ */
+export const brandRamp = [
+  color.blue[25],
+  color.blue[50],
+  color.blue[100],
+  color.blue[200],
+  color.blue[300],
+  color.blue[400],
+  color.blue[500],
+  color.blue[600],
+  color.blue[700],
+  color.blue[800],
+] as const;
 
 /**
  * Spacing scale. Every step is a multiple of 4 except `3xs`, which exists only
@@ -70,30 +111,36 @@ export const space = {
   "2xl": 40,
 } as const;
 
+/**
+ * One radius. Every box in the system is 8px — the sm/md/lg steps exist only so
+ * component code reads naturally. `xl` is the pill used for true circles
+ * (avatars, switches, status dots).
+ */
 export const radius = {
   none: 0,
-  sm: 4,
+  sm: 8,
   md: 8,
-  lg: 12,
+  lg: 8,
   xl: 9999,
 } as const;
 
+/** Ringless, warm-toned elevation. Mirrors --shadow-card … --shadow-overlay. */
 export const shadow = {
   none: "none",
-  xs: "0 1px 2px rgba(0, 0, 0, 0.05)",
-  sm: "0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04)",
-  md: "0 4px 12px rgba(0, 0, 0, 0.06)",
-  lg: "0 12px 28px rgba(0, 0, 0, 0.10)",
+  xs: "0 1px 2px rgba(60, 50, 30, 0.04)",
+  sm: "0 2px 6px rgba(60, 50, 30, 0.07)",
+  md: "0 1px 3px rgba(60, 50, 30, 0.05), 0 10px 26px -16px rgba(60, 50, 30, 0.16)",
+  lg: "0 12px 30px -8px rgba(60, 50, 30, 0.22)",
 } as const;
 
 export const fontSize = {
   xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 22,
-  "2xl": 28,
-  "3xl": 34,
+  sm: 13,
+  md: 14,
+  lg: 16,
+  xl: 19,
+  "2xl": 24,
+  "3xl": 32,
 } as const;
 
 export const fontWeight = {
@@ -130,13 +177,15 @@ export const breakpoint = {
 } as const;
 
 export const layout = {
-  navWidth: 220,
+  navWidth: 236,
+  railWidth: 56,
+  topBarHeight: 56,
   mobileBarHeight: 56,
   pagePadding: {
     mobile: "72px 16px 24px",
-    desktop: "32px 40px",
+    desktop: "28px 32px 32px",
   },
-  navPadding: "24px 16px",
+  navPadding: "18px 10px",
   authMaxWidth: 420,
   drawerWidth: "260px",
 } as const;
@@ -157,10 +206,11 @@ export const duration = {
 
 /** Default branding values used before (or instead of) DB-provided branding. */
 export const brandDefaults = {
-  primaryColor: "#1c7ed6",
-  secondaryColor: "#228be6",
+  // Lumen primary. Blue is rationed: only the one most important action is filled.
+  primaryColor: "#072ac8",
+  secondaryColor: "#0fb5ba",
   fontFamily:
-    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    '"Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif',
   buttonRadius: "md",
 } as const;
 

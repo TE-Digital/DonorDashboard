@@ -9,7 +9,7 @@
 // brand colour. generateRamp() produces a real scale instead.
 
 import type { MantineColorsTuple } from "@mantine/core";
-import { brandDefaults, radius } from "./tokens";
+import { brandDefaults, brandRamp, radius } from "./tokens";
 
 interface Hsl {
   h: number;
@@ -124,14 +124,57 @@ export interface BrandingThemeOverride {
 const isValidRadius = (value: unknown): value is keyof typeof radius =>
   typeof value === "string" && value in radius;
 
+/**
+ * Pin the primary to the design system's warm blue (#072AC8) and ignore
+ * `branding_settings.primary_color`.
+ *
+ * The blue is load-bearing in this system rather than decorative: it appears on
+ * exactly one filled action per screen region, and every other control is an
+ * outline defined against it. A per-tenant primary breaks that relationship, so
+ * the ramp is fixed here.
+ *
+ * Set this to false to hand the primary back to the branding row — the tenant
+ * path below is intact, not deleted. Secondary/accent, logo, fonts and copy
+ * stay tenant-controlled either way.
+ */
+const PIN_PRIMARY_TO_DESIGN_SYSTEM = true;
+
+/**
+ * Values that were the *previous* built-in defaults. A stored row holding one
+ * of these was never a deliberate branding choice — it is the old seed value —
+ * so it must not outrank the Lumen defaults in tokens.ts. A genuinely custom
+ * brand colour still wins.
+ *
+ * Drop an entry once no tenant row carries it.
+ */
+const LEGACY_DEFAULTS = new Set(
+  [
+    "#1c7ed6",
+    "#228be6",
+    "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  ].map((v) => v.toLowerCase())
+);
+
+/** The stored value, unless it is a superseded default. */
+function preferred(
+  stored: string | null | undefined,
+  fallback: string
+): string {
+  const value = stored?.trim();
+  if (!value || LEGACY_DEFAULTS.has(value.toLowerCase())) return fallback;
+  return value;
+}
+
 /** Normalise branding settings into safe, complete theme inputs. */
 export function brandingToThemeOverride(
   branding: BrandingLike | null | undefined
 ): BrandingThemeOverride {
-  const primary = branding?.primary_color?.trim() || brandDefaults.primaryColor;
-  const secondary =
-    branding?.secondary_color?.trim() || brandDefaults.secondaryColor;
-  const fontFamily = branding?.font_family?.trim() || brandDefaults.fontFamily;
+  const primary = preferred(branding?.primary_color, brandDefaults.primaryColor);
+  const secondary = preferred(
+    branding?.secondary_color,
+    brandDefaults.secondaryColor
+  );
+  const fontFamily = preferred(branding?.font_family, brandDefaults.fontFamily);
 
   const requestedRadius = branding?.button_radius?.trim();
   const defaultRadius = isValidRadius(requestedRadius)
@@ -139,7 +182,11 @@ export function brandingToThemeOverride(
     : brandDefaults.buttonRadius;
 
   return {
-    brand: generateRamp(primary),
+    // The design system's own ten steps, not an HSL approximation of them, so a
+    // filled button is exactly #072AC8 and its hover is exactly --blue-600.
+    brand: PIN_PRIMARY_TO_DESIGN_SYSTEM
+      ? (brandRamp as unknown as MantineColorsTuple)
+      : generateRamp(primary),
     accent: generateRamp(secondary),
     fontFamily,
     defaultRadius,

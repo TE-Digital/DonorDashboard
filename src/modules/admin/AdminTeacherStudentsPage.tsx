@@ -1,20 +1,14 @@
 // src/modules/admin/AdminTeacherStudentsPage.tsx
 import React, { useEffect, useState } from "react";
-import {
-  Card,
-  Stack,
-  Text,
-  Table,
-  Button,
-  Group,
-  Modal,
-  Select,
-  Anchor,
-  Badge,
-} from "@mantine/core";
+import { Group, Modal, Select, Stack, Text } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { EmptyState, LoadingState } from "../../design-system";
+import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  Badge,
+  Button as LumenButton,
+  type DataColumn,
+} from "../../design-system/lumen";
 
 interface TeacherStudent {
   id: string;
@@ -233,6 +227,58 @@ export const AdminTeacherStudentsPage: React.FC = () => {
 
   const overdueCount = students.filter((s) => s.isOverdue).length;
 
+  const kpis: TableKpi[] = (() => {
+    const schools = new Set(students.map((s) => s.school_name).filter(Boolean)).size;
+    const upToDate = students.length - overdueCount;
+    return [
+      { label: "Students", value: students.length, footnote: "assigned to this teacher", accent: "blue" },
+      {
+        label: "Reports overdue",
+        value: overdueCount,
+        footnote: overdueCount ? "need chasing" : "none outstanding",
+        accent: overdueCount ? "amber" : "teal",
+      },
+      { label: "Up to date", value: upToDate, footnote: "reported recently", accent: "teal" },
+      { label: "Schools", value: schools, footnote: "represented", accent: "plum" },
+    ];
+  })();
+
+  const columns: DataColumn<TeacherStudent>[] = [
+    { key: "name", label: "Name", width: 240 },
+    { key: "school_name", label: "School", width: 220, render: (s) => s.school_name || "—" },
+    {
+      key: "isOverdue",
+      label: "Overdue report",
+      width: 150,
+      filterValue: (s) => (s.isOverdue ? "Overdue" : "Up to date"),
+      render: (s) =>
+        s.isOverdue ? (
+          <Badge tone="danger" dot>
+            Overdue
+          </Badge>
+        ) : (
+          <Text size="sm" c="dimmed">
+            Up to date
+          </Text>
+        ),
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      width: 130,
+      align: "right",
+      sortable: false,
+      filterable: false,
+      render: (s) => (
+        <div onClick={(e) => e.stopPropagation()}>
+          <LumenButton size="sm" variant="secondary" onClick={() => handleUnassignStudent(s.id)}>
+            Unassign
+          </LumenButton>
+        </div>
+      ),
+    },
+  ];
+
   if (loading) return <LoadingState />;
 
   return (
@@ -254,131 +300,49 @@ export const AdminTeacherStudentsPage: React.FC = () => {
             nothingFoundMessage="No unassigned students found"
           />
           <Group justify="flex-end" mt="md">
-            <Button variant="subtle" onClick={() => setAddModalOpen(false)}>
+            <LumenButton variant="ghost" onClick={() => setAddModalOpen(false)}>
               Cancel
-            </Button>
-            <Button onClick={attachExistingStudent} disabled={!selectedStudentId}>
+            </LumenButton>
+            <LumenButton
+              variant="primary"
+              onClick={attachExistingStudent}
+              disabled={!selectedStudentId}
+            >
               Add to teacher
-            </Button>
+            </LumenButton>
           </Group>
         </Stack>
       </Modal>
 
-      <Card>
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Text fw={700} size="lg">
-                Students of {teacherName}
-              </Text>
-              <Text size="sm" c="dimmed">
-                View and manage all students assigned to this teacher.
-              </Text>
-              <Group gap="xs" mt="xs">
-                <Badge>
-                  {students.length} student{students.length === 1 ? "" : "s"}
-                </Badge>
-                <Badge color={overdueCount > 0 ? "red" : "gray"}>
-                  {overdueCount} student
-                  {overdueCount === 1 ? "" : "s"} with overdue reports
-                </Badge>
-              </Group>
-            </div>
+      <Stack gap="md">
+        <PageHeader
+          title={`Students of ${teacherName}`}
+          subtitle="View and manage all students assigned to this teacher."
+          onBack={() => navigate("/admin/teachers")}
+          backLabel="Back to teachers"
+          actions={
+            <>
+              <LumenButton variant="secondary" icon="plus" onClick={openAddExistingModal}>
+                Add existing student
+              </LumenButton>
+              <LumenButton variant="primary" icon="plus" onClick={handleCreateNewStudent}>
+                Create new student
+              </LumenButton>
+            </>
+          }
+        />
 
-            <Button
-              variant="subtle"
-              size="xs"
-              onClick={() => navigate("/admin/teachers")}
-            >
-              Back to teachers
-            </Button>
-          </Group>
-
-          <Group justify="space-between" mt="xs">
-            <Button size="xs" variant="outline" onClick={openAddExistingModal}>
-              Add existing student
-            </Button>
-            <Button size="xs" onClick={handleCreateNewStudent}>
-              Create new student
-            </Button>
-          </Group>
-
-          {students.length === 0 ? (
-            <EmptyState title="No students assigned yet." />
-          ) : (
-            <Table
-              striped
-              highlightOnHover
-              withTableBorder
-              withColumnBorders
-              horizontalSpacing="md"
-              verticalSpacing="xs"
-              mt="sm"
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>School</Table.Th>
-                  <Table.Th style={{ textAlign: "center" }}>
-                    Overdue report
-                  </Table.Th>
-                  <Table.Th style={{ textAlign: "center" }}>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {students.map((s) => (
-                  <Table.Tr
-                    key={s.id}
-                    style={{
-                      borderBottom: "1px solid var(--mantine-color-gray-3)",
-                    }}
-                  >
-                    <Table.Td>
-                      <Anchor
-                        component="button"
-                        onClick={() => navigate(`/admin/students/${s.id}`)}
-                      >
-                        {s.name}
-                      </Anchor>
-                    </Table.Td>
-                    <Table.Td>{s.school_name || "—"}</Table.Td>
-                    <Table.Td style={{ textAlign: "center" }}>
-                      {s.isOverdue ? (
-                        <Badge color="red" variant="filled">
-                          Overdue
-                        </Badge>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          Up to date
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td style={{ textAlign: "center" }}>
-                      <Group gap="xs" justify="center">
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() => navigate(`/admin/students/${s.id}`)}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          color="red"
-                          onClick={() => handleUnassignStudent(s.id)}
-                        >
-                          Unassign
-                        </Button>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Stack>
-      </Card>
+        <TableSection
+          kpis={kpis}
+          columns={columns}
+          rows={students}
+          searchKeys={["name", "school_name"]}
+          onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
+          emptyTitle="No students assigned yet"
+          emptyDescription="Assign an existing student, or create a new one."
+          emptyIcon="users"
+        />
+      </Stack>
     </>
   );
 };

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Card, Stack, Text, Button, Table } from "@mantine/core";
-import { Link, useNavigate } from "react-router-dom";
+import { Stack } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import {
-  EmptyState,
   LoadingState,
   PageHeader,
-  textRole,
+  TableSection,
+  type TableKpi,
 } from "../../design-system";
+import { Button, type DataColumn } from "../../design-system/lumen";
 
 type School = {
   id: string;
@@ -44,65 +45,80 @@ export const AdminSchoolsPage: React.FC = () => {
     load();
   }, []);
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  // Derived from the rows already on the page — none of this is stored.
+  const kpis: TableKpi[] = React.useMemo(() => {
+    const withAddress = schools.filter((s) => s.address && s.address.trim()).length;
+    const thisYear = schools.filter(
+      (s) => s.created_at && new Date(s.created_at).getFullYear() === new Date().getFullYear(),
+    ).length;
+    const newest = schools
+      .map((s) => s.created_at)
+      .filter(Boolean)
+      .sort()
+      .slice(-1)[0];
+
+    return [
+      { label: "Schools", value: schools.length, footnote: "on the register", accent: "blue" },
+      {
+        label: "With an address",
+        value: withAddress,
+        footnote: `${schools.length - withAddress} missing`,
+        accent: withAddress === schools.length ? "teal" : "amber",
+      },
+      { label: "Added this year", value: thisYear, footnote: "new partners", accent: "teal" },
+      {
+        label: "Most recent",
+        value: newest ? new Date(newest).toLocaleDateString() : "—",
+        footnote: "last school added",
+        accent: "plum",
+      },
+    ];
+  }, [schools]);
+
+  const columns: DataColumn<School>[] = [
+    { key: "name", label: "Name", width: 260 },
+    {
+      key: "address",
+      label: "Address",
+      width: 320,
+      muted: true,
+      render: (s) => s.address || "—",
+    },
+    {
+      key: "created_at",
+      label: "Created",
+      width: 140,
+      muted: true,
+      render: (s) => (s.created_at ? new Date(s.created_at).toLocaleDateString() : "—"),
+    },
+  ];
+
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <PageHeader
-        title="Schools"
-        subtitle="Manage schools that students can be linked to."
+      <PageHeader title="Schools" subtitle="Manage schools that students can be linked to." />
+
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={schools}
+        searchKeys={["name", "address"]}
+        onRowClick={(s) => navigate(`/admin/schools/${s.id}`)}
+        emptyTitle="No schools found"
+        emptyDescription="Add a school to link students to it."
+        emptyIcon="house"
+        emptyAction={
+          <Button variant="secondary" icon="plus" onClick={() => navigate("/admin/schools/new")}>
+            Add school
+          </Button>
+        }
         actions={
-          <Button component={Link} to="/admin/schools/new">
+          <Button variant="primary" icon="plus" onClick={() => navigate("/admin/schools/new")}>
             Add school
           </Button>
         }
       />
-
-      <Card>
-        {schools.length === 0 ? (
-          <EmptyState
-            title="No schools found."
-            description="Add a school to link students to it."
-          />
-        ) : (
-          <Table withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Address</Table.Th>
-                <Table.Th>Created</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {schools.map((s) => (
-                <Table.Tr
-                  key={s.id}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => navigate(`/admin/schools/${s.id}`)}
-                >
-                  <Table.Td>
-                    <Text {...textRole("fieldLabel")}>{s.name}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text {...textRole("body")} c="dimmed">
-                      {s.address || "—"}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text {...textRole("body")} c="dimmed">
-                      {s.created_at
-                        ? new Date(s.created_at).toLocaleDateString()
-                        : "—"}
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        )}
-      </Card>
     </Stack>
   );
 };

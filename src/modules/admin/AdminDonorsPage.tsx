@@ -1,18 +1,14 @@
 // src/modules/admin/AdminDonorsPage.tsx
 import React, { useEffect, useState } from "react";
-import {
-  Badge,
-  Button,
-  Card,
-  Group,
-  Stack,
-  Table,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Stack, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { EmptyState, LoadingState, PageHeader, color } from "../../design-system";
+import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  Badge,
+  Button as LumenButton,
+  type DataColumn,
+} from "../../design-system/lumen";
 
 type DonorContact = {
   address?: string | null;
@@ -47,7 +43,6 @@ export const AdminDonorsPage: React.FC = () => {
   const [statsByDonor, setStatsByDonor] = useState<Record<string, DonorStats>>(
     {}
   );
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -159,131 +154,93 @@ export const AdminDonorsPage: React.FC = () => {
     return a?.name ?? id;
   };
 
-  const filtered = donors.filter((d) => {
-    const term = search.toLowerCase();
-    if (!term) return true;
-
+  // Flatten the JSON contact blob and the stats map into sortable, filterable
+  // columns. TableSection owns search from here on.
+  const rows = donors.map((d) => {
     const c = (d.contact ?? {}) as DonorContact;
-    return (
-      (d.name ?? "").toLowerCase().includes(term) ||
-      (c.email ?? "").toLowerCase().includes(term) ||
-      (c.phone ?? "").toLowerCase().includes(term) ||
-      (agentNameById(c.agent_id) ?? "").toLowerCase().includes(term)
-    );
+    const stats = statsByDonor[d.id];
+    return {
+      id: d.id,
+      name: d.name,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+      agent: agentNameById(c.agent_id) ?? "No agent",
+      studentCount: stats?.studentCount ?? 0,
+      lastAward: stats?.lastAwardDate ?? null,
+    };
   });
+
+  const kpis: TableKpi[] = (() => {
+    const supporting = rows.filter((r) => r.studentCount > 0).length;
+    const students = rows.reduce((sum, r) => sum + r.studentCount, 0);
+    const withAgent = rows.filter((r) => r.agent !== "No agent").length;
+    return [
+      { label: "Donors", value: rows.length, footnote: "on record", accent: "blue" },
+      { label: "Actively giving", value: supporting, footnote: "support a student", accent: "teal" },
+      { label: "Students supported", value: students, footnote: "across all donors", accent: "amber" },
+      { label: "With an agent", value: withAgent, footnote: "have a contact", accent: "plum" },
+    ];
+  })();
+
+  const columns: DataColumn<(typeof rows)[number]>[] = [
+    {
+      key: "name",
+      label: "Name",
+      width: 200,
+      render: (d) => (d.name ? <Text size="sm">{d.name}</Text> : <Badge tone="neutral">Anonymous</Badge>),
+    },
+    {
+      key: "email",
+      label: "Contact",
+      width: 230,
+      render: (d) => (
+        <div>
+          <Text size="sm">{d.email || "—"}</Text>
+          <Text size="xs" c="dimmed">
+            {d.phone || "—"}
+          </Text>
+        </div>
+      ),
+    },
+    { key: "agent", label: "Agent", width: 160 },
+    { key: "studentCount", label: "Students supported", align: "right", numeric: true, width: 160 },
+    {
+      key: "lastAward",
+      label: "Last scholarship",
+      width: 150,
+      muted: true,
+      render: (d) => (d.lastAward ? new Date(d.lastAward).toLocaleDateString() : "—"),
+    },
+  ];
 
   if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <PageHeader
-        title="Donors"
-        actions={
-          <Button size="xs" onClick={() => navigate("/admin/donors/new")}>
+      <PageHeader title="Donors" subtitle="Everyone funding a scholarship, and who looks after them." />
+
+      <TableSection
+        kpis={kpis}
+        columns={columns}
+        rows={rows}
+        searchKeys={["name", "email", "phone", "agent"]}
+        onRowClick={(d) => navigate(`/admin/donors/${d.id}/edit`)}
+        emptyTitle="No donors found"
+        emptyDescription="Add a donor to start recording scholarships."
+        emptyIcon="users"
+        emptyAction={
+          <LumenButton variant="secondary" icon="plus" onClick={() => navigate("/admin/donors/new")}>
             Add donor
-          </Button>
+          </LumenButton>
+        }
+        actions={
+          <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/donors/new")}>
+            Add donor
+          </LumenButton>
         }
       />
-
-      <Card>
-        <Stack gap="sm">
-          <TextInput
-            placeholder="Search by name, email, phone, agent…"
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-          />
-
-          {filtered.length === 0 ? (
-            <EmptyState title="No donors found." />
-          ) : (
-            <Table
-              striped
-              highlightOnHover
-              horizontalSpacing="md"
-              verticalSpacing="xs"
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Name</Table.Th>
-                  <Table.Th>Contact</Table.Th>
-                  <Table.Th>Agent</Table.Th>
-                  <Table.Th>Students supported</Table.Th>
-                  <Table.Th>Last scholarship</Table.Th>
-                  <Table.Th></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filtered.map((d) => {
-                  const c = (d.contact ?? {}) as DonorContact;
-                  const agentName = agentNameById(c.agent_id);
-                  const stats = statsByDonor[d.id];
-
-                  const studentCountLabel =
-                    stats && stats.studentCount > 0
-                      ? stats.studentCount.toString()
-                      : "—";
-
-                  const lastAwardLabel =
-                    stats && stats.lastAwardDate
-                      ? new Date(stats.lastAwardDate).toLocaleDateString()
-                      : "—";
-
-                  return (
-                    <Table.Tr key={d.id}>
-                      <Table.Td>
-                        {d.name ? (
-                          <Text size="sm">{d.name}</Text>
-                        ) : (
-                          <Badge variant="light" color="gray">
-                            Anonymous
-                          </Badge>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">
-                          {c.email || <span style={{ color: color.text.dimmed }}>—</span>}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {c.phone || "—"}
-                        </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        {agentName ? (
-                          <Text size="sm">{agentName}</Text>
-                        ) : (
-                          <Text size="sm" c="dimmed">
-                            No agent
-                          </Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{studentCountLabel}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm">{lastAwardLabel}</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Button
-                          size="xs"
-                          variant="subtle"
-                          onClick={() =>
-                            navigate(`/admin/donors/${d.id}/edit`)
-                          }
-                        >
-                          Edit
-                        </Button>
-                      </Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          )}
-        </Stack>
-      </Card>
     </Stack>
   );
 };
 
 export default AdminDonorsPage;
-

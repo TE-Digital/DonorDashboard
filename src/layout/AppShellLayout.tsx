@@ -1,160 +1,174 @@
 // src/layout/AppShellLayout.tsx
-import React, { useState } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
-import {
-  Image,
-  Text,
-  Button,
-  Burger,
-  Drawer,
-  Stack,
-  Group,
-  ScrollArea,
-} from "@mantine/core";
+//
+// The application shell, rebuilt on the Lumen design system:
+// full-width top bar, labelled nav on the warm canvas, content floating as a
+// white panel. See design-system/lumen.
+//
+// Nav item ids ARE route paths — SideNav hands the id straight to navigate().
+
+import React, { useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Burger, Drawer, Image, ScrollArea } from "@mantine/core";
 import { useMantineTheme } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconSettings } from "@tabler/icons-react";
 import { useAuth } from "../modules/auth/AuthContext";
 import { useBranding } from "../modules/theme/BrandingContext";
-import {
-  brandDefaults,
-  color,
-  layout,
-  space,
-  zIndex,
-} from "../design-system";
+import { Button, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
+import classes from "./AppShellLayout.module.scss";
 
 type AppRole = "admin" | "teacher" | "donor";
 
-type NavItem = {
-  label: string;
-  to: string;
-};
+/** Initials for the top-bar avatar. "Ada Kimani" -> "AK". */
+function initials(name?: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
 
-type RoleNavItem = NavItem & { role: AppRole };
+/** Sentence-case a route segment: "grant-types" -> "Grant types". */
+function humanise(segment: string): string {
+  const words = segment.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 export const AppShellLayout: React.FC = () => {
   const { profile, role, roles, logout } = useAuth();
   const branding = useBranding();
   const location = useLocation();
+  const navigate = useNavigate();
   const theme = useMantineTheme();
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
-
-  const [showAdminSettings, setShowAdminSettings] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (path: string) =>
-    location.pathname === path || location.pathname.startsWith(path);
-
-  // ─────────────────────────────────────────────────────────────
-  // NAV CONFIG
-  // ─────────────────────────────────────────────────────────────
-
-  const adminMainNav: NavItem[] = [
-    { label: "Dashboard", to: "/admin/dashboard" },
-    { label: "Students", to: "/admin/students" },
-    { label: "Teachers", to: "/admin/teachers" },
-    { label: "Schools", to: "/admin/schools" },
-    { label: "Donors", to: "/admin/donors" },
-    { label: "Scholarships", to: "/admin/scholarships" },
-    { label: "Contact requests", to: "/admin/contact-requests" },
-  ];
-
-  const adminSettingsNav: NavItem[] = [
-    { label: "Reports", to: "/admin/reports" },
-    { label: "Grant Types", to: "/admin/grant-types" },
-    { label: "Users & Roles", to: "/admin/users" },
-    { label: "Branding", to: "/admin/branding" },
-  ];
-
-  const teacherNav: NavItem[] = [
-    { label: "Dashboard", to: "/teacher/dashboard" },
-    { label: "Students", to: "/teacher/students" },
-  ];
-
-  const donorNav: NavItem[] = [
-    { label: "Dashboard", to: "/donor/dashboard" },
-    { label: "Contact", to: "/donor/renew" },
-  ];
-
-  const roleLabels: Record<AppRole, string> = {
-    admin: "Admin",
-    teacher: "Teacher",
-    donor: "Donor",
-  };
-
-  // ─────────────────────────────────────────────────────────────
-  // MULTI-ROLE SUPPORT
-  // ─────────────────────────────────────────────────────────────
-
-  const effectiveRoles: AppRole[] = (() => {
+  const effectiveRoles: AppRole[] = useMemo(() => {
     const result: AppRole[] = [];
-    if (Array.isArray(roles) && roles.length > 0) {
-      roles.forEach((r) => {
-        if (r === "admin" || r === "teacher" || r === "donor") {
-          if (!result.includes(r)) result.push(r);
-        }
-      });
-    } else if (role === "admin" || role === "teacher" || role === "donor") {
-      result.push(role);
-    }
+    const push = (r: unknown) => {
+      if ((r === "admin" || r === "teacher" || r === "donor") && !result.includes(r)) result.push(r);
+    };
+    if (Array.isArray(roles) && roles.length > 0) roles.forEach(push);
+    else push(role);
     return result;
-  })();
+  }, [role, roles]);
 
-  const hasMultipleRoles = effectiveRoles.length > 1;
+  // ── Nav config. Ids are route paths. ───────────────────────────────────
+  //
+  // Structure is priority-ordered, not role-ordered:
+  //   1. Overview      — one row per role the user actually holds
+  //   2. Community     — students, teachers and schools in ONE group
+  //   3. Programmes    — scholarships, grant types, field reports
+  //   4. Giving        — donors, contact requests, renewals
+  //   5. Organisation  — accounts and settings
+  // Every destination from the previous nav is still reachable; only the
+  // grouping and ordering changed.
+  const modules = useMemo<NavModule[]>(() => {
+    const isAdmin = effectiveRoles.includes("admin");
+    const isTeacher = effectiveRoles.includes("teacher");
+    const isDonor = effectiveRoles.includes("donor");
+    const out: NavModule[] = [];
 
-  const allMainNavItems: RoleNavItem[] = [];
+    // ── 1. Overview ─────────────────────────────────────────────────────
+    const overviews: NavChild[] = [];
+    if (isAdmin) overviews.push({ id: "/admin/dashboard", label: "Admin overview" });
+    if (isTeacher) overviews.push({ id: "/teacher/dashboard", label: "Teaching overview" });
+    if (isDonor) overviews.push({ id: "/donor/dashboard", label: "Giving overview" });
 
-  if (effectiveRoles.includes("admin")) {
-    adminMainNav.forEach((item) =>
-      allMainNavItems.push({ ...item, role: "admin" })
-    );
-  }
-  if (effectiveRoles.includes("teacher")) {
-    teacherNav.forEach((item) =>
-      allMainNavItems.push({ ...item, role: "teacher" })
-    );
-  }
-  if (effectiveRoles.includes("donor")) {
-    donorNav.forEach((item) =>
-      allMainNavItems.push({ ...item, role: "donor" })
-    );
-  }
+    if (overviews.length === 1) {
+      out.push({ ...overviews[0], label: "Overview", icon: "house" });
+    } else if (overviews.length > 1) {
+      out.push({ id: "overview-group", label: "Overview", icon: "house", children: overviews });
+    }
 
-  const navBg = branding.primary_color || brandDefaults.primaryColor;
+    // ── 2. Community — the primary modules. Flat rows, never collapsed. ──
+    const community: NavModule[] = [];
+    if (isAdmin)
+      community.push({ id: "/admin/students", label: "Students", icon: "graduation-cap" });
+    if (isTeacher)
+      community.push({ id: "/teacher/students", label: "My students", icon: "graduation-cap" });
+    if (isAdmin) {
+      community.push(
+        { id: "/admin/teachers", label: "Teachers", icon: "contact" },
+        { id: "/admin/schools", label: "Schools", icon: "school" },
+      );
+    }
 
-  // ─────────────────────────────────────────────────────────────
-  // BASE STYLES
-  // ─────────────────────────────────────────────────────────────
+    if (community.length) {
+      out.push({ id: "sec-community", section: "Community" }, ...community);
+    }
 
-  const desktopLinkStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    color: "white",
-    textDecoration: "none",
-    fontSize: 14,
-    padding: "4px 0",
+    // ── 3. Programmes ───────────────────────────────────────────────────
+    if (isAdmin) {
+      out.push(
+        { id: "sec-programmes", section: "Programmes" },
+        {
+          id: "grants-group",
+          label: "Scholarships",
+          icon: "hand-coins",
+          children: [
+            { id: "/admin/scholarships", label: "All scholarships" },
+            { id: "/admin/grant-types", label: "Grant types" },
+          ],
+        },
+        { id: "/admin/reports", label: "Field reports", icon: "clipboard-list" },
+      );
+    }
+
+    // ── 4. Giving ───────────────────────────────────────────────────────
+    const giving: NavModule[] = [];
+    if (isAdmin) {
+      giving.push(
+        { id: "/admin/donors", label: "Donors", icon: "wallet" },
+        { id: "/admin/contact-requests", label: "Requests", icon: "clipboard-list" },
+      );
+    }
+    if (isDonor) giving.push({ id: "/donor/renew", label: "Contact", icon: "clipboard-list" });
+
+    if (giving.length) {
+      out.push({ id: "sec-giving", section: "Giving" }, ...giving);
+    }
+
+    // ── 5. Organisation ─────────────────────────────────────────────────
+    if (isAdmin) {
+      out.push(
+        { id: "sec-org", section: "Organisation" },
+        { id: "/admin/users", label: "Accounts", icon: "users" },
+        { id: "/admin/branding", label: "Settings", icon: "settings" },
+      );
+    }
+
+    return out;
+  }, [effectiveRoles]);
+
+  /** Deepest nav id that prefixes the current path — that row lights up. */
+  const activeId = useMemo(() => {
+    const ids: string[] = [];
+    modules.forEach((m) => {
+      if (m.id.startsWith("/")) ids.push(m.id);
+      (m.children || []).forEach((c) => ids.push(c.id));
+    });
+    return ids
+      .filter((id) => location.pathname === id || location.pathname.startsWith(id + "/"))
+      .sort((a, b) => b.length - a.length)[0];
+  }, [modules, location.pathname]);
+
+  const breadcrumbs = useMemo(() => {
+    const parts = location.pathname.split("/").filter(Boolean);
+    return parts.slice(0, -1).map(humanise);
+  }, [location.pathname]);
+
+  const title = useMemo(() => {
+    const parts = location.pathname.split("/").filter(Boolean);
+    return parts.length ? humanise(parts[parts.length - 1]) : "Overview";
+  }, [location.pathname]);
+
+  const go = (id: string) => {
+    if (!id.startsWith("/")) return;
+    navigate(id);
+    setMobileOpen(false);
   };
 
-  const roleBadgeStyle: React.CSSProperties = {
-    fontSize: 11,
-    opacity: 0.85,
-  };
-
-  // Mobile link style → readable on white drawer
-  const mobileLinkStyle: React.CSSProperties = {
-    color: branding.primary_color || brandDefaults.primaryColor,
-    textDecoration: "none",
-    fontSize: 16,
-    padding: "10px 0",
-    display: "block",
-    fontWeight: 500,
-  };
-
-  // ─────────────────────────────────────────────────────────────
-  // LOGOUT HANDLER
-  // ─────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     try {
       await logout();
@@ -163,211 +177,91 @@ export const AppShellLayout: React.FC = () => {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────
-  // SIDEBAR CONTENT (shared between desktop + mobile)
-  // ─────────────────────────────────────────────────────────────
-
-  const SidebarNav = (
-    <Stack justify="space-between" style={{ height: "100%" }}>
-      <div>
-        {branding.logo_url && (
-          <Image src={branding.logo_url} alt="Logo" h={80} fit="contain" mb="lg" />
-        )}
-
-        <Text fw={700} mb="sm">
-          Impact Center
-        </Text>
-
-        {/* MAIN NAV */}
-        <nav>
-          {allMainNavItems.map((item) => (
-            <Link
-              key={`${item.role}-${item.to}`}
-              to={item.to}
-              style={
-                isMobile
-                  ? {
-                      ...mobileLinkStyle,
-                      fontWeight: isActive(item.to) ? 700 : 500,
-                    }
-                  : {
-                      ...desktopLinkStyle,
-                      fontWeight: isActive(item.to) ? 700 : 400,
-                    }
-              }
-              onClick={() => setMobileOpen(false)}
-            >
-              <span>{item.label}</span>
-              {!isMobile && hasMultipleRoles && (
-                <span style={roleBadgeStyle}>{roleLabels[item.role]}</span>
-              )}
-            </Link>
-          ))}
-
-          {/* COLLAPSIBLE ADMIN SETTINGS */}
-          {effectiveRoles.includes("admin") && (
-            <div style={{ marginTop: space.md }}>
-              <button
-                type="button"
-                onClick={() => setShowAdminSettings((v) => !v)}
-                style={{
-                  width: "100%",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  color: isMobile ? mobileLinkStyle.color : "white",
-                }}
-              >
-                <Group justify="space-between" gap={8} style={{ padding: "6px 0" }}>
-                  <Group gap={6}>
-                    <IconSettings size={16} />
-                    <span style={{ fontSize: 14 }}>Admin settings</span>
-                  </Group>
-                  <span style={{ fontSize: 12 }}>
-                    {showAdminSettings ? "−" : "+"}
-                  </span>
-                </Group>
-              </button>
-
-              {showAdminSettings && (
-                <div style={{ marginTop: space["2xs"], paddingLeft: space.lg }}>
-                  {adminSettingsNav.map((item) => (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      style={
-                        isMobile
-                          ? { ...mobileLinkStyle, paddingLeft: 0 }
-                          : {
-                              ...desktopLinkStyle,
-                              fontSize: 13,
-                              opacity: 0.95,
-                              fontWeight: isActive(item.to) ? 700 : 400,
-                            }
-                      }
-                      onClick={() => setMobileOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+  const navFooter = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <button type="button" onClick={() => go("/profile")} className={classes.profileRow}>
+        <span className={classes.avatar}>{initials(profile?.full_name)}</span>
+        <span className={classes.profileName}>
+          {profile?.full_name || "Signed in"}
+          {effectiveRoles.length > 0 && (
+            <span className={classes.profileRole}> · {effectiveRoles.join(", ")}</span>
           )}
-        </nav>
-      </div>
-
-      {/* FOOTER: PROFILE + LOGOUT */}
-      <div style={{ marginTop: space.lg }}>
-        {profile && (
-          <Link
-            to="/profile"
-            style={{
-              display: "block",
-              textDecoration: "underline",
-              marginBottom: 12,
-              fontSize: 14,
-              color: isMobile ? mobileLinkStyle.color : "white",
-            }}
-            onClick={() => setMobileOpen(false)}
-          >
-            {profile.full_name}
-            {hasMultipleRoles && ` (${effectiveRoles.join(", ")})`}
-          </Link>
-        )}
-
-        <Button fullWidth onClick={handleLogout}>
-          Logout
-        </Button>
-      </div>
-    </Stack>
+        </span>
+      </button>
+      <Button variant="secondary" fullWidth size="sm" onClick={handleLogout}>
+        Log out
+      </Button>
+    </div>
   );
 
-  // ─────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────
+  const nav = (
+    <SideNav
+      workspace={
+        <span className={classes.workspace}>
+          {branding.logo_url && (
+            <Image src={branding.logo_url} alt="" h={16} w="auto" fit="contain" />
+          )}
+          Impact Center
+        </span>
+      }
+      modules={modules}
+      activeId={activeId}
+      onNavigate={go}
+      footer={navFooter}
+    />
+  );
 
-  return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: branding.font_family }}>
-      {/* MOBILE TOP BAR */}
-      {isMobile && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: layout.mobileBarHeight,
-            backgroundColor: "white",
-            borderBottom: `1px solid ${color.border.subtle}`,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: `0 ${space.md}px`,
-            zIndex: zIndex.nav,
-          }}
-        >
-          <Group>
-            <Burger
-              opened={mobileOpen}
-              onClick={() => setMobileOpen((o) => !o)}
-              color={branding.primary_color || brandDefaults.primaryColor}
-              aria-label="Toggle navigation"
-            />
-
-            {branding.logo_url && (
-              <Image src={branding.logo_url} alt="Logo" h={30} fit="contain" />
-            )}
-          </Group>
-
-          <Text size="sm" fw={600} c={branding.primary_color || brandDefaults.primaryColor}>
-            Impact Center
-          </Text>
-        </div>
-      )}
-
-      {/* DESKTOP SIDEBAR */}
-      {!isMobile && (
-        <aside
-          style={{
-            width: layout.navWidth,
-            backgroundColor: navBg,
-            color: "white",
-            padding: layout.navPadding,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          {SidebarNav}
-        </aside>
-      )}
-
-      {/* MOBILE DRAWER MENU */}
-      {isMobile && (
+  // ── Mobile: top bar + drawer, same nav. ────────────────────────────────
+  if (isMobile) {
+    return (
+      <div className={`lumen ${classes.shell}`}>
+        <header className={classes.mobileBar}>
+          <Burger
+            opened={mobileOpen}
+            onClick={() => setMobileOpen((o) => !o)}
+            size="sm"
+            aria-label="Toggle navigation"
+          />
+          <span className={classes.mobileTitle}>{title}</span>
+          <span className={classes.avatar}>{initials(profile?.full_name)}</span>
+        </header>
         <Drawer
           opened={mobileOpen}
           onClose={() => setMobileOpen(false)}
-          padding="md"
-          size={layout.drawerWidth}
-          overlayProps={{ opacity: 0.5, blur: 2 }}
+          padding={0}
+          size={260}
+          overlayProps={{ opacity: 0.4, blur: 2 }}
         >
-          <ScrollArea h="100%">{SidebarNav}</ScrollArea>
+          <ScrollArea h="100%" className="lumen">
+            {nav}
+          </ScrollArea>
         </Drawer>
-      )}
+        <main className={classes.mobileMain}>
+          <Outlet />
+        </main>
+      </div>
+    );
+  }
 
-      {/* MAIN CONTENT */}
-      <main
-        style={{
-          flex: 1,
-          padding: isMobile
-            ? layout.pagePadding.mobile
-            : layout.pagePadding.desktop,
-        }}
-      >
-        <Outlet />
-      </main>
+  // ── Desktop: rail-less shell. Nav on the canvas, content floating white. ──
+  // Nav runs the full height on the left; the top bar belongs to the content
+  // column, so the breadcrumb lines up with the page rather than the nav.
+  return (
+    <div className={`lumen ${classes.shell}`}>
+      <div className={classes.body}>
+        {nav}
+        <div className={classes.panelWrap}>
+          <TopBar
+            breadcrumbs={breadcrumbs}
+            title={title}
+            notifications={0}
+            user={initials(profile?.full_name)}
+          />
+          <main className={classes.panel}>
+            <Outlet />
+          </main>
+        </div>
+      </div>
     </div>
   );
 };

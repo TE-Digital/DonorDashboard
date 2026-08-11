@@ -38,24 +38,24 @@ Organization branding replaces both. Any component that needs the brand colour m
 
 ### Neutrals — `color.neutral.0…9`
 
-`#ffffff` · `#f8f9fa` · `#f1f3f5` · `#e9ecef` · `#dee2e6` · `#ced4da` · `#adb5bd` · `#868e96` · `#495057` · `#212529`
+`#ffffff` · `#f6f8f7` · `#edf2f0` · `#e3eae7` · `#d5dfdb` · `#bdcbc6` · `#91a49d` · `#6a7d76` · `#41554e` · `#1c302a`
 
 ### Surfaces & borders
 
 | Token | Value | Where |
 | --- | --- | --- |
-| `color.surface.page` | `#ffffff` | App canvas |
+| `color.surface.page` | `#f6f8f7` | App canvas |
 | `color.surface.card` | `#ffffff` | `SectionCard`, `StatCard` |
-| `color.surface.sunken` | `#f8f9fa` | Table header, hover on white, nav |
-| `color.surface.auth` | `#edf2ff` | Sign-in / invite background only |
+| `color.surface.sunken` | `#edf2f0` | Table header, hover on white, nav |
+| `color.surface.auth` | `#eef4f2` | Sign-in / invite background only |
 | `color.surface.overlay` | `rgba(0,0,0,.55)` | Modal scrim |
-| `color.border.subtle` | `#eeeeee` | Default hairline, table row divider |
-| `color.border.default` | `#dddddd` | Card and control borders |
-| `color.border.strong` | `#ced4da` | Hovered / focused control border |
+| `color.border.subtle` | `#e3eae7` | Default hairline, table row divider |
+| `color.border.default` | `#d5dfdb` | Card and control borders |
+| `color.border.strong` | `#aabbb5` | Hovered / focused control border |
 
 ### Text
 
-`text.primary` `#212529` headings and body · `text.secondary` `#495057` supporting copy · `text.dimmed` `#868e96` labels, captions, metadata · `text.inverse` `#ffffff` on filled surfaces.
+`text.primary` `#1c302a` headings and body · `text.secondary` `#41554e` supporting copy · `text.dimmed` `#6a7d76` labels, captions, metadata · `text.inverse` `#ffffff` on filled surfaces.
 
 `text.dimmed` on white is the lightest permitted text colour. Do not go lighter for "subtlety".
 
@@ -408,7 +408,7 @@ This UI renders information about students and donors. Follow `DATA_POLICY.md` p
 
 ### Known gaps — resolve before treating as settled
 
-- **Neutrals are Mantine defaults**, not a tuned iCare ramp. Cool grey; the brief above says "humane". Candidate for retuning.
+- **The green-grey neutral ramp is newly tuned.** Check contrast and Thai-script rendering against real content before treating it as final.
 - **Status colours are Mantine keys**, so their exact hex is Mantine's, not ours. No control over the `light` tint.
 - **No chart palette, no chart components.**
 - **No table component.** Every list page hand-rolls a Mantine `Table`; density, sticky header and sort are inconsistent.

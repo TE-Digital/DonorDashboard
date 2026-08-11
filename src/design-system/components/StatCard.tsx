@@ -1,7 +1,6 @@
 // src/design-system/components/StatCard.tsx
 import React from "react";
-import { Card, Stack, Text } from "@mantine/core";
-import { textRole } from "../typography";
+import { KpiCard } from "../lumen";
 
 export interface StatCardProps {
   label: React.ReactNode;
@@ -12,25 +11,33 @@ export interface StatCardProps {
 }
 
 /**
- * Replaces the three separate StatCard / SummaryCard definitions that lived in
- * AdminDashboardPage, TeacherDashboardPage and DonorDashboardPage.
+ * The dashboard metric tile, now the design system's KpiCard: accent dot,
+ * tabular-figure value at 24/30, footnote line.
+ *
+ * Prop shape unchanged — `hint` maps to the KPI footnote. Reach for KpiCard
+ * directly when a metric has a trend delta to show.
  */
-export const StatCard: React.FC<StatCardProps> = ({
-  label,
-  value,
-  hint,
-  onClick,
-}) => (
-  <Card
-    onClick={onClick}
-    style={onClick ? { cursor: "pointer" } : undefined}
-  >
-    <Stack gap={2}>
-      <Text {...textRole("metricLabel")}>{label}</Text>
-      <Text {...textRole("metricValue")}>{value}</Text>
-      {hint && <Text {...textRole("caption")}>{hint}</Text>}
-    </Stack>
-  </Card>
-);
+export const StatCard: React.FC<StatCardProps> = ({ label, value, hint, onClick }) => {
+  const card = <KpiCard label={label} value={value} footnote={hint} accent="blue" />;
+
+  if (!onClick) return card;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={{ cursor: "pointer", borderRadius: "var(--radius)" }}
+    >
+      {card}
+    </div>
+  );
+};
 
 export default StatCard;

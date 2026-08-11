@@ -1,0 +1,126 @@
+// Lumen application shell.
+// Warm canvas behind everything; the content is the only white surface, and it
+// floats as a single rounded panel with one 1px stroke.
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panelWrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 10px 10px 0;
+}
+
+.panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+  padding: 28px 32px 32px;
+}
+
+// ── Nav chrome ───────────────────────────────────────────────────────────
+
+.workspace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.profileRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: var(--motion-hover);
+
+  &:hover {
+    background: rgba(33, 30, 27, 0.045);
+  }
+}
+
+.avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--n-0);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+}
+
+.profileName {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileRole {
+  color: var(--text-subtle);
+}
+
+// ── Mobile ───────────────────────────────────────────────────────────────
+
+.mobileBar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: var(--control-h-lg);
+  padding: 0 12px;
+  background: var(--surface-nav);
+}
+
+.mobileTitle {
+  flex: 1;
+  overflow: hidden;
+  color: var(--text-heading);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileMain {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0 8px 8px;
+  padding: 20px 16px 24px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+}

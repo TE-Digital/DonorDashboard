@@ -1,7 +1,6 @@
 // src/modules/profile/ProfilePage.tsx
 import React, { useEffect, useState } from "react";
 import {
-  Card,
   Stack,
   Text,
   TextInput,
@@ -254,7 +253,7 @@ export const ProfilePage: React.FC = () => {
     : "You are editing this user's contact details as an admin.";
 
   return (
-    <Card pos="relative">
+    <div style={{ position: "relative" }}>
       <LoadingState variant="overlay" visible={loading} />
       <Stack gap="lg">
         <PageHeader title={heading} subtitle={subtitle} />
@@ -336,7 +335,7 @@ export const ProfilePage: React.FC = () => {
           </form>
         )}
       </Stack>
-    </Card>
+    </div>
   );
 };
 
