@@ -32,6 +32,23 @@ export type { LoadingStateProps } from "./components/LoadingState";
 export { InlineMessage } from "./components/InlineMessage";
 export type { InlineMessageProps, MessageTone } from "./components/InlineMessage";
 
+export {
+  FormPage,
+  FormBody,
+  FormSection,
+  FieldLabel,
+  FormError,
+  FormFooter,
+} from "./components/FormLayout";
+export type {
+  FormPageProps,
+  FormBodyProps,
+  FormSectionProps,
+  FieldLabelProps,
+  FormFooterProps,
+  FormStep,
+} from "./components/FormLayout";
+
 export { FormActions } from "./components/FormActions";
 export type { FormActionsProps } from "./components/FormActions";
 

@@ -332,6 +332,7 @@ export const AdminScholarshipsPage: React.FC = () => {
         controls={
           <>
             <Select
+              size="sm"
               placeholder="All statuses"
               data={statusOptions}
               value={statusFilter}
@@ -340,6 +341,7 @@ export const AdminScholarshipsPage: React.FC = () => {
               w={160}
             />
             <Select
+              size="sm"
               placeholder="All years"
               data={yearOptions}
               value={year}

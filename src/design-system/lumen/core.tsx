@@ -3,15 +3,31 @@ import { Icon } from "./Icon";
 
 /* ------------------------------------------------------------------ Button */
 
-export type ControlSize = "sm" | "md" | "lg";
+export type ControlSize = "sm" | "md" | "lg" | "xl";
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const H: Record<ControlSize, string> = {
   sm: "var(--control-h-sm)",
   md: "var(--control-h-md)",
   lg: "var(--control-h-lg)",
+  // The form-field rung. A native input at `xl` is the same box as a Mantine
+  // one at `size="md"`, so the two systems can share a row without a step.
+  xl: "var(--control-h-xl)",
 };
-const PAD: Record<ControlSize, string> = { sm: "0 8px", md: "0 16px", lg: "0 20px" };
+const PAD: Record<ControlSize, string> = {
+  sm: "0 8px",
+  md: "0 16px",
+  lg: "0 20px",
+  xl: "0 20px",
+};
+
+/* A field holds 16px text; anything denser than the form field holds 13–14px. */
+const CONTROL_FS: Record<ControlSize, string> = {
+  sm: "var(--fs-sm)",
+  md: "var(--fs-body)",
+  lg: "var(--fs-body)",
+  xl: "var(--fs-control)",
+};
 
 /* Only `primary` is filled. Everything else is an outline button — that is what keeps
    the blue meaningful on a screen full of controls. */
@@ -203,13 +219,17 @@ export const Input: React.FC<InputProps> = ({
         gap: 6,
         height: h,
         width: fullWidth ? "100%" : undefined,
-        padding: "0 8px",
+        padding: size === "xl" ? "0 16px" : "0 8px",
         background: disabled ? "var(--surface-disabled)" : "var(--n-0)",
         border:
           "1px solid " +
           (invalid ? "var(--red-500)" : f ? "var(--border-focus)" : "var(--border-default)"),
-        borderRadius: "var(--radius-sm)",
-        boxShadow: f ? "var(--focus-ring)" : "none",
+        borderRadius: "var(--radius)",
+        boxShadow: f
+          ? invalid
+            ? "0 0 0 3px rgba(242, 87, 87, 0.16)"
+            : "var(--focus-ring)"
+          : "none",
         transition: "var(--motion-hover), box-shadow var(--dur-fast) var(--ease-standard)",
       }}
     >
@@ -229,7 +249,7 @@ export const Input: React.FC<InputProps> = ({
           outline: "none",
           background: "transparent",
           font: "inherit",
-          fontSize: size === "sm" ? "var(--fs-sm)" : "var(--fs-body)",
+          fontSize: CONTROL_FS[size],
           color: "var(--text-body)",
           width: "100%",
           minWidth: 0,
@@ -252,14 +272,17 @@ export interface FieldProps {
 }
 
 export const Field: React.FC<FieldProps> = ({ label, hint, error, required, htmlFor, children }) => (
-  <label htmlFor={htmlFor} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+  <label htmlFor={htmlFor} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
     {label && (
+      // The label names the field; it is not a caption. Same 14px medium ink as
+      // the Mantine input label in styles/global.scss, so a native control and a
+      // Mantine one standing in the same row read as one form.
       <span
         style={{
-          fontSize: "var(--fs-xs)",
-          lineHeight: "var(--lh-xs)",
+          fontSize: "var(--fs-control-label)",
+          lineHeight: "var(--lh-body)",
           fontWeight: "var(--fw-medium)" as unknown as number,
-          color: "var(--text-muted)",
+          color: "var(--text-body)",
         }}
       >
         {label}
@@ -299,23 +322,29 @@ export const Select: React.FC<SelectProps> = ({
   onChange,
 }) => {
   const h = H[size];
+  const [f, setF] = React.useState(false);
   return (
     <div style={{ position: "relative", display: "inline-flex", width: fullWidth ? "100%" : undefined }}>
       <select
         value={value}
         disabled={disabled}
         onChange={onChange}
+        onFocus={() => setF(true)}
+        onBlur={() => setF(false)}
         style={{
           appearance: "none",
           height: h,
           width: "100%",
-          padding: "0 26px 0 8px",
+          padding: size === "xl" ? "0 34px 0 16px" : "0 26px 0 8px",
           font: "inherit",
-          fontSize: size === "sm" ? "var(--fs-sm)" : "var(--fs-body)",
+          fontSize: CONTROL_FS[size],
           color: "var(--text-body)",
           background: disabled ? "var(--surface-disabled)" : "var(--n-0)",
-          border: "1px solid var(--border-default)",
-          borderRadius: "var(--radius-sm)",
+          border: "1px solid " + (f ? "var(--border-focus)" : "var(--border-default)"),
+          borderRadius: "var(--radius)",
+          boxShadow: f ? "var(--focus-ring)" : "none",
+          outline: "none",
+          transition: "var(--motion-hover), box-shadow var(--dur-fast) var(--ease-standard)",
           cursor: disabled ? "not-allowed" : "pointer",
         }}
       >

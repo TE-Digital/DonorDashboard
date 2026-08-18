@@ -1,0 +1,474 @@
+// The few admin-directory bits that are genuinely local.
+//
+// Everything that used to live here — page title, step strip, section
+// headings, field labels, the sticky action bar — is now the shared form
+// layout in design-system/components/FormLayout, and input/label/table styling
+// belongs to styles/global.scss. What is left is layout that only these
+// screens need. No local hexes, no second radius, no off-scale type.
+
+.page {
+  color: var(--text-heading);
+}
+
+.page :global(.mantine-Stack-root) {
+  min-width: 0;
+}
+
+.page :global(a) {
+  font-weight: var(--fw-medium);
+  text-underline-offset: 3px;
+}
+
+// The school-name row: two generous name fields and a narrow code beside them.
+.namesGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(190px, 0.46fr);
+  gap: var(--sp-5);
+}
+
+// A SegmentedControl standing in a field row matches the field box height.
+.systemControl {
+  min-height: var(--control-h-xl);
+}
+
+.reportHint {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--blue-100);
+  border-radius: var(--radius);
+  color: var(--blue-700);
+  background: var(--blue-25);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+// ── School list ──────────────────────────────────────────────────────────
+// The row-actions column stays put while the table scrolls sideways, so the
+// edit control never disappears on a wide grid.
+
+.schoolListPage :global(table th:last-child),
+.schoolListPage :global(table td:last-child) {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  width: 64px;
+  min-width: 64px;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--n-0);
+  box-shadow: var(--shadow-sticky-left);
+}
+
+.schoolListPage :global(table th:last-child) {
+  z-index: 3;
+  background: var(--n-50);
+}
+
+.schoolListPage :global(table tr:hover td:last-child) {
+  background: var(--n-25);
+}
+
+.rowActions {
+  display: flex;
+  justify-content: center;
+}
+
+.rowActions :global(.mantine-ActionIcon-root) {
+  color: var(--text-muted);
+  border-radius: var(--radius);
+}
+
+.rowActions :global(.mantine-ActionIcon-root:hover),
+.rowActions :global(.mantine-ActionIcon-root:focus-visible) {
+  color: var(--text-heading);
+  background: var(--surface-hover);
+}
+
+// The school code, shown as an identifier rather than prose.
+.recordLink {
+  color: var(--text-link);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+@media (max-width: 760px) {
+  .namesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── School record ────────────────────────────────────────────────────────
+// Identity strip, KPI band, then the tab body. Only layout lives here; colour,
+// type and spacing all come from the token scale.
+
+.detailPage {
+  gap: var(--sp-5);
+}
+
+.detailHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+
+.detailIdentity {
+  flex: 1;
+  min-width: 0;
+}
+
+.detailTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.detailTitle {
+  margin: 0;
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+}
+
+.detailMeta {
+  margin: var(--sp-1) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.detailDot {
+  color: var(--border-default);
+}
+
+.detailActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: none;
+}
+
+.detailKpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.detailKpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-card);
+  min-width: 0;
+}
+
+.detailKpiLabel {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detailKpiValue {
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+}
+
+// Overview: the record on the left, a narrow rail of context on the right.
+.detailOverview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: var(--sp-7);
+  align-items: start;
+}
+
+.detailFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+.detailSectionTitle {
+  margin: 0 0 var(--sp-3);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.detailFieldGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-4) var(--sp-5);
+}
+
+.detailFieldLabel {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.detailFieldValue {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--text-heading);
+  text-wrap: pretty;
+}
+
+.detailRail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.detailPanel {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.detailPanelTitle {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.detailActivity,
+.detailReportRow {
+  display: flex;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.detailActivity {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detailReportRow {
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.detailActivity:last-child,
+.detailReportRow:last-child {
+  border-bottom: none;
+}
+
+.detailActivityTitle {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+.detailActivityBody {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.detailActivityWhen {
+  display: block;
+  font-size: var(--fs-micro);
+  color: var(--text-subtle);
+}
+
+.detailEmpty {
+  margin: 0;
+  padding: var(--sp-5) var(--sp-4);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+// Reports tab: one card per reporting cycle.
+.detailFolders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+  gap: var(--sp-4);
+}
+
+.detailFolder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: var(--motion-hover);
+}
+
+.detailFolder:hover {
+  border-color: var(--action-primary);
+  background: var(--surface-sunken);
+}
+
+.detailFolderHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--text-muted);
+}
+
+.detailFolderTitle {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.detailProgressTrack {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-hover);
+  overflow: hidden;
+}
+
+.detailProgressFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--action-primary);
+}
+
+@media (max-width: 1080px) {
+  .detailOverview {
+    grid-template-columns: 1fr;
+  }
+
+  .detailKpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+// ── Add-school wizard: roster steps ──────────────────────────────────────
+// A drop target for the CSV, then the staged rows as an editable grid.
+
+.dropZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-7) var(--sp-5);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  text-align: center;
+  font: inherit;
+  cursor: pointer;
+  transition: var(--motion-hover);
+}
+
+.dropZone:hover,
+.dropZoneActive {
+  border-color: var(--action-primary);
+  background: var(--surface-selected);
+}
+
+.dropZoneTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.dropZoneHint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.dropZoneFooter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.dropZoneNote {
+  font-size: var(--fs-xs);
+  color: var(--green-700);
+}
+
+// A text-weight control that sits inline with prose, not a button in a row.
+.linkButton {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-link);
+  font: inherit;
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.linkButton:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+.stagedHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-5) 0 var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.stagedCount {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.stagedTable {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.stagedTable :global(td) {
+  padding: var(--sp-1) var(--sp-2);
+}
+
+.rowRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--motion-hover);
+}
+
+.rowRemove:hover {
+  background: var(--red-50);
+  color: var(--red-700);
+}

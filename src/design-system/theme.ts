@@ -281,26 +281,31 @@ export function buildTheme(
       },
 
       // ── Inputs ─────────────────────────────────────────────────
-      TextInput: { defaultProps: { size: "sm" } },
-      PasswordInput: { defaultProps: { size: "sm" } },
-      Textarea: { defaultProps: { size: "sm" } },
-      NumberInput: { defaultProps: { size: "sm" } },
-      MultiSelect: { defaultProps: { size: "sm" } },
+      // `md` is the form field — a 52px box holding 16px text under a 14px
+      // label. The height ramp itself is remapped onto the control tokens in
+      // styles/global.scss, so `size` stays a meaning rather than a number:
+      // pass `size="sm"` for a dense toolbar search or table filter.
+      TextInput: { defaultProps: { size: "md" } },
+      PasswordInput: { defaultProps: { size: "md" } },
+      Textarea: { defaultProps: { size: "md" } },
+      NumberInput: { defaultProps: { size: "md" } },
+      MultiSelect: { defaultProps: { size: "md" } },
+      // Toggles are not typed into, so they keep their own compact scale.
       Switch: { defaultProps: { size: "sm" } },
       Checkbox: {
         defaultProps: { size: "sm" },
       },
       Select: {
-        defaultProps: { size: "sm" },
+        defaultProps: { size: "md" },
         styles: {
           // Keeps the chevron from colliding with long option labels.
           input: { paddingRight: px(iconSize.xl + 8) },
         },
       },
       FileInput: {
-        defaultProps: { size: "sm" },
+        defaultProps: { size: "md" },
       },
-      DateInput: { defaultProps: { size: "sm" } },
+      DateInput: { defaultProps: { size: "md" } },
     },
   });
 }

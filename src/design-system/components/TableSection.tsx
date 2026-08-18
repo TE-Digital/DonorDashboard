@@ -157,52 +157,67 @@ export function TableSection<R extends { id: React.Key }>({
   const resetToFirstPage = () => setPage(1);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       {kpis && kpis.length > 0 && (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)},minmax(0,1fr))`,
-            gap: 14,
+            gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)},minmax(180px,1fr))`,
+            gap: 20,
+            overflowX: "auto",
+            padding: "2px 1px 4px",
           }}
         >
           {kpis.map((k, i) => (
-            <KpiCard
-              key={i}
-              label={k.label}
-              value={k.value}
-              footnote={k.footnote}
-              delta={k.delta}
-              deltaLabel={k.deltaLabel}
-              trend={k.trend}
-              accent={k.accent ?? (["blue", "teal", "amber", "plum"] as KpiAccent[])[i % 4]}
-            />
+            <div key={i} style={{ minWidth: 0 }}>
+              <KpiCard
+                strip
+                label={k.label}
+                value={k.value}
+                footnote={k.footnote}
+                delta={k.delta}
+                deltaLabel={k.deltaLabel}
+                trend={k.trend}
+                accent={(["blue", "teal", "amber", "plum"] as KpiAccent[])[i % 4]}
+              />
+            </div>
           ))}
         </div>
       )}
 
-      <FilterBar
-        search={q}
-        onSearchChange={(e) => {
-          setQ(e.target.value);
-          resetToFirstPage();
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          padding: "12px 0",
+          background: "var(--surface-card)",
+          borderBottom: "1px solid var(--border-subtle)",
         }}
-        controls={controls}
-        applied={chips}
-        onRemove={(c) => {
-          const chip = c as (typeof chips)[number];
-          setFilters((f) => ({
-            ...f,
-            [chip.columnKey]: (f[chip.columnKey] || []).filter((v) => v !== chip.value),
-          }));
-          resetToFirstPage();
-        }}
-        onClearAll={() => {
-          setFilters({});
-          resetToFirstPage();
-        }}
-        actions={actions}
-      />
+      >
+        <FilterBar
+          search={q}
+          onSearchChange={(e) => {
+            setQ(e.target.value);
+            resetToFirstPage();
+          }}
+          controls={controls}
+          applied={chips}
+          onRemove={(c) => {
+            const chip = c as (typeof chips)[number];
+            setFilters((f) => ({
+              ...f,
+              [chip.columnKey]: (f[chip.columnKey] || []).filter((v) => v !== chip.value),
+            }));
+            resetToFirstPage();
+          }}
+          onClearAll={() => {
+            setFilters({});
+            resetToFirstPage();
+          }}
+          actions={actions}
+        />
+      </div>
 
       {selectable && selected.length > 0 && bulkActions && (
         <div

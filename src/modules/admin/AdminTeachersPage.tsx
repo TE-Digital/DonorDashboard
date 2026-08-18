@@ -5,6 +5,7 @@ import { Anchor, Stack, Text } from "@mantine/core";
 import { Link, useNavigate } from "react-router-dom";
 import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { Badge, type DataColumn } from "../../design-system/lumen";
+import styles from "./AdminDirectory.module.scss";
 
 interface TeacherRow {
   id: string; // profiles.id (user id)
@@ -14,6 +15,10 @@ interface TeacherRow {
   created_at: string | null;
   studentCount: number;
   overdueCount: number;
+  /** Schools this teacher supervises students at, joined for display. */
+  schools: string;
+  /** No subject column exists on profiles yet; shown as a placeholder. */
+  subject: string;
 }
 
 export const AdminTeachersPage: React.FC = () => {
@@ -63,6 +68,8 @@ export const AdminTeachersPage: React.FC = () => {
           created_at: p.created_at,
           studentCount: 0,
           overdueCount: 0,
+          schools: "—",
+          subject: "—",
         }));
 
       if (teacherProfiles.length === 0) {
@@ -80,6 +87,7 @@ export const AdminTeachersPage: React.FC = () => {
         .select(
           `
           id,
+          school_id,
           responsible_teacher_id,
           term_updates ( report_date )
         `
@@ -96,6 +104,31 @@ export const AdminTeachersPage: React.FC = () => {
       const students = (studentsData ?? []) as any[];
 
       const studentIds = students.map((s) => s.id as string);
+
+      // A teacher's school is not stored on the profile; it follows from the
+      // students they supervise.
+      const schoolIds = Array.from(
+        new Set(students.map((s) => s.school_id).filter(Boolean))
+      ) as string[];
+      const schoolNameById = new Map<string, string>();
+
+      if (schoolIds.length > 0) {
+        const { data: schoolRows, error: schoolError } = await supabase
+          .from("schools")
+          .select("id, name")
+          .in("id", schoolIds);
+        if (schoolError) console.error("Error loading schools for teachers", schoolError);
+        (schoolRows ?? []).forEach((school: any) => schoolNameById.set(school.id, school.name));
+      }
+
+      const schoolsByTeacher = new Map<string, Set<string>>();
+      students.forEach((s) => {
+        const name = s.school_id ? schoolNameById.get(s.school_id) : null;
+        if (!name) return;
+        const teacherId = s.responsible_teacher_id as string;
+        if (!schoolsByTeacher.has(teacherId)) schoolsByTeacher.set(teacherId, new Set());
+        schoolsByTeacher.get(teacherId)!.add(name);
+      });
 
       // 5) Load scholarships for these students to detect active scholarships
       let activeScholarshipStudents = new Set<string>();
@@ -188,6 +221,7 @@ export const AdminTeachersPage: React.FC = () => {
         ...t,
         studentCount: studentCountByTeacher.get(t.id) ?? 0,
         overdueCount: overdueCountByTeacher.get(t.id) ?? 0,
+        schools: Array.from(schoolsByTeacher.get(t.id) ?? []).join(", ") || "—",
       }));
 
       setTeachers(enriched);
@@ -221,6 +255,13 @@ export const AdminTeachersPage: React.FC = () => {
 
   const columns: DataColumn<TeacherRow>[] = [
     {
+      key: "id",
+      label: "Teacher ID",
+      width: 120,
+      muted: true,
+      render: (t) => `TC-${t.id.slice(0, 6).toUpperCase()}`,
+    },
+    {
       key: "full_name",
       label: "Name",
       width: 200,
@@ -230,6 +271,8 @@ export const AdminTeachersPage: React.FC = () => {
         </Anchor>
       ),
     },
+    { key: "schools", label: "School", width: 200 },
+    { key: "subject", label: "Subject", width: 150, muted: true },
     {
       key: "email",
       label: "Email",
@@ -274,14 +317,17 @@ export const AdminTeachersPage: React.FC = () => {
   if (loading) return <LoadingState />;
 
   return (
-    <Stack>
-      <PageHeader title="Teachers" subtitle="Caseload and report health for every teacher." />
+    <Stack className={styles.page}>
+      <PageHeader title="Teachers" subtitle="Teacher directory, assigned students, and report health." />
 
       <TableSection
         kpis={kpis}
         columns={columns}
         rows={teachers}
-        searchKeys={["full_name", "email", "phone"]}
+        density="compact"
+        pageSize={14}
+        searchPlaceholder="Search teachers, email, phone, or IDs"
+        searchKeys={["full_name", "email", "phone", "schools"]}
         onRowClick={(t) => navigate(`/admin/teachers/${t.id}/students`)}
         emptyTitle="No teachers found"
         emptyDescription="Teachers appear here once they have an account."

@@ -348,7 +348,7 @@ export const TeacherNewReportPage: React.FC = () => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 11,
+                            fontSize: "var(--fs-micro)",
                             flexShrink: 0,
                           }}
                         >

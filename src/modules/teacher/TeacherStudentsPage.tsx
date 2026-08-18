@@ -304,11 +304,13 @@ export const TeacherStudentsPage: React.FC = () => {
       {isMobile ? (
         <Stack gap="xs">
           <TextInput
+            size="sm"
             placeholder="Search by name or village"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
           />
           <Select
+            size="sm"
             placeholder="Filter by grade level"
             value={gradeFilter}
             onChange={setGradeFilter}
@@ -319,12 +321,14 @@ export const TeacherStudentsPage: React.FC = () => {
       ) : (
         <Group gap="sm">
           <TextInput
+            size="sm"
             placeholder="Search by name or village"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             w={260}
           />
           <Select
+            size="sm"
             placeholder="Filter by grade level"
             value={gradeFilter}
             onChange={setGradeFilter}

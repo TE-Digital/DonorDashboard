@@ -612,6 +612,8 @@ export interface KpiCardProps {
   trend?: "up" | "down" | "flat";
   accent?: KpiAccent;
   footnote?: React.ReactNode;
+  /** Joins the KPI into the flat, shared-border strip used above data tables. */
+  strip?: boolean;
 }
 
 export const KpiCard: React.FC<KpiCardProps> = ({
@@ -623,6 +625,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   trend = "flat",
   accent = "blue",
   footnote,
+  strip = false,
 }) => {
   const tone =
     trend === "up" ? "var(--green-700)" : trend === "down" ? "var(--red-500)" : "var(--text-subtle)";
@@ -631,36 +634,42 @@ export const KpiCard: React.FC<KpiCardProps> = ({
       style={{
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-lg)",
+        borderTop: strip ? `3px solid ${KPI_ACCENTS[accent] || KPI_ACCENTS.blue}` : undefined,
+        borderRadius: strip ? 3 : "var(--radius-lg)",
         boxShadow: "var(--shadow-card)",
-        padding: 20,
+        minHeight: strip ? 116 : undefined,
+        padding: strip ? 20 : 20,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: strip ? 8 : 8 }}>
+        {!strip && (
+          <span
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: KPI_ACCENTS[accent] || KPI_ACCENTS.blue,
+              flex: "0 0 auto",
+            }}
+          />
+        )}
         <span
           style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            background: KPI_ACCENTS[accent] || KPI_ACCENTS.blue,
-            flex: "0 0 auto",
-          }}
-        />
-        <span
-          style={{
-            fontSize: "var(--fs-xs)",
-            color: "var(--text-muted)",
+            fontSize: strip ? 11 : "var(--fs-xs)",
+            color: strip ? "var(--text-subtle)" : "var(--text-muted)",
             fontWeight: "var(--fw-medium)" as unknown as number,
+            letterSpacing: strip ? "0.075em" : undefined,
+            textTransform: strip ? "uppercase" : undefined,
           }}
         >
           {label}
         </span>
       </div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
         <span
           style={{
-            fontSize: "var(--fs-h1)",
-            lineHeight: "var(--lh-h1)",
+            fontSize: strip ? 26 : "var(--fs-h1)",
+            lineHeight: strip ? 1.16 : "var(--lh-h1)",
             fontWeight: "var(--fw-semibold)" as unknown as number,
             letterSpacing: "var(--ls-tight)",
             color: "var(--text-heading)",
@@ -677,8 +686,8 @@ export const KpiCard: React.FC<KpiCardProps> = ({
             display: "flex",
             alignItems: "center",
             gap: 4,
-            marginTop: 12,
-            fontSize: "var(--fs-xs)",
+            marginTop: strip ? 8 : 12,
+            fontSize: 11,
             color: "var(--text-subtle)",
           }}
         >
@@ -692,10 +701,6 @@ export const KpiCard: React.FC<KpiCardProps> = ({
                 fontWeight: "var(--fw-medium)" as unknown as number,
               }}
             >
-              <Icon
-                name={trend === "up" ? "trending-up" : trend === "down" ? "trending-down" : "minus"}
-                size={13}
-              />
               {delta}
             </span>
           )}

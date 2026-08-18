@@ -136,17 +136,56 @@ select {
 }
 
 // ── Inputs ───────────────────────────────────────────────────────────────
+// A field is where a person does the actual work, so it gets the room to say
+// so: a 52px box, 16px value text, and a 14px label sitting directly above it.
+// Mantine drives every input dimension off `--input-height-*`, so remapping
+// that ramp to the control tokens restyles TextInput, Select, NumberInput,
+// Textarea, DateInput and friends in one place — no per-component overrides.
+//
+// Sizes stay meaningful rather than arbitrary:
+//   xs / sm  dense — toolbar search, table filters, pagination
+//   md       the form field (the theme default)
+//   lg / xl  a single prominent field, e.g. an auth screen
+
+.mantine-InputWrapper-root,
+.mantine-Input-wrapper {
+  --input-height-xs: var(--control-h-sm);
+  --input-height-sm: var(--control-h-md);
+  --input-height-md: var(--control-h-xl);
+  --input-height-lg: var(--control-h-xl);
+  --input-height-xl: 60px;
+}
 
 .mantine-Input-input {
   min-height: var(--control-h-md);
+  padding-inline: var(--sp-3);
   border-radius: var(--radius);
   background: var(--n-0);
   border-color: var(--border-default);
   color: var(--text-body);
+  font-family: var(--font-core);
   font-size: var(--fs-body);
 }
 
-.mantine-Input-input:hover {
+// The form field. Anything at md and up carries the full treatment.
+.mantine-Input-input[data-size="md"],
+.mantine-Input-input[data-size="lg"],
+.mantine-Input-input[data-size="xl"] {
+  padding-inline: var(--sp-4);
+  font-size: var(--fs-control);
+  line-height: var(--lh-control);
+}
+
+// Multi-line fields keep the same rhythm but grow downward instead of
+// centring a single line, so the first row of text is not glued to the border.
+.mantine-Textarea-input,
+textarea.mantine-Input-input {
+  min-height: calc(var(--control-h-xl) + var(--sp-7));
+  padding-block: var(--sp-3);
+  line-height: var(--lh-body);
+}
+
+.mantine-Input-input:hover:not(:disabled):not([data-disabled]) {
   border-color: var(--border-strong);
 }
 
@@ -160,21 +199,90 @@ select {
   color: var(--text-subtle);
 }
 
+.mantine-Input-input:disabled,
+.mantine-Input-input[data-disabled] {
+  background: var(--surface-disabled);
+  border-color: var(--border-subtle);
+  color: var(--text-subtle);
+}
+
+// An invalid field states its own case — red stroke, no ring until focus.
+.mantine-Input-input[data-error] {
+  border-color: var(--red-500);
+}
+
+.mantine-Input-input[data-error]:focus,
+.mantine-Input-input[data-error]:focus-within {
+  box-shadow: 0 0 0 3px rgba(242, 87, 87, 0.16);
+}
+
+// The label names the field; it is not a caption. Same 14px as body text,
+// medium weight, sitting on the ink scale rather than the muted one.
 .mantine-InputWrapper-label {
-  margin-bottom: var(--sp-1);
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
+  display: block;
+  margin-bottom: var(--sp-2);
+  color: var(--text-body);
+  font-size: var(--fs-control-label);
   font-weight: var(--fw-medium);
+  line-height: var(--lh-body);
+}
+
+.mantine-InputWrapper-required {
+  color: var(--red-500);
 }
 
 .mantine-InputWrapper-description {
+  margin-bottom: var(--sp-2);
   color: var(--text-subtle);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-control-help);
+  line-height: var(--lh-xs);
 }
 
 .mantine-InputWrapper-error {
-  color: var(--red-500);
-  font-size: var(--fs-xs);
+  margin-top: var(--sp-1);
+  color: var(--red-600);
+  font-size: var(--fs-control-help);
+  line-height: var(--lh-xs);
+}
+
+// Segmented controls sit in the same field rows as inputs, so they match the
+// field box rather than inventing a second control height.
+.mantine-SegmentedControl-root {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.mantine-SegmentedControl-control {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+
+  & + & {
+    margin-left: var(--sp-2);
+  }
+}
+
+.mantine-SegmentedControl-control::before {
+  display: none;
+}
+
+.mantine-SegmentedControl-indicator {
+  border-radius: var(--radius);
+  background: var(--action-neutral);
+  box-shadow: none;
+}
+
+.mantine-SegmentedControl-label {
+  display: grid;
+  place-items: center;
+  min-height: calc(var(--control-h-xl) - 2px);
+  padding-inline: var(--sp-4);
+  color: var(--text-body);
+  font-size: var(--fs-body);
+}
+
+.mantine-SegmentedControl-input:checked + .mantine-SegmentedControl-label {
+  color: var(--text-inverse);
 }
 
 // ── Surfaces. One radius, one 1px stroke, no nested boxes. ───────────────

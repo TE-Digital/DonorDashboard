@@ -1,18 +1,17 @@
 // src/modules/admin/AdminCreateUserPage.tsx
 import React, { useState } from "react";
-import {
-  Stack,
-  Text,
-  TextInput,
-  Group,
-  Button,
-  Switch,
-  Alert,
-} from "@mantine/core";
+import { Button, Group, SimpleGrid, Switch, TextInput } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../auth/AuthContext";
 import {
+  FieldLabel,
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+  InlineMessage,
   LoadingState,
 } from "../../design-system";
 
@@ -136,91 +135,70 @@ export const AdminCreateUserPage: React.FC = () => {
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <FormPage
+      title="Create user"
+      subtitle="The invite email goes out as soon as the account is saved."
+    >
       <LoadingState variant="overlay" visible={submitting} />
 
-      <form onSubmit={handleSubmit}>
-        <Stack gap="sm">
-          <Text fw={700} size="lg">
-            Create user
-          </Text>
+      <FormBody onSubmit={handleSubmit}>
+        {message && <InlineMessage tone="success">{message}</InlineMessage>}
+        <FormError>{error}</FormError>
 
-          {message && (
-            <Alert color="green" variant="light">
-              {message}
-            </Alert>
-          )}
+        <FormSection title="Person" hint="How this user is identified and reached">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+            <TextInput
+              label="Full name"
+              placeholder="Jane Doe"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.currentTarget.value)}
+            />
+            <TextInput
+              label="Email"
+              placeholder="user@example.com"
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.currentTarget.value)}
+            />
+            <TextInput
+              label="Phone"
+              placeholder="+66 ..."
+              value={phone}
+              onChange={(e) => setPhone(e.currentTarget.value)}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          {error && (
-            <Alert color="red" variant="light">
-              {error}
-            </Alert>
-          )}
+        <FormSection title="Roles" hint="What this user may see and do">
+          <FieldLabel>Roles</FieldLabel>
+          <Group gap="lg" wrap="wrap">
+            {ALL_ROLES.map((role) => (
+              <Switch
+                key={role}
+                label={role.charAt(0).toUpperCase() + role.slice(1)}
+                checked={roles[role]}
+                onChange={(e) => handleToggleRole(role, e.currentTarget.checked)}
+              />
+            ))}
+          </Group>
+        </FormSection>
 
-          <TextInput
-            label="Full name"
-            placeholder="Jane Doe"
-            required
-            value={fullName}
-            onChange={(e) => setFullName(e.currentTarget.value)}
-          />
-
-          <TextInput
-            label="Email"
-            placeholder="user@example.com"
-            required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.currentTarget.value)}
-          />
-
-          <TextInput
-            label="Phone"
-            placeholder="+66 ..."
-            value={phone}
-            onChange={(e) => setPhone(e.currentTarget.value)}
-          />
-
-          {/* FIXED ROLE SECTION */}
-          <Stack gap="xs">
-            <Text fw={600}>Roles</Text>
-
-            <Group gap="lg" wrap="wrap">
-              {ALL_ROLES.map((role) => (
-                <Switch
-                  key={role}
-                  size="md"
-                  label={role.charAt(0).toUpperCase() + role.slice(1)}
-                  checked={roles[role]}
-                  onChange={(e) =>
-                    handleToggleRole(role, e.currentTarget.checked)
-                  }
-                  styles={{
-                    body: {
-                      display: "flex",
-                      alignItems: "center",
-                    },
-                  }}
-                />
-              ))}
-            </Group>
-          </Stack>
-	         <Group justify="space-between" mt="xl">
- 	 <Button
-  	  variant="subtle"
-   	 type="button"
-   	 onClick={() => navigate("/admin/users")}
- 	 >
-    Cancel
-  </Button>
-  <Button type="submit" loading={submitting}>
-    Create & Send Invite
-  </Button>
-</Group>
-        </Stack>
-      </form>
-    </div>
+        <FormFooter
+          left={
+            <Button variant="subtle" type="button" onClick={() => navigate("/admin/users")}>
+              Cancel
+            </Button>
+          }
+        >
+          <Button type="submit" loading={submitting}>
+            Create & Send Invite
+          </Button>
+        </FormFooter>
+      </FormBody>
+    </FormPage>
   );
 };
 
-
+export default AdminCreateUserPage;

@@ -1,18 +1,14 @@
 import React, { useState } from "react";
-import {
-  Button,
-  Card,
-  Group,
-  NumberInput,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Button, NumberInput, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { PageHeader } from "../../design-system";
+import {
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+} from "../../design-system";
 
 export const AdminCreateGrantTypePage: React.FC = () => {
   const navigate = useNavigate();
@@ -79,50 +75,38 @@ export const AdminCreateGrantTypePage: React.FC = () => {
   };
 
   return (
-    <Stack>
-      <PageHeader
-        title="Add grant type"
-        actions={
-          <Button
-              variant="subtle"
-              size="xs"
-              onClick={() =>
-                navigate(returnTo || "/admin/scholarships", { replace: true })
-              }
-            >
-              Back
-            </Button>
-        }
-      />
+    <FormPage title="Add grant type" subtitle="The template a scholarship is issued from.">
+      <FormBody onSubmit={handleSubmit}>
+        <FormError>{error}</FormError>
 
-      <Card withBorder component="form" onSubmit={handleSubmit}>
-        <Stack gap="md">
-          <TextInput
-            label="Name"
-            placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            required
-          />
+        <FormSection title="Grant type" hint="What this grant covers and who it is for">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            <TextInput
+              label="Name"
+              placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              required
+            />
+            <Textarea
+              label="Description"
+              description="Optional"
+              placeholder="Short explanation, conditions, scope…"
+              minRows={3}
+              value={description}
+              onChange={(e) => setDescription(e.currentTarget.value)}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <Textarea
-            label="Description (optional)"
-            placeholder="Short explanation, conditions, scope…"
-            minRows={3}
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
-          />
-
-          <Group grow>
+        <FormSection title="Amount & duration" hint="Defaults applied to every scholarship of this type">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <NumberInput
-              label="Standard scholarship amount (for full period)"
+              label="Standard scholarship amount"
+              description="For the full period"
               placeholder="e.g. 6000, 8400, 160000"
               value={amountPerPeriod}
-              onChange={(val) =>
-                setAmountPerPeriod(
-                  typeof val === "number" ? val : undefined
-                )
-              }
+              onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}
               min={0}
             />
             <TextInput
@@ -130,44 +114,33 @@ export const AdminCreateGrantTypePage: React.FC = () => {
               value={currency}
               onChange={(e) => setCurrency(e.currentTarget.value)}
             />
-          </Group>
+            <NumberInput
+              label="Default duration (months)"
+              placeholder="e.g. 3, 12, 16, or 48 for full university"
+              value={defaultDurationMonths}
+              onChange={(val) => setDefaultDurationMonths(typeof val === "number" ? val : undefined)}
+              min={1}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <NumberInput
-            label="Default duration (month)"
-            placeholder="e.g. 3, 12, 16, or 48 for full university"
-            value={defaultDurationMonths}
-            onChange={(val) =>
-              setDefaultDurationMonths(
-                typeof val === "number" ? val : undefined
-              )
-            }
-            min={1}
-          />
-
-          {error && (
-            <Text size="sm" c="red">
-              {error}
-            </Text>
-          )}
-
-          <Group justify="flex-end">
+        <FormFooter
+          left={
             <Button
               variant="subtle"
-              onClick={() =>
-                navigate(returnTo || "/admin/scholarships", {
-                  replace: true,
-                })
-              }
+              type="button"
               disabled={saving}
+              onClick={() => navigate(returnTo || "/admin/scholarships", { replace: true })}
             >
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
-              Save grant type
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
-    </Stack>
+          }
+        >
+          <Button type="submit" loading={saving}>
+            Save grant type
+          </Button>
+        </FormFooter>
+      </FormBody>
+    </FormPage>
   );
 };

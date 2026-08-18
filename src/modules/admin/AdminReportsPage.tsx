@@ -18,6 +18,7 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { Link } from "react-router-dom";
 import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
+import styles from "./AdminDirectory.module.scss";
 
 type ColumnType = "text" | "number" | "date" | "boolean";
 
@@ -533,10 +534,10 @@ export const AdminReportsPage: React.FC = () => {
 
   return (
     <>
-      <Stack gap="md">
+      <Stack gap="md" className={styles.page}>
         <PageHeader
-          title="Reports & Data Explorer"
-          subtitle="Build ad-hoc reports across students, donors, scholarships, term updates, schools, users, and grant types. Select a table, choose columns, add filters, sort results, and export your data."
+          title="Reports"
+          subtitle="Review student progress reports by source, period, school, and submission status."
           actions={
             <Button
               variant="outline"
@@ -548,6 +549,12 @@ export const AdminReportsPage: React.FC = () => {
             </Button>
           }
         />
+
+        <div className={styles.reportHint}>
+          Start with <strong>Term updates / reports</strong>, then select report date, student,
+          coverage period, grade, and comments. Add date filters to create a mid-year or year-end
+          workspace, and export the resulting review list when it is ready.
+        </div>
 
         {/* Table & configuration */}
         <Card>

@@ -67,8 +67,8 @@ export const IconRail: React.FC<IconRailProps> = ({
                 padding: "0 3px",
                 borderRadius: "var(--radius-pill)",
                 background: "var(--amber-500)",
-                color: "#fff",
-                fontSize: 9,
+                color: "var(--text-inverse)",
+                fontSize: "var(--fs-micro)",
                 fontWeight: "var(--fw-bold)" as unknown as number,
                 display: "inline-flex",
                 alignItems: "center",
@@ -103,12 +103,12 @@ export const IconRail: React.FC<IconRailProps> = ({
           height: 32,
           borderRadius: "var(--radius-md)",
           background: "var(--n-900)",
-          color: "#fff",
+          color: "var(--text-inverse)",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
           fontWeight: "var(--fw-bold)" as unknown as number,
-          fontSize: 13,
+          fontSize: "var(--fs-sm)",
           marginBottom: 10,
         }}
       >
@@ -454,7 +454,7 @@ export const Tabs: React.FC<TabsProps> = ({ tabs = [], value, onChange }) => {
 
 export interface TopBarProps {
   workspace?: string;
-  breadcrumbs?: string[];
+  breadcrumbs?: Array<string | { label: string; onClick?: () => void }>;
   title?: React.ReactNode;
   meta?: React.ReactNode;
   actions?: React.ReactNode;
@@ -490,11 +490,11 @@ export const TopBar: React.FC<TopBarProps> = ({
             height: 24,
             borderRadius: "var(--radius-sm)",
             background: "var(--n-900)",
-            color: "#fff",
+            color: "var(--text-inverse)",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 11,
+            fontSize: "var(--fs-micro)",
             fontWeight: "var(--fw-bold)" as unknown as number,
             flex: "0 0 auto",
           }}
@@ -517,14 +517,36 @@ export const TopBar: React.FC<TopBarProps> = ({
       </div>
     )}
     <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-      {breadcrumbs.map((b) => (
-        <React.Fragment key={b}>
-          <span style={{ fontSize: "var(--fs-body)", color: "var(--text-subtle)", whiteSpace: "nowrap" }}>
-            {b}
-          </span>
+      {breadcrumbs.map((breadcrumb, index) => {
+        const item = typeof breadcrumb === "string" ? { label: breadcrumb } : breadcrumb;
+        return (
+        <React.Fragment key={`${item.label}-${index}`}>
+          {item.onClick ? (
+            <button
+              type="button"
+              onClick={item.onClick}
+              style={{
+                padding: 0,
+                border: 0,
+                background: "transparent",
+                color: "var(--text-muted)",
+                font: "inherit",
+                fontSize: "var(--fs-body)",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+              }}
+            >
+              {item.label}
+            </button>
+          ) : (
+            <span style={{ fontSize: "var(--fs-body)", color: "var(--text-subtle)", whiteSpace: "nowrap" }}>
+              {item.label}
+            </span>
+          )}
           <span style={{ color: "var(--n-300)" }}>/</span>
         </React.Fragment>
-      ))}
+        );
+      })}
       <span
         style={{
           fontSize: "var(--fs-body)",
@@ -559,8 +581,8 @@ export const TopBar: React.FC<TopBarProps> = ({
               padding: "0 3px",
               borderRadius: "var(--radius-pill)",
               background: "var(--red-500)",
-              color: "#fff",
-              fontSize: 9,
+              color: "var(--text-inverse)",
+              fontSize: "var(--fs-micro)",
               fontWeight: "var(--fw-bold)" as unknown as number,
               display: "inline-flex",
               alignItems: "center",

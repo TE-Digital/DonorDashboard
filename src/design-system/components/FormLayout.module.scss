@@ -1,0 +1,189 @@
+// The shape of every create / edit screen in the product.
+//
+// Extracted from the school setup form so one form does not get to look
+// different from the next. Field, label and description styling is not here —
+// styles/global.scss owns that, for inputs on every screen at once.
+//
+// The rhythm: 32px page title, a step strip when the form is multi-part, then
+// sections separated by a hairline rule, and a sticky action bar at the foot.
+
+.page {
+  width: 100%;
+  max-width: none;
+  padding: 2px var(--sp-1) var(--sp-8);
+  color: var(--text-heading);
+}
+
+.title {
+  margin: 0 0 var(--sp-7);
+  color: var(--text-heading);
+  // Stays on the scale at both ends: display (32) up to hero (44).
+  font-size: clamp(var(--fs-display), 3vw, var(--fs-hero));
+  line-height: var(--lh-hero);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight);
+}
+
+.subtitle {
+  margin: calc(var(--sp-7) * -1 + var(--sp-2)) 0 var(--sp-7);
+  color: var(--text-muted);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+
+// ── Step strip ───────────────────────────────────────────────────────────
+// A tab strip, not a box: an underline carries the active step.
+
+.steps {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 190px;
+  min-height: 68px;
+  padding: var(--sp-4) var(--sp-7);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--fs-h3);
+  text-align: left;
+}
+
+.stepClickable {
+  cursor: pointer;
+}
+
+.stepActive {
+  color: var(--text-heading);
+  box-shadow: inset 0 -3px 0 var(--action-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  color: var(--text-subtle);
+  background: var(--surface-hover);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.stepActive .stepNumber {
+  color: var(--text-inverse);
+  background: var(--action-primary);
+}
+
+// ── Sections ─────────────────────────────────────────────────────────────
+
+.form {
+  width: 100%;
+}
+
+.section {
+  padding: var(--sp-7) 0 var(--sp-8);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin: 0 0 var(--sp-6);
+  padding: 0 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--text-heading);
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-semibold);
+}
+
+.sectionHint {
+  color: var(--text-subtle);
+  font-size: var(--fs-body);
+}
+
+// The label above a control that is not an <input> — a SegmentedControl, a
+// radio row, a custom picker. Matches the global input label exactly.
+.fieldLabel {
+  display: block;
+  margin-bottom: var(--sp-2);
+  color: var(--text-body);
+  font-size: var(--fs-control-label);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-body);
+}
+
+.required {
+  color: var(--red-500);
+}
+
+.error {
+  margin-top: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--red-100);
+  border-radius: var(--radius);
+  color: var(--red-700);
+  background: var(--red-50);
+  font-size: var(--fs-body);
+}
+
+// ── Action bar ───────────────────────────────────────────────────────────
+// Stays in reach on a long form instead of hiding at the bottom of the scroll.
+
+.actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-top: var(--sp-1);
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+}
+
+.actionsGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+@media (max-width: 760px) {
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .step {
+    min-width: 0;
+    min-height: 56px;
+    padding: var(--sp-3) var(--sp-2);
+    font-size: var(--fs-sm);
+  }
+
+  .sectionHeading {
+    display: block;
+  }
+
+  .sectionHint {
+    margin-top: var(--sp-1);
+  }
+}

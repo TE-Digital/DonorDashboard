@@ -476,7 +476,7 @@ export const TeacherEditReportPage: React.FC = () => {
                             alignItems: "center",
                             justifyContent: "center",
                             background: "rgba(0,0,0,0.05)",
-                            fontSize: 11,
+                            fontSize: "var(--fs-micro)",
                           }}
                         >
                           Marked for deletion
@@ -520,7 +520,7 @@ export const TeacherEditReportPage: React.FC = () => {
                             right: 0,
                             background: "rgba(0,0,0,0.55)",
                             color: "white",
-                            fontSize: 9,
+                            fontSize: "var(--fs-micro)",
                             padding: "2px 4px",
                             textAlign: "center",
                           }}

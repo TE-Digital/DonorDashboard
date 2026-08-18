@@ -245,9 +245,9 @@ export const ResetPasswordPage: React.FC = () => {
                   onChange={(e) => setNewPassword(e.currentTarget.value)}
                   visibilityToggleIcon={({ reveal }) =>
                     reveal ? (
-                      <span style={{ fontSize: 12 }}>Hide password</span>
+                      <span style={{ fontSize: "var(--fs-xs)" }}>Hide password</span>
                     ) : (
-                      <span style={{ fontSize: 12 }}>Show password</span>
+                      <span style={{ fontSize: "var(--fs-xs)" }}>Show password</span>
                     )
                   }
                 />
@@ -261,9 +261,9 @@ export const ResetPasswordPage: React.FC = () => {
                   }
                   visibilityToggleIcon={({ reveal }) =>
                     reveal ? (
-                      <span style={{ fontSize: 12 }}>Hide password</span>
+                      <span style={{ fontSize: "var(--fs-xs)" }}>Hide password</span>
                     ) : (
-                      <span style={{ fontSize: 12 }}>Show password</span>
+                      <span style={{ fontSize: "var(--fs-xs)" }}>Show password</span>
                     )
                   }
                 />

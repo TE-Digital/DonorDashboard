@@ -2,21 +2,26 @@
 import React, { useEffect, useState } from "react";
 import {
   Button,
-  Card,
   Group,
   NumberInput,
   Select,
+  SimpleGrid,
   Stack,
   Switch,
-  Text,
   Textarea,
   TextInput,
-  Title,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { LoadingState, PageHeader } from "../../design-system";
+import {
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+  LoadingState,
+} from "../../design-system";
 
 type Option = { value: string; label: string };
 
@@ -239,25 +244,13 @@ export const AdminCreateScholarshipPage: React.FC = () => {
   }
 
   return (
-    <Stack>
-      <PageHeader
-        title="Add scholarship"
-        actions={
-          <Button
-              variant="subtle"
-              size="xs"
-              onClick={() => navigate("/admin/scholarships")}
-            >
-              Back to overview
-            </Button>
-        }
-      />
+    <FormPage title="Add scholarship" subtitle="One grant, for one period, against one student.">
+      <FormBody onSubmit={handleSubmit}>
+        <FormError>{error}</FormError>
 
-      <Card withBorder component="form" onSubmit={handleSubmit}>
-        <Stack gap="md">
-          {/* Grant type + quick add button */}
-          <Group align="flex-end">
-            <div style={{ flex: 1 }}>
+        <FormSection title="Grant" hint="The template this scholarship is issued from">
+          <Group align="flex-end" gap="md" wrap="nowrap">
+            <div style={{ flex: 1, minWidth: 0 }}>
               <Select
                 label="Grant type"
                 placeholder="Select grant type"
@@ -269,8 +262,8 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               />
             </div>
             <Button
-              size="xs"
-              variant="light"
+              type="button"
+              variant="default"
               onClick={() =>
                 navigate(
                   `/admin/grant-types/new?returnTo=${encodeURIComponent(
@@ -278,15 +271,17 @@ export const AdminCreateScholarshipPage: React.FC = () => {
                   )}`
                 )
               }
-              style={{ marginBottom: 2 }}
             >
               Add grant type
             </Button>
           </Group>
+        </FormSection>
 
-          <Group grow>
+        <FormSection title="People" hint="Both optional — a scholarship can be linked later">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
-              label="Student (optional)"
+              label="Student"
+              description="Optional"
               placeholder="Select student"
               data={studentOptions}
               value={studentId}
@@ -295,7 +290,8 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               searchable
             />
             <Select
-              label="Donor (optional)"
+              label="Donor"
+              description="Optional"
               placeholder="Select donor"
               data={donorOptions}
               value={donorId}
@@ -303,32 +299,17 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               clearable
               searchable
             />
-          </Group>
+          </SimpleGrid>
+        </FormSection>
 
-          <Group grow>
-            <DateInput
-              label="Period start"
-              value={periodStart}
-              onChange={setPeriodStart}
-              required
-            />
-            <DateInput
-              label="Period end"
-              value={periodEnd}
-              onChange={setPeriodEnd}
-              required
-            />
-          </Group>
-
-          <Group grow>
+        <FormSection title="Period & amount" hint="What is granted, and for how long">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            <DateInput label="Period start" value={periodStart} onChange={setPeriodStart} required />
+            <DateInput label="Period end" value={periodEnd} onChange={setPeriodEnd} required />
             <NumberInput
               label="Amount for scholarship period"
               value={amountForPeriod}
-              onChange={(val) =>
-                setAmountForPeriod(
-                  typeof val === "number" ? val : undefined
-                )
-              }
+              onChange={(val) => setAmountForPeriod(typeof val === "number" ? val : undefined)}
               min={0}
               placeholder="e.g. 8400, 150000"
             />
@@ -337,9 +318,11 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               value={currency}
               onChange={(e) => setCurrency(e.currentTarget.value)}
             />
-          </Group>
+          </SimpleGrid>
+        </FormSection>
 
-          <Group grow>
+        <FormSection title="Status & payment" hint="Where this scholarship stands today">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Status"
               value={status}
@@ -351,7 +334,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
                 { value: "cancelled", label: "Cancelled" },
               ]}
             />
-            <Stack gap={4}>
+            <Stack gap="md">
               <Switch
                 label="Paid"
                 checked={isPaid}
@@ -364,42 +347,40 @@ export const AdminCreateScholarshipPage: React.FC = () => {
                 disabled={!isPaid}
               />
             </Stack>
-          </Group>
+            <TextInput
+              label="Payment note / reference"
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.currentTarget.value)}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <TextInput
-            label="Payment note / reference"
-            value={paymentNote}
-            onChange={(e) => setPaymentNote(e.currentTarget.value)}
-          />
-
+        <FormSection title="Internal notes" hint="Admins only — never shown to the donor">
           <Textarea
-            label="Internal notes"
+            label="Notes"
             minRows={3}
             value={notes}
             onChange={(e) => setNotes(e.currentTarget.value)}
           />
+        </FormSection>
 
-          {error && (
-            <Text size="sm" c="red">
-              {error}
-            </Text>
-          )}
-
-          <Group justify="flex-end">
+        <FormFooter
+          left={
             <Button
               variant="subtle"
-              onClick={() => navigate("/admin/scholarships")}
+              type="button"
               disabled={saving}
+              onClick={() => navigate("/admin/scholarships")}
             >
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
-              Save scholarship
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
-    </Stack>
+          }
+        >
+          <Button type="submit" loading={saving}>
+            Save scholarship
+          </Button>
+        </FormFooter>
+      </FormBody>
+    </FormPage>
   );
 };
-

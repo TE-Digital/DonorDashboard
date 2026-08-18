@@ -1,20 +1,16 @@
 // src/modules/admin/AdminCreateDonorPage.tsx
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Card,
-  Group,
-  Select,
-  Stack,
-  Switch,
-  Text,
-  Textarea,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Button, SimpleGrid, Select, Stack, Switch, Textarea, TextInput } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { LoadingState, PageHeader } from "../../design-system";
+import {
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+  LoadingState,
+} from "../../design-system";
 
 type AgentOption = { value: string; label: string };
 
@@ -140,39 +136,35 @@ const { data: inserted, error: insertError } = await supabase
   if (loading) return <LoadingState />;
 
   return (
-    <Stack>
-      <PageHeader
-        title="New donor"
-        actions={
-          <Button size="xs" variant="subtle" onClick={() => navigate(-1)}>
-              Back
-            </Button>
-        }
-      />
+    <FormPage
+      title="New donor"
+      subtitle="All fields are optional. Leave everything empty for a fully anonymous donor — scholarships and students can still be linked later."
+    >
+      <FormBody onSubmit={handleSubmit}>
+        <FormError>{error}</FormError>
 
-      <Card withBorder component="form" onSubmit={handleSubmit}>
-        <Stack gap="sm">
-          <Text size="sm" c="dimmed">
-            All fields are optional. Leave everything empty for a fully
-            anonymous donor. You can still link scholarships and students later.
-          </Text>
+        <FormSection title="Donor" hint="Who the gift is recorded against">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            <TextInput
+              label="Name"
+              placeholder="e.g., Jane Doe or Company XYZ"
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+            />
+            <Select
+              label="Agent"
+              placeholder="No agent"
+              data={agents}
+              value={agentId}
+              onChange={(value) => setAgentId(value)}
+              clearable
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <TextInput
-            label="Name"
-            placeholder="e.g., Jane Doe or Company XYZ"
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-          />
-
-          <Textarea
-            label="Address"
-            minRows={2}
-            value={address}
-            onChange={(e) => setAddress(e.currentTarget.value)}
-          />
-
-          <Group grow align="flex-start">
-            <Stack gap={0}>
+        <FormSection title="Contact" hint="However this donor prefers to be reached">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            <div>
               <TextInput
                 label="Email"
                 value={email}
@@ -182,55 +174,40 @@ const { data: inserted, error: insertError } = await supabase
                 }}
                 onBlur={() => checkEmail(email)}
                 placeholder="name@example.com"
+                description={emailWarning ?? undefined}
               />
-              {emailWarning && (
-                <Text size="xs" c="orange" mt={4}>
-                  {emailWarning}
-                </Text>
-              )}
-            </Stack>
+            </div>
             <TextInput
               label="Phone"
               value={phone}
               onChange={(e) => setPhone(e.currentTarget.value)}
               placeholder="+66…"
             />
-          </Group>
+            <TextInput
+              label="Other contact (Line, WhatsApp, etc.)"
+              value={otherContact}
+              onChange={(e) => setOtherContact(e.currentTarget.value)}
+            />
+            <Textarea
+              label="Address"
+              minRows={2}
+              value={address}
+              onChange={(e) => setAddress(e.currentTarget.value)}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <TextInput
-            label="Other contact (Line, WhatsApp, etc.)"
-            value={otherContact}
-            onChange={(e) => setOtherContact(e.currentTarget.value)}
-          />
-
-          <Select
-            label="Agent"
-            placeholder="No agent"
-            data={agents}
-            value={agentId}
-            onChange={(value) => setAgentId(value)}
-            clearable
-          />
-
-          {/* Dashboard & communication – same as edit page semantics */}
-          <Text fw={600} mt="md">
-            Dashboard & communication
-          </Text>
-          <Stack gap={4}>
-            
+        <FormSection title="Dashboard & communication" hint="What this donor receives from us">
+          <Stack gap="md">
             <Switch
               label="Wants email updates"
               checked={wantsEmailUpdates}
-              onChange={(e) =>
-                setWantsEmailUpdates(e.currentTarget.checked)
-              }
+              onChange={(e) => setWantsEmailUpdates(e.currentTarget.checked)}
             />
             <Switch
               label="Wants newsletter"
               checked={wantsNewsletter}
-              onChange={(e) =>
-                setWantsNewsletter(e.currentTarget.checked)
-              }
+              onChange={(e) => setWantsNewsletter(e.currentTarget.checked)}
             />
             <Select
               label="Preferred language"
@@ -242,31 +219,30 @@ const { data: inserted, error: insertError } = await supabase
               onChange={(v) => setPreferredLanguage(v || "en")}
             />
           </Stack>
+        </FormSection>
 
-          <Text fw={600} mt="md">
-            Internal notes
-          </Text>
+        <FormSection title="Internal notes" hint="Admins only — never shown to the donor">
           <Textarea
-            label="Internal note (not visible to donor)"
-            minRows={2}
+            label="Internal note"
+            minRows={3}
             value={noteInternal}
             onChange={(e) => setNoteInternal(e.currentTarget.value)}
             placeholder="Visible only to admins (e.g., payment details, preferences)."
           />
+        </FormSection>
 
-          {error && (
-            <Text size="sm" c="red">
-              {error}
-            </Text>
-          )}
-
-          <Group justify="flex-end" mt="sm">
-            <Button type="submit" loading={saving}>
-              Save donor
+        <FormFooter
+          left={
+            <Button variant="subtle" type="button" onClick={() => navigate(-1)}>
+              Cancel
             </Button>
-          </Group>
-        </Stack>
-      </Card>
-    </Stack>
+          }
+        >
+          <Button type="submit" loading={saving}>
+            Save donor
+          </Button>
+        </FormFooter>
+      </FormBody>
+    </FormPage>
   );
 };

@@ -1,15 +1,14 @@
 import React, { useEffect, useState } from "react";
-import {
-  Stack,
-  Text,
-  TextInput,
-  Textarea,
-  Group,
-  Button,
-} from "@mantine/core";
+import { Button, SimpleGrid, TextInput, Textarea } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+  InlineMessage,
   LoadingState,
 } from "../../design-system";
 
@@ -98,40 +97,26 @@ export const AdminEditSchoolPage: React.FC = () => {
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <FormPage
+      title="Edit school"
+      subtitle="Update the school details."
+      steps={["School details", "Teachers", "Students", "Assignments"]}
+      activeStep={0}
+    >
       <LoadingState variant="overlay" visible={loading || saving} />
+      <FormError>{error}</FormError>
+      {message && <InlineMessage tone="success">{message}</InlineMessage>}
 
-      <Stack gap="lg">
-        <div>
-          <Text fw={700} size="lg">
-            Edit school
-          </Text>
-          <Text size="sm" c="dimmed">
-            Update the school details.
-          </Text>
-        </div>
-
-        {error && (
-          <Text size="sm" c="red">
-            {error}
-          </Text>
-        )}
-        {message && (
-          <Text size="sm" c="green">
-            {message}
-          </Text>
-        )}
-
-        {!loading && (
-          <form onSubmit={handleSubmit}>
-            <Stack gap="sm">
+      {!loading && (
+        <FormBody onSubmit={handleSubmit}>
+          <FormSection title="School details" hint="Name and postal address on record">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
-                label="School name *"
+                label="School name"
                 required
                 value={name}
                 onChange={(e) => setName(e.currentTarget.value)}
               />
-
               <Textarea
                 label="Address"
                 minRows={3}
@@ -139,25 +124,23 @@ export const AdminEditSchoolPage: React.FC = () => {
                 value={address}
                 onChange={(e) => setAddress(e.currentTarget.value)}
               />
+            </SimpleGrid>
+          </FormSection>
 
-              <Group justify="flex-end" mt="md">
-                <Button
-                  variant="subtle"
-                  type="button"
-                  onClick={() => navigate("/admin/schools")}
-                >
-                  Back to list
-                </Button>
-                <Button type="submit">Save changes</Button>
-              </Group>
-            </Stack>
-          </form>
-        )}
-      </Stack>
-    </div>
+          <FormFooter
+            left={
+              <Button variant="subtle" type="button" onClick={() => navigate("/admin/schools")}>
+                Back to list
+              </Button>
+            }
+          >
+            <Button type="submit">Save changes</Button>
+          </FormFooter>
+        </FormBody>
+      )}
+    </FormPage>
   );
 };
 
 export default AdminEditSchoolPage;
-
 

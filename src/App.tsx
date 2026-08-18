@@ -22,6 +22,7 @@ import { AdminTeacherStudentsPage } from "./modules/admin/AdminTeacherStudentsPa
 import { AdminSchoolsPage } from "./modules/admin/AdminSchoolsPage";
 import { AdminCreateSchoolPage } from "./modules/admin/AdminCreateSchoolPage";
 import { AdminEditSchoolPage } from "./modules/admin/AdminEditSchoolPage";
+import { AdminSchoolDetailPage } from "./modules/admin/AdminSchoolDetailPage";
 import { AdminDonorsPage } from "./modules/admin/AdminDonorsPage";
 import { AdminCreateDonorPage } from "./modules/admin/AdminCreateDonorPage";
 import { AdminEditDonorPage } from "./modules/admin/AdminEditDonorPage";
@@ -111,6 +112,10 @@ const App: React.FC = () => {
             <Route path="schools/new" element={<AdminCreateSchoolPage />} />
             <Route
               path="schools/:schoolId"
+              element={<AdminSchoolDetailPage />}
+            />
+            <Route
+              path="schools/:schoolId/edit"
               element={<AdminEditSchoolPage />}
             />
 

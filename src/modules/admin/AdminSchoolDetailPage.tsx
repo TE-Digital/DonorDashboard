@@ -1,0 +1,580 @@
+// src/modules/admin/AdminSchoolDetailPage.tsx
+//
+// The school record screen: identity strip, a row of KPIs, then Overview /
+// Teachers / Students / Reports as tabs over the same loaded data.
+//
+// Only name, address and created_at are real columns. Every other field shown
+// here comes from schoolProfile.ts and is a placeholder — see that file. Counts,
+// rosters and report periods are genuine, derived from students and term_updates.
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Menu, Modal, Stack, Text, Group } from "@mantine/core";
+import { useNavigate, useParams } from "react-router-dom";
+import { LoadingState, TableSection } from "../../design-system";
+import { Badge, Button, Icon, Tabs, type DataColumn } from "../../design-system/lumen";
+import { supabase } from "../../lib/supabaseClient";
+import {
+  deriveSchoolProfile,
+  statusTone,
+  type SchoolProfile,
+  type SchoolRecord,
+} from "./schoolProfile";
+import styles from "./AdminDirectory.module.scss";
+
+type TabValue = "overview" | "teachers" | "students" | "reports";
+
+interface StudentRow {
+  id: string;
+  name: string;
+  displayId: string;
+  grade: string;
+  teacherId: string | null;
+  teacherName: string;
+  scholarship: string;
+  lastReport: string | null;
+}
+
+interface TeacherRow {
+  id: string;
+  displayId: string;
+  name: string;
+  email: string;
+  phone: string;
+  studentCount: number;
+  lastActive: string | null;
+}
+
+interface ReportFolder {
+  key: string;
+  period: string;
+  submitted: number;
+  total: number;
+  latest: string | null;
+}
+
+const shortId = (prefix: string, id: string) => `${prefix}-${id.slice(0, 6).toUpperCase()}`;
+const asDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : "—");
+
+/** Reports land in one of two cycles a year; the design groups them that way. */
+const periodOf = (isoDate: string): string => {
+  const date = new Date(isoDate);
+  return `${date.getFullYear()} ${date.getMonth() < 6 ? "mid-year" : "year-end"}`;
+};
+
+export const AdminSchoolDetailPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { schoolId } = useParams<{ schoolId: string }>();
+
+  const [school, setSchool] = useState<SchoolRecord | null>(null);
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [teachers, setTeachers] = useState<TeacherRow[]>([]);
+  const [folders, setFolders] = useState<ReportFolder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabValue>("overview");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      if (!schoolId) {
+        setError("Missing school id.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      const { data: schoolData, error: schoolError } = await supabase
+        .from("schools")
+        .select("id, name, address, created_at")
+        .eq("id", schoolId)
+        .maybeSingle();
+
+      if (schoolError || !schoolData) {
+        console.error("Error loading school", schoolError);
+        setError(schoolError?.message ?? "School not found.");
+        setLoading(false);
+        return;
+      }
+      setSchool(schoolData as SchoolRecord);
+
+      const { data: studentData, error: studentError } = await supabase
+        .from("students")
+        .select("id, name, nickname, grade_level, scholarship, responsible_teacher_id")
+        .eq("school_id", schoolId)
+        .order("name");
+
+      if (studentError) console.error("Error loading school students", studentError);
+      const studentRows = (studentData ?? []) as any[];
+      const studentIds = studentRows.map((student) => student.id as string);
+      const teacherIds = Array.from(
+        new Set(studentRows.map((student) => student.responsible_teacher_id).filter(Boolean)),
+      ) as string[];
+
+      const [{ data: profileData }, { data: reportData }] = await Promise.all([
+        teacherIds.length
+          ? supabase.from("profiles").select("id, full_name, email, phone").in("id", teacherIds)
+          : Promise.resolve({ data: [], error: null }),
+        studentIds.length
+          ? supabase
+              .from("term_updates")
+              .select("student_id, report_date")
+              .in("student_id", studentIds)
+              .order("report_date", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      const profilesById = new Map<string, any>();
+      (profileData ?? []).forEach((profile: any) => profilesById.set(profile.id, profile));
+
+      // Latest report per student, and the set of students reporting in each period.
+      const latestByStudent = new Map<string, string>();
+      const byPeriod = new Map<string, Set<string>>();
+      (reportData ?? []).forEach((report: any) => {
+        if (!report.report_date) return;
+        if (!latestByStudent.has(report.student_id)) {
+          latestByStudent.set(report.student_id, report.report_date);
+        }
+        const period = periodOf(report.report_date);
+        if (!byPeriod.has(period)) byPeriod.set(period, new Set());
+        byPeriod.get(period)!.add(report.student_id);
+      });
+
+      const mappedStudents: StudentRow[] = studentRows.map((student) => ({
+        id: student.id,
+        name: student.name ?? "(no name)",
+        displayId: shortId("ST", student.id),
+        grade: student.grade_level || "—",
+        teacherId: student.responsible_teacher_id ?? null,
+        teacherName: student.responsible_teacher_id
+          ? profilesById.get(student.responsible_teacher_id)?.full_name ?? "Teacher"
+          : "Unassigned",
+        scholarship: student.scholarship || "—",
+        lastReport: latestByStudent.get(student.id) ?? null,
+      }));
+
+      const mappedTeachers: TeacherRow[] = teacherIds.map((id) => {
+        const profile = profilesById.get(id);
+        const mine = mappedStudents.filter((student) => student.teacherId === id);
+        const latest = mine
+          .map((student) => student.lastReport)
+          .filter(Boolean)
+          .sort()
+          .at(-1) as string | undefined;
+        return {
+          id,
+          displayId: shortId("TC", id),
+          name: profile?.full_name ?? "(no name)",
+          email: profile?.email ?? "—",
+          phone: profile?.phone ?? "—",
+          studentCount: mine.length,
+          lastActive: latest ?? null,
+        };
+      });
+
+      const mappedFolders: ReportFolder[] = Array.from(byPeriod.entries())
+        .map(([period, ids]) => ({
+          key: period,
+          period,
+          submitted: ids.size,
+          total: mappedStudents.length,
+          latest:
+            (reportData ?? [])
+              .filter((report: any) => report.report_date && periodOf(report.report_date) === period)
+              .map((report: any) => report.report_date)
+              .sort()
+              .at(-1) ?? null,
+        }))
+        .sort((a, b) => b.period.localeCompare(a.period));
+
+      setStudents(mappedStudents);
+      setTeachers(mappedTeachers);
+      setFolders(mappedFolders);
+      setLoading(false);
+    };
+
+    void load();
+  }, [schoolId]);
+
+  const profile: SchoolProfile | null = useMemo(
+    () => (school ? deriveSchoolProfile(school) : null),
+    [school],
+  );
+
+  const removeSchool = async () => {
+    if (!schoolId) return;
+    setDeleting(true);
+    const { error: deleteError } = await supabase.from("schools").delete().eq("id", schoolId);
+    if (deleteError) {
+      console.error("Error removing school", deleteError);
+      setError(
+        students.length > 0
+          ? "This school still has linked students. Reassign or remove them first."
+          : deleteError.message,
+      );
+      setDeleting(false);
+      return;
+    }
+    navigate("/admin/schools");
+  };
+
+  const studentColumns: DataColumn<StudentRow>[] = [
+    { key: "displayId", label: "Student ID", width: 120, muted: true },
+    { key: "name", label: "Name", width: 200 },
+    { key: "grade", label: "Grade", width: 90 },
+    { key: "teacherName", label: "Teacher", width: 180 },
+    { key: "scholarship", label: "Scholarship", width: 140 },
+    {
+      key: "lastReport",
+      label: "Last report",
+      width: 130,
+      muted: true,
+      render: (student) => asDate(student.lastReport),
+    },
+  ];
+
+  const teacherColumns: DataColumn<TeacherRow>[] = [
+    { key: "displayId", label: "Teacher ID", width: 130, muted: true },
+    { key: "name", label: "Name", width: 200 },
+    { key: "email", label: "Email", width: 220 },
+    { key: "phone", label: "Phone", width: 140 },
+    { key: "studentCount", label: "Students", width: 100, numeric: true, align: "right" },
+    {
+      key: "lastActive",
+      label: "Last report",
+      width: 130,
+      muted: true,
+      render: (teacher) => asDate(teacher.lastActive),
+    },
+  ];
+
+  if (loading) return <LoadingState />;
+
+  if (error && !school) {
+    return (
+      <Stack className={styles.page}>
+        <Text c="red">{error}</Text>
+        <Group>
+          <Button variant="secondary" onClick={() => navigate("/admin/schools")}>
+            Back to schools
+          </Button>
+        </Group>
+      </Stack>
+    );
+  }
+
+  if (!school || !profile) return null;
+
+  const unassigned = students.filter((student) => !student.teacherId).length;
+  const reported = students.filter((student) => student.lastReport).length;
+
+  const kpis = [
+    { label: "Students recorded", value: String(students.length) },
+    { label: "Teachers recorded", value: String(teachers.length) },
+    { label: "Grade range", value: `${profile.gradeFrom}–${profile.gradeTo}` },
+    { label: "Dormitory", value: profile.dormitory },
+    { label: "Reporting", value: `${reported}/${students.length || 0}` },
+  ];
+
+  const overviewSections: Array<{ title: string; fields: Array<[string, string, number]> }> = [
+    {
+      title: "Programme",
+      fields: [
+        ["School system", profile.system, 4],
+        ["Grade range", `${profile.gradeFrom} – ${profile.gradeTo}`, 4],
+        ["Dormitory status", profile.dormitory, 4],
+        ["Students recorded", String(students.length), 4],
+        ["Teachers recorded", String(teachers.length), 4],
+        ["Date joined iCare", profile.joined, 4],
+      ],
+    },
+    {
+      title: "School names",
+      fields: [
+        ["School name", school.name, 6],
+        ["School code", profile.code, 6],
+      ],
+    },
+    {
+      title: "Address",
+      fields: [
+        ["Province", profile.province, 6],
+        ["District", profile.district, 6],
+        ["Address on record", school.address || "—", 12],
+      ],
+    },
+    {
+      title: "Principal",
+      fields: [
+        ["Principal", profile.principal, 4],
+        ["Principal phone", profile.principalPhone, 4],
+        ["Principal email", profile.principalEmail, 4],
+      ],
+    },
+    {
+      title: "Contact person",
+      fields: [
+        ["Contact person", profile.contact, 4],
+        ["Contact phone", profile.contactPhone, 4],
+        ["Contact email", profile.contactEmail, 4],
+      ],
+    },
+  ];
+
+  const activity = [
+    students.length
+      ? {
+          title: "Roster on record",
+          body: `${students.length} students and ${teachers.length} teachers linked to this school.`,
+          when: "Current",
+        }
+      : null,
+    unassigned
+      ? {
+          title: "Students without a teacher",
+          body: `${unassigned} students have no responsible teacher assigned.`,
+          when: "Needs action",
+        }
+      : null,
+    folders.length
+      ? {
+          title: "Latest reporting cycle",
+          body: `${folders[0].submitted} of ${folders[0].total} students submitted for ${folders[0].period}.`,
+          when: asDate(folders[0].latest),
+        }
+      : null,
+    { title: "School registered", body: `Joined the programme on ${profile.joined}.`, when: profile.joined },
+  ].filter(Boolean) as Array<{ title: string; body: string; when: string }>;
+
+  return (
+    <Stack className={`${styles.page} ${styles.detailPage}`}>
+      <Modal
+        opened={confirmDelete}
+        onClose={() => {
+          if (deleting) return;
+          setConfirmDelete(false);
+          setError(null);
+        }}
+        title="Remove school?"
+        centered
+      >
+        <Stack>
+          <Text size="sm">
+            Remove {school.name} from the programme? This action cannot be undone.
+          </Text>
+          {error && <Text size="sm" c="red">{error}</Text>}
+          <Group justify="flex-end">
+            <Button
+              variant="ghost"
+              disabled={deleting}
+              onClick={() => {
+                setConfirmDelete(false);
+                setError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button variant="danger" disabled={deleting} onClick={removeSchool}>
+              {deleting ? "Removing…" : "Remove school"}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <header className={styles.detailHeader}>
+        <div className={styles.detailIdentity}>
+          <div className={styles.detailTitleRow}>
+            <h1 className={styles.detailTitle}>{school.name}</h1>
+            <span title="Derived for display until the schools table carries a status column.">
+              <Badge tone={statusTone(profile.status)}>{profile.status}</Badge>
+            </span>
+          </div>
+          <p className={styles.detailMeta}>
+            <span>{profile.displayId}</span>
+            <span className={styles.detailDot}>·</span>
+            <span>code {profile.code}</span>
+            <span className={styles.detailDot}>·</span>
+            <span>{profile.system}</span>
+          </p>
+        </div>
+        <div className={styles.detailActions}>
+          <Menu position="bottom-end" withinPortal shadow="md" width={200}>
+            <Menu.Target>
+              <span>
+                <Button variant="secondary" icon="plus" iconAfter="chevron-down">
+                  Add
+                </Button>
+              </span>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={() => navigate("/admin/students/new")}>Add student</Menu.Item>
+              <Menu.Item onClick={() => navigate("/admin/users/new")}>Invite teacher</Menu.Item>
+              <Menu.Item onClick={() => navigate("/admin/reports/new")}>Add report</Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+          <Menu position="bottom-end" withinPortal shadow="md" width={200}>
+            <Menu.Target>
+              <span>
+                <Button variant="ghost" icon="ellipsis" aria-label="More actions" />
+              </span>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item onClick={() => navigate(`/admin/schools/${school.id}/edit`)}>
+                Edit school
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item color="red" onClick={() => setConfirmDelete(true)}>
+                Remove school
+              </Menu.Item>
+            </Menu.Dropdown>
+          </Menu>
+        </div>
+      </header>
+
+      <div className={styles.detailKpis}>
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className={styles.detailKpi}>
+            <span className={styles.detailKpiLabel}>{kpi.label}</span>
+            <span className={styles.detailKpiValue}>{kpi.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <Tabs
+        value={tab}
+        onChange={(value) => setTab(value as TabValue)}
+        tabs={[
+          { value: "overview", label: "Overview" },
+          { value: "teachers", label: "Teachers", count: teachers.length },
+          { value: "students", label: "Students", count: students.length },
+          { value: "reports", label: "Reports", count: folders.length },
+        ]}
+      />
+
+      {tab === "overview" && (
+        <div className={styles.detailOverview}>
+          <div className={styles.detailFields}>
+            {overviewSections.map((section) => (
+              <section key={section.title}>
+                <h2 className={styles.detailSectionTitle}>{section.title}</h2>
+                <div className={styles.detailFieldGrid}>
+                  {section.fields.map(([label, value, span]) => (
+                    <div key={label} style={{ gridColumn: `span ${span}` }}>
+                      <span className={styles.detailFieldLabel}>{label}</span>
+                      <span className={styles.detailFieldValue}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <aside className={styles.detailRail}>
+            <div className={styles.detailPanel}>
+              <h2 className={styles.detailPanelTitle}>Recent activity</h2>
+              {activity.map((item) => (
+                <div key={item.title} className={styles.detailActivity}>
+                  <span className={styles.detailActivityTitle}>{item.title}</span>
+                  <span className={styles.detailActivityBody}>{item.body}</span>
+                  <span className={styles.detailActivityWhen}>{item.when}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className={styles.detailPanel}>
+              <h2 className={styles.detailPanelTitle}>Reports submitted</h2>
+              {folders.length === 0 && (
+                <p className={styles.detailEmpty}>No reports submitted for this school yet.</p>
+              )}
+              {folders.slice(0, 3).map((folder) => (
+                <div key={folder.key} className={styles.detailReportRow}>
+                  <div>
+                    <span className={styles.detailActivityTitle}>{folder.period}</span>
+                    <span className={styles.detailActivityWhen}>
+                      {folder.submitted} of {folder.total} students
+                    </span>
+                  </div>
+                  <Badge tone={folder.submitted >= folder.total ? "success" : "warning"}>
+                    {folder.total ? Math.round((folder.submitted / folder.total) * 100) : 0}%
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {tab === "teachers" && (
+        <TableSection
+          columns={teacherColumns}
+          rows={teachers}
+          density="compact"
+          pageSize={14}
+          searchPlaceholder="Search teachers, email or IDs"
+          searchKeys={["displayId", "name", "email", "phone"]}
+          onRowClick={(teacher) => navigate(`/admin/teachers/${teacher.id}/students`)}
+          emptyTitle="No teachers recorded for this school"
+          emptyDescription="Teachers appear here once they supervise a student at this school."
+          emptyIcon="users"
+        />
+      )}
+
+      {tab === "students" && (
+        <TableSection
+          columns={studentColumns}
+          rows={students}
+          density="compact"
+          pageSize={14}
+          searchPlaceholder="Search students, grades or teachers"
+          searchKeys={["displayId", "name", "grade", "teacherName", "scholarship"]}
+          onRowClick={(student) => navigate(`/admin/students/${student.id}`)}
+          emptyTitle="No students recorded for this school"
+          emptyDescription="Add a student and link them to this school."
+          emptyIcon="graduation-cap"
+          actions={
+            <Button variant="primary" icon="plus" onClick={() => navigate("/admin/students/new")}>
+              Add student
+            </Button>
+          }
+        />
+      )}
+
+      {tab === "reports" && (
+        <div className={styles.detailFolders}>
+          {folders.length === 0 && (
+            <p className={styles.detailEmpty}>
+              No reporting cycles yet. Reports appear here once teachers submit term updates.
+            </p>
+          )}
+          {folders.map((folder) => {
+            const pct = folder.total ? Math.round((folder.submitted / folder.total) * 100) : 0;
+            return (
+              <button
+                key={folder.key}
+                type="button"
+                className={styles.detailFolder}
+                onClick={() => navigate("/admin/reports")}
+              >
+                <span className={styles.detailFolderHead}>
+                  <Icon name="clipboard-list" size={18} />
+                  <span className={styles.detailFolderTitle}>{folder.period}</span>
+                </span>
+                <span className={styles.detailActivityWhen}>
+                  {folder.submitted} of {folder.total} students · latest {asDate(folder.latest)}
+                </span>
+                <span className={styles.detailProgressTrack}>
+                  <span className={styles.detailProgressFill} style={{ width: `${pct}%` }} />
+                </span>
+                <span className={styles.detailActivityWhen}>{pct}% submitted</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </Stack>
+  );
+};
+
+export default AdminSchoolDetailPage;

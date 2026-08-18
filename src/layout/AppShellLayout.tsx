@@ -34,6 +34,44 @@ function humanise(segment: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+const RESOURCE_LABELS: Record<string, string> = {
+  dashboard: "Overview",
+  students: "Students",
+  teachers: "Teachers",
+  schools: "Schools",
+  donors: "Donors",
+  scholarships: "Scholarships",
+  "grant-types": "Grant types",
+  reports: "Field reports",
+  "contact-requests": "Requests",
+  users: "Accounts",
+  branding: "Settings",
+  profile: "Profile",
+  renew: "Contact",
+};
+
+const RESOURCE_SECTIONS: Record<string, string> = {
+  students: "Directory",
+  teachers: "Directory",
+  schools: "Directory",
+  scholarships: "Programmes",
+  "grant-types": "Programmes",
+  reports: "Programmes",
+  donors: "Giving",
+  "contact-requests": "Giving",
+  renew: "Giving",
+  users: "Organisation",
+  branding: "Organisation",
+};
+
+function detailTitle(resource: string, tail: string[]): string {
+  const singular = resource.endsWith("s") ? resource.slice(0, -1) : resource;
+  if (tail.includes("new")) return `Add ${singular.replace(/-/g, " ")}`;
+  if (tail.includes("edit")) return `Edit ${singular.replace(/-/g, " ")}`;
+  if (tail[tail.length - 1] === "students") return "Assigned students";
+  return `${humanise(singular)} details`;
+}
+
 export const AppShellLayout: React.FC = () => {
   const { profile, role, roles, logout } = useAuth();
   const branding = useBranding();
@@ -155,12 +193,32 @@ export const AppShellLayout: React.FC = () => {
 
   const breadcrumbs = useMemo(() => {
     const parts = location.pathname.split("/").filter(Boolean);
-    return parts.slice(0, -1).map(humanise);
-  }, [location.pathname]);
+    const [scope, resource, ...tail] = parts;
+    if (!resource || resource === "dashboard") return [];
+
+    const section = RESOURCE_SECTIONS[resource];
+    const items: Array<{ label: string; onClick: () => void }> = [];
+    if (section) {
+      items.push({
+        label: section,
+        onClick: () => navigate(scope === "admin" ? "/admin/dashboard" : `/${scope}/dashboard`),
+      });
+    }
+    if (tail.length > 0) {
+      items.push({
+        label: RESOURCE_LABELS[resource] ?? humanise(resource),
+        onClick: () => navigate(`/${scope}/${resource}`),
+      });
+    }
+    return items;
+  }, [location.pathname, navigate]);
 
   const title = useMemo(() => {
     const parts = location.pathname.split("/").filter(Boolean);
-    return parts.length ? humanise(parts[parts.length - 1]) : "Overview";
+    const [, resource, ...tail] = parts;
+    if (!resource) return "Overview";
+    if (tail.length > 0) return detailTitle(resource, tail);
+    return RESOURCE_LABELS[resource] ?? humanise(resource);
   }, [location.pathname]);
 
   const go = (id: string) => {

@@ -11,6 +11,7 @@ import {
   type TableKpi,
 } from "../../design-system";
 import { Button, type DataColumn } from "../../design-system/lumen";
+import styles from "./AdminDirectory.module.scss";
 
 type StudentRow = {
   id: string;
@@ -27,6 +28,8 @@ type StudentRow = {
   age_years: number | null;
   last_report_date: string | null;
   overdue: boolean;
+  enrolled_on: string | null;
+  monthly_support: number | null;
 };
 export const AdminStudentsPage: React.FC = () => {
   const [students, setStudents] = useState<StudentRow[]>([]);
@@ -40,7 +43,7 @@ export const AdminStudentsPage: React.FC = () => {
     const { data: sData, error: sError } = await supabase
       .from("students")
       .select(
-        "id, name, nickname, school_id, responsible_teacher_id, grade_level, village, scholarship, created_at, birthdate"
+        "id, name, nickname, school_id, responsible_teacher_id, grade_level, village, scholarship, created_at, birthdate, monthly_support_expected"
       )
       .order("name", { ascending: true });
 
@@ -196,6 +199,9 @@ export const AdminStudentsPage: React.FC = () => {
         age_years,
         last_report_date: lastReportDate,
         overdue,
+        enrolled_on: s.created_at ?? null,
+        monthly_support:
+          s.monthly_support_expected != null ? Number(s.monthly_support_expected) : null,
       };
     });
 
@@ -291,6 +297,13 @@ export const AdminStudentsPage: React.FC = () => {
 
   const columns: DataColumn<StudentRow & { id: string }>[] = [
     {
+      key: "id",
+      label: "Student ID",
+      width: 120,
+      muted: true,
+      render: (s) => `ST-${s.id.slice(0, 6).toUpperCase()}`,
+    },
+    {
       key: "name",
       label: "Student",
       width: 200,
@@ -337,6 +350,23 @@ export const AdminStudentsPage: React.FC = () => {
     { key: "village", label: "Village", width: 130 },
     { key: "scholarship", label: "Scholarship", width: 140 },
     { key: "age_years", label: "Age", align: "right", numeric: true, width: 80 },
+    {
+      key: "enrolled_on",
+      label: "Enrolled",
+      width: 120,
+      muted: true,
+      render: (s) =>
+        s.enrolled_on ? new Date(s.enrolled_on).toLocaleDateString() : "—",
+    },
+    {
+      key: "monthly_support",
+      label: "Monthly support",
+      width: 140,
+      align: "right",
+      numeric: true,
+      render: (s) =>
+        s.monthly_support != null ? s.monthly_support.toLocaleString() : "—",
+    },
     { key: "last_report_date", label: "Last report", width: 120, muted: true },
     {
       key: "overdue",
@@ -361,7 +391,7 @@ export const AdminStudentsPage: React.FC = () => {
         </Group>
       )}
 
-      <Stack gap="md">
+      <Stack gap="md" className={styles.page}>
         <PageHeader
           title="Students"
           subtitle="Overview of all registered students, their schools, teachers, and report status."
@@ -372,6 +402,9 @@ export const AdminStudentsPage: React.FC = () => {
             kpis={kpis}
             columns={columns}
             rows={students}
+            density="compact"
+            pageSize={14}
+            searchPlaceholder="Search students, schools, teachers, or IDs"
             searchKeys={["name", "nickname", "school_name", "teacher_name", "village"]}
             onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
             emptyTitle="No students found"

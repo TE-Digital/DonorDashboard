@@ -289,6 +289,7 @@ export const AdminContactRequestsPage: React.FC = () => {
           controls={
             <>
               <Select
+                size="sm"
                 placeholder="All types"
                 value={typeFilter}
                 onChange={setTypeFilter}
@@ -301,6 +302,7 @@ export const AdminContactRequestsPage: React.FC = () => {
                 ]}
               />
               <Select
+                size="sm"
                 placeholder="Status"
                 value={statusFilter}
                 onChange={setStatusFilter}

@@ -9,6 +9,7 @@ import {
   Button as LumenButton,
   type DataColumn,
 } from "../../design-system/lumen";
+import styles from "./AdminDirectory.module.scss";
 
 interface TeacherStudent {
   id: string;
@@ -314,7 +315,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
         </Stack>
       </Modal>
 
-      <Stack gap="md">
+      <Stack gap="md" className={styles.page}>
         <PageHeader
           title={`Students of ${teacherName}`}
           subtitle="View and manage all students assigned to this teacher."
@@ -336,6 +337,9 @@ export const AdminTeacherStudentsPage: React.FC = () => {
           kpis={kpis}
           columns={columns}
           rows={students}
+          density="compact"
+          pageSize={14}
+          searchPlaceholder="Search assigned students or schools"
           searchKeys={["name", "school_name"]}
           onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
           emptyTitle="No students assigned yet"

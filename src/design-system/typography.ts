@@ -7,13 +7,13 @@
 // role is never limited to Mantine's five size keys. The scale is the one in
 // .claude/Design-system.md:
 //
-//   3xl 34  hero (auth / marketing only)
-//   2xl 28  page title, metric value
-//   xl  22  section title
-//   lg  18  card title
-//   md  16  body / long-form prose
-//   sm  14  UI default, tables, controls
-//   xs  12  captions, labels, table headers
+//   3xl 32  hero (auth / marketing only)
+//   2xl 24  page title, metric value
+//   xl  19  section title
+//   lg  16  card title, form field value
+//   md  14  body / long-form prose, field labels
+//   sm  13  UI default, tables, dense controls
+//   xs  12  captions, descriptions, table headers
 //
 // Titles are semibold (600), not bold — bold headings on a dense admin screen
 // read as shouting. Bold is reserved for a single metric value.

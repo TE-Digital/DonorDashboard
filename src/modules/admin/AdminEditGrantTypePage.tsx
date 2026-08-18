@@ -1,18 +1,15 @@
 import React, { useEffect, useState } from "react";
-import {
-  Button,
-  Card,
-  Group,
-  NumberInput,
-  Stack,
-  Text,
-  Textarea,
-  TextInput,
-  Title,
-} from "@mantine/core";
+import { Button, NumberInput, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { LoadingState, PageHeader } from "../../design-system";
+import {
+  FormBody,
+  FormError,
+  FormFooter,
+  FormPage,
+  FormSection,
+  LoadingState,
+} from "../../design-system";
 
 type GrantType = {
   id: string;
@@ -129,59 +126,50 @@ export const AdminEditGrantTypePage: React.FC = () => {
 
   if (error && !initialLoading) {
     return (
-      <Stack>
-        <Title order={3}>Edit Grant Type</Title>
-        <Text c="red">{error}</Text>
-        <Button variant="subtle" onClick={() => navigate("/admin/grant-types")}>
-          Back to list
-        </Button>
-      </Stack>
+      <FormPage title="Edit grant type">
+        <FormError>{error}</FormError>
+        <FormFooter>
+          <Button variant="subtle" onClick={() => navigate("/admin/grant-types")}>
+            Back to list
+          </Button>
+        </FormFooter>
+      </FormPage>
     );
   }
 
   return (
-    <Stack>
-      <PageHeader
-        title="Edit grant type"
-        actions={
-          <Button
-              variant="subtle"
-              size="xs"
-              onClick={() => navigate("/admin/grant-types")}
-            >
-              Back to list
-            </Button>
-        }
-      />
+    <FormPage title="Edit grant type" subtitle="The template a scholarship is issued from.">
+      <FormBody onSubmit={handleSubmit}>
+        <FormError>{error}</FormError>
 
-      <Card withBorder component="form" onSubmit={handleSubmit}>
-        <Stack gap="md">
-          <TextInput
-            label="Name"
-            placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
-            value={name}
-            onChange={(e) => setName(e.currentTarget.value)}
-            required
-          />
+        <FormSection title="Grant type" hint="What this grant covers and who it is for">
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+            <TextInput
+              label="Name"
+              placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              required
+            />
+            <Textarea
+              label="Description"
+              description="Optional"
+              placeholder="Short explanation, conditions, scope…"
+              minRows={3}
+              value={description}
+              onChange={(e) => setDescription(e.currentTarget.value)}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <Textarea
-            label="Description (optional)"
-            placeholder="Short explanation, conditions, scope…"
-            minRows={3}
-            value={description}
-            onChange={(e) => setDescription(e.currentTarget.value)}
-          />
-
-          <Group grow>
+        <FormSection title="Amount & duration" hint="Defaults applied to every scholarship of this type">
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <NumberInput
-              label="Standard scholarship amount (for full period)"
+              label="Standard scholarship amount"
+              description="For the full period"
               placeholder="e.g. 6000, 8400, 160000"
               value={amountPerPeriod}
-              onChange={(val) =>
-                setAmountPerPeriod(
-                  typeof val === "number" ? val : undefined
-                )
-              }
+              onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}
               min={0}
             />
             <TextInput
@@ -189,40 +177,33 @@ export const AdminEditGrantTypePage: React.FC = () => {
               value={currency}
               onChange={(e) => setCurrency(e.currentTarget.value)}
             />
-          </Group>
+            <NumberInput
+              label="Default duration (months)"
+              placeholder="e.g. 3, 12, 16, or 48 for full university"
+              value={defaultDurationMonths}
+              onChange={(val) => setDefaultDurationMonths(typeof val === "number" ? val : undefined)}
+              min={1}
+            />
+          </SimpleGrid>
+        </FormSection>
 
-          <NumberInput
-            label="Default duration (month)"
-            placeholder="e.g. 3, 12, 16, or 48 for full university"
-            value={defaultDurationMonths}
-            onChange={(val) =>
-              setDefaultDurationMonths(
-                typeof val === "number" ? val : undefined
-              )
-            }
-            min={1}
-          />
-
-          {error && (
-            <Text size="sm" c="red">
-              {error}
-            </Text>
-          )}
-
-          <Group justify="flex-end">
+        <FormFooter
+          left={
             <Button
               variant="subtle"
-              onClick={() => navigate("/admin/grant-types")}
+              type="button"
               disabled={saving}
+              onClick={() => navigate("/admin/grant-types")}
             >
               Cancel
             </Button>
-            <Button type="submit" loading={saving}>
-              Save changes
-            </Button>
-          </Group>
-        </Stack>
-      </Card>
-    </Stack>
+          }
+        >
+          <Button type="submit" loading={saving}>
+            Save changes
+          </Button>
+        </FormFooter>
+      </FormBody>
+    </FormPage>
   );
 };
