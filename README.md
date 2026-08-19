@@ -20,8 +20,8 @@ The project is currently maintained by a team of volunteers for the iCare Thaila
 This project is intended for **educational, humanitarian, and social-impact purposes**.
 The authors strongly discourage use for:
 - Surveillance or profiling
-- Discrimination or exclustion
-- Exploitation of volunaerable groups
+- Discrimination or exclusion
+- Exploitation of vulnerable groups
 - Any activity that violates human rights or applicable data protection laws.
 
 ---
