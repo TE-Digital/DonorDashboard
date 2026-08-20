@@ -3,8 +3,10 @@ import React, { useEffect, useState } from "react";
 import { supabase, Profile } from "../../lib/supabaseClient";
 import { Anchor, Checkbox, Stack, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
-import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { ContactCell, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { Badge, Button as LumenButton, type DataColumn } from "../../design-system/lumen";
+import { AccessBadge, AccessMenu } from "./AccessActions";
+import { ACCESS_META, accessStateOf, loadAccessMap, type AccessMap } from "./userAccess";
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
@@ -20,10 +22,14 @@ export const AdminUsersRolesPage: React.FC = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Who can actually sign in. Roles say what a person may do; this says whether they can. */
+  const [access, setAccess] = useState<AccessMap>({ byUser: {}, available: false, error: null });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
+
+    setAccess(await loadAccessMap());
 
     const { data, error } = await supabase
       .from("profiles")
@@ -96,14 +102,14 @@ export const AdminUsersRolesPage: React.FC = () => {
     const counts = (role: UiRole) => users.filter((u) => u.roles.includes(role)).length;
     const noRole = users.filter((u) => u.roles.length === 0).length;
     return [
-      { label: "Accounts", value: users.length, footnote: "with a profile", accent: "blue" },
-      { label: "Admins", value: counts("admin"), footnote: "full access", accent: "teal" },
-      { label: "Teachers", value: counts("teacher"), footnote: "submit reports", accent: "amber" },
+      { label: "Accounts", value: users.length, footnote: "with a profile", mark: "accounts" },
+      { label: "Admins", value: counts("admin"), footnote: "full access", mark: "admins" },
+      { label: "Teachers", value: counts("teacher"), footnote: "submit reports", mark: "teachers" },
       {
         label: "Without a role",
         value: noRole,
         footnote: noRole ? "cannot sign in anywhere" : "everyone assigned",
-        accent: "plum",
+        mark: noRole ? "overdue" : "ontrack",
       },
     ];
   })();
@@ -130,7 +136,30 @@ export const AdminUsersRolesPage: React.FC = () => {
         </Stack>
       ),
     },
-    { key: "phone", label: "Phone", width: 140, render: (u) => u.phone || "—" },
+    {
+      key: "contact",
+      label: "Contact",
+      width: 90,
+      sortable: false,
+      filterable: false,
+      render: (u) => (
+        <ContactCell email={u.email} phone={u.phone} owner={u.full_name || "This user"} />
+      ),
+    },
+    {
+      // Roles answer "what may this person do?". This column answers the
+      // question that comes first: can they get in at all?
+      key: "access",
+      label: "Sign-in",
+      width: 150,
+      filterValue: (u) => ACCESS_META[accessStateOf(access.byUser[u.id])].label,
+      render: (u) => (
+        <AccessBadge
+          state={access.available ? accessStateOf(access.byUser[u.id]) : "unknown"}
+          inviteCount={access.byUser[u.id]?.invite_count}
+        />
+      ),
+    },
     {
       key: "created_at",
       label: "Created",
@@ -157,6 +186,24 @@ export const AdminUsersRolesPage: React.FC = () => {
         />
       ),
     })),
+    {
+      key: "actions",
+      label: "",
+      width: 60,
+      align: "right",
+      sortable: false,
+      filterable: false,
+      render: (u) => (
+        <AccessMenu
+          userId={u.id}
+          name={u.full_name || "this user"}
+          email={u.email}
+          access={access.byUser[u.id]}
+          available={access.available}
+          onChanged={() => void load()}
+        />
+      ),
+    },
   ];
 
   return (
@@ -164,22 +211,21 @@ export const AdminUsersRolesPage: React.FC = () => {
       <PageHeader
         title="Users & roles"
         subtitle="Who can sign in, and what each account is allowed to do."
-        actions={saving ? <Badge tone="info">Saving…</Badge> : undefined}
+        actions={
+          <>
+            {saving && <Badge tone="info">Saving…</Badge>}
+            <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/users/new")}>Add user</LumenButton>
+          </>
+        }
       />
 
       <TableSection
         kpis={kpis}
         columns={columns}
         rows={users}
-        searchKeys={["full_name", "email", "phone"]}
         emptyTitle="No users found"
         emptyDescription="Accounts appear here once someone is invited."
         emptyIcon="users"
-        actions={
-          <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/users/new")}>
-            Add user
-          </LumenButton>
-        }
       />
     </Stack>
   );

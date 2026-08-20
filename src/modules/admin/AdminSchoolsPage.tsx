@@ -12,6 +12,7 @@ import {
 import { IconDotsVertical, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useNavigate } from "react-router-dom";
 import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { SchoolFormDrawer } from "./SchoolFormDrawer";
 import { Button, type DataColumn } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -46,6 +47,7 @@ export const AdminSchoolsPage: React.FC = () => {
   const [systemFilter, setSystemFilter] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SchoolRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [schoolDrawerOpen, setSchoolDrawerOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = async () => {
@@ -126,10 +128,10 @@ export const AdminSchoolsPage: React.FC = () => {
     const students = schools.reduce((sum, school) => sum + school.studentCount, 0);
     const teachers = schools.reduce((sum, school) => sum + school.teacherCount, 0);
     return [
-      { label: "Schools", value: schools.length, footnote: `${provinces} provinces`, accent: "blue" },
-      { label: "Active", value: active, footnote: `of ${schools.length} records`, accent: "teal" },
-      { label: "Students recorded", value: students.toLocaleString(), footnote: "across all schools", accent: "blue" },
-      { label: "Teachers recorded", value: teachers, footnote: "across all schools", accent: "plum" },
+      { label: "Schools", value: schools.length, footnote: `${provinces} provinces`, mark: "schools" },
+      { label: "Active", value: active, footnote: `of ${schools.length} records`, mark: "ontrack" },
+      { label: "Students recorded", value: students.toLocaleString(), footnote: "across all schools", mark: "students" },
+      { label: "Teachers recorded", value: teachers, footnote: "across all schools", mark: "teachers" },
     ];
   }, [schools]);
 
@@ -249,7 +251,25 @@ export const AdminSchoolsPage: React.FC = () => {
         </Stack>
       </Modal>
 
-      <PageHeader title="Schools" subtitle="School records, locations, programme coverage, and reporting progress." />
+      <SchoolFormDrawer
+        opened={schoolDrawerOpen}
+        onClose={() => setSchoolDrawerOpen(false)}
+        onCreated={(school) => {
+          setSchoolDrawerOpen(false);
+          navigate(`/admin/schools/${school.id}?created=1`);
+        }}
+      />
+
+      <PageHeader
+        title="Schools"
+        subtitle="School records, locations, programme coverage, and reporting progress."
+        actions={
+          <>
+            <Button variant="secondary" icon="download" onClick={exportCsv}>Export</Button>
+            <Button variant="primary" icon="plus" onClick={() => setSchoolDrawerOpen(true)}>Add school</Button>
+          </>
+        }
+      />
       <TableSection
         kpis={kpis}
         columns={columns}
@@ -257,8 +277,6 @@ export const AdminSchoolsPage: React.FC = () => {
         selectable
         density="compact"
         pageSize={14}
-        searchPlaceholder="Search schools, provinces or codes"
-        searchKeys={["displayId", "name", "province", "district", "system", "status"]}
         controls={
           <>
             <Select clearable placeholder="All statuses" value={statusFilter} onChange={setStatusFilter} data={[...SCHOOL_STATUSES]} w={160} />
@@ -269,13 +287,7 @@ export const AdminSchoolsPage: React.FC = () => {
         emptyTitle="No schools found"
         emptyDescription="Add a school to link students and teachers to it."
         emptyIcon="house"
-        emptyAction={<Button variant="secondary" icon="plus" onClick={() => navigate("/admin/schools/new")}>Add school</Button>}
-        actions={
-          <>
-            <Button variant="secondary" icon="download" onClick={exportCsv}>Export</Button>
-            <Button variant="primary" icon="plus" onClick={() => navigate("/admin/schools/new")}>Add school</Button>
-          </>
-        }
+        emptyAction={<Button variant="secondary" icon="plus" onClick={() => setSchoolDrawerOpen(true)}>Add school</Button>}
       />
     </Stack>
   );

@@ -18,9 +18,9 @@ import { useAuth } from "../auth/AuthContext";
 import {
   EmptyState,
   InlineMessage,
+  KpiRow,
   LoadingState,
   PageHeader,
-  StatCard,
 } from "../../design-system";
 
 type StudentCard = {
@@ -416,14 +416,13 @@ export const DonorDashboardPage: React.FC = () => {
         }
       />
 
-      <SimpleGrid cols={{ base: 1, sm: 3 }}>
-        <StatCard
-          label="Students supported"
-          value={summary.totalStudents.toString()}
-        />
-        <StatCard label="Total awarded" value={summaryAmountLabel} />
-        <StatCard label="Last scholarship" value={lastScholarshipLabel} />
-      </SimpleGrid>
+      <KpiRow
+        items={[
+          { label: "Students supported", value: summary.totalStudents.toString(), mark: "students" },
+          { label: "Total awarded", value: summaryAmountLabel, mark: "money" },
+          { label: "Last scholarship", value: lastScholarshipLabel, mark: "time" },
+        ]}
+      />
 
       {students.length === 0 ? (
         <Card mt="md">

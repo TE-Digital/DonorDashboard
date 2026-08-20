@@ -1,6 +1,6 @@
 // src/modules/admin/AdminTeacherStudentsPage.tsx
 import React, { useEffect, useState } from "react";
-import { Group, Modal, Select, Stack, Text } from "@mantine/core";
+import { Avatar, Group, Modal, Select, Stack, Text } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
@@ -9,6 +9,7 @@ import {
   Button as LumenButton,
   type DataColumn,
 } from "../../design-system/lumen";
+import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import styles from "./AdminDirectory.module.scss";
 
 interface TeacherStudent {
@@ -232,15 +233,15 @@ export const AdminTeacherStudentsPage: React.FC = () => {
     const schools = new Set(students.map((s) => s.school_name).filter(Boolean)).size;
     const upToDate = students.length - overdueCount;
     return [
-      { label: "Students", value: students.length, footnote: "assigned to this teacher", accent: "blue" },
+      { label: "Students", value: students.length, footnote: "assigned to this teacher", mark: "students" },
       {
         label: "Reports overdue",
         value: overdueCount,
         footnote: overdueCount ? "need chasing" : "none outstanding",
-        accent: overdueCount ? "amber" : "teal",
+        mark: overdueCount ? "overdue" : "ontrack",
       },
-      { label: "Up to date", value: upToDate, footnote: "reported recently", accent: "teal" },
-      { label: "Schools", value: schools, footnote: "represented", accent: "plum" },
+      { label: "Up to date", value: upToDate, footnote: "reported recently", mark: "reports" },
+      { label: "Schools", value: schools, footnote: "represented", mark: "schools" },
     ];
   })();
 
@@ -317,7 +318,12 @@ export const AdminTeacherStudentsPage: React.FC = () => {
 
       <Stack gap="md" className={styles.page}>
         <PageHeader
-          title={`Students of ${teacherName}`}
+          title={
+            <span className={styles.teacherPageTitle}>
+              <Avatar size={36} style={profileAvatarStyle(teacherUserId)}>{profileInitials(teacherName)}</Avatar>
+              <span>Students of {teacherName}</span>
+            </span>
+          }
           subtitle="View and manage all students assigned to this teacher."
           onBack={() => navigate("/admin/teachers")}
           backLabel="Back to teachers"
@@ -339,8 +345,6 @@ export const AdminTeacherStudentsPage: React.FC = () => {
           rows={students}
           density="compact"
           pageSize={14}
-          searchPlaceholder="Search assigned students or schools"
-          searchKeys={["name", "school_name"]}
           onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
           emptyTitle="No students assigned yet"
           emptyDescription="Assign an existing student, or create a new one."

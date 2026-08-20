@@ -1,7 +1,7 @@
 // src/modules/teacher/TeacherStudentsPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase, Student } from "../../lib/supabaseClient";
-import { useAuth } from "../auth/AuthContext";
+import { useEffectiveTeacherId } from "../viewAs/ViewAsContext";
 import {
   ColumnDef,
   flexRender,
@@ -35,7 +35,7 @@ interface StudentRow extends Student {
 }
 
 export const TeacherStudentsPage: React.FC = () => {
-  const { profile } = useAuth();
+  const teacherId = useEffectiveTeacherId();
   const [data, setData] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -49,7 +49,7 @@ export const TeacherStudentsPage: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-      if (!profile) return;
+      if (!teacherId) return;
       setLoading(true);
 
       // 1) Load students + their term_updates
@@ -71,7 +71,7 @@ export const TeacherStudentsPage: React.FC = () => {
           term_updates ( report_date )
         `
         )
-        .eq("responsible_teacher_id", profile.id);
+        .eq("responsible_teacher_id", teacherId);
 
       if (error) {
         console.error(error);
@@ -94,7 +94,7 @@ export const TeacherStudentsPage: React.FC = () => {
             name: s.name,
             school_id: s.school_id,
             scholarship: s.scholarship,
-            responsible_teacher_id: profile.id,
+            responsible_teacher_id: teacherId,
             created_at: s.created_at,
             grant_type_id: s.grant_type_id,
             birthdate: s.birthdate,
@@ -165,7 +165,7 @@ export const TeacherStudentsPage: React.FC = () => {
     };
 
     load();
-  }, [profile]);
+  }, [teacherId]);
 
   // --- Dynamic grade filter options based on real data ---
   const gradeOptions = useMemo(() => {

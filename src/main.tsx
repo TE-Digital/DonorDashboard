@@ -14,6 +14,7 @@ import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import App from "./App";
 import { AuthProvider } from "./modules/auth/AuthContext";
+import { ViewAsProvider } from "./modules/viewAs/ViewAsContext";
 import { BrandingProvider, useBranding } from "./modules/theme/BrandingContext";
 import { buildTheme, cssVariablesResolver } from "./design-system";
 
@@ -39,9 +40,11 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <BrandingProvider>
-          <ThemedApp />
-        </BrandingProvider>
+        <ViewAsProvider>
+          <BrandingProvider>
+            <ThemedApp />
+          </BrandingProvider>
+        </ViewAsProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

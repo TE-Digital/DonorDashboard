@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { useViewAs } from "../viewAs/ViewAsContext";
 import { Center } from "@mantine/core";
 import { LoadingState } from "../../design-system";
 
@@ -38,6 +39,10 @@ export const RoleRoute: React.FC<RoleRouteProps> = ({ allowed }) => {
     roles?: string[] | null;
     loading: boolean;
   };
+  // An admin previewing the teacher product reaches /teacher/*. This is a
+  // routing decision only: every row they see there is one an admin can already
+  // read, and the database policies are unchanged.
+  const { viewRole, availableRoles } = useViewAs();
 
   if (loading) {
     return (
@@ -67,7 +72,10 @@ export const RoleRoute: React.FC<RoleRouteProps> = ({ allowed }) => {
     return <Navigate to="/login" replace />;
   }
 
-  const isAllowed = allowed.some((r) => effectiveRoles.has(r));
+  const previewing =
+    availableRoles.includes(viewRole as AppRole) && allowed.includes(viewRole as AppRole);
+
+  const isAllowed = allowed.some((r) => effectiveRoles.has(r)) || previewing;
 
   if (!isAllowed) {
     return <Navigate to="/" replace />;

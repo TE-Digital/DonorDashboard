@@ -90,24 +90,24 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
     const currency = priced[0]?.currency ?? "THB";
 
     return [
-      { label: "Grant types", value: grantTypes.length, footnote: "available", accent: "blue" },
+      { label: "Grant types", value: grantTypes.length, footnote: "available", mark: "scholarships" },
       {
         label: "With an amount",
         value: priced.length,
         footnote: `${grantTypes.length - priced.length} unpriced`,
-        accent: priced.length === grantTypes.length ? "teal" : "amber",
+        mark: priced.length === grantTypes.length ? "ontrack" : "overdue",
       },
       {
         label: "Average award",
         value: avg != null ? new Intl.NumberFormat().format(avg) : "—",
         footnote: currency,
-        accent: "teal",
+        mark: "money",
       },
       {
         label: "Typical duration",
         value: avgMonths ?? "—",
         footnote: avgMonths ? "months" : "not set",
-        accent: "plum",
+        mark: "time",
       },
     ];
   })();
@@ -168,6 +168,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
       <PageHeader
         title="Grant types"
         subtitle="The award templates a scholarship can be created from."
+        actions={<LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/grant-types/new")}>Add grant type</LumenButton>}
       />
 
       <InlineMessage tone="error">{error}</InlineMessage>
@@ -176,22 +177,12 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
         kpis={kpis}
         columns={columns}
         rows={grantTypes}
-        searchKeys={["name", "description"]}
         emptyTitle="No grant types found"
         emptyDescription="Add a grant type to create scholarships from it."
         emptyIcon="hand-coins"
         emptyAction={
           <LumenButton
             variant="secondary"
-            icon="plus"
-            onClick={() => navigate("/admin/grant-types/new")}
-          >
-            Add grant type
-          </LumenButton>
-        }
-        actions={
-          <LumenButton
-            variant="primary"
             icon="plus"
             onClick={() => navigate("/admin/grant-types/new")}
           >

@@ -4,6 +4,7 @@ import { WelcomeSetPasswordPage } from "./modules/auth/WelcomeSetPasswordPage";
 import { ProtectedRoute, RoleRoute } from "./modules/auth/ProtectedRoute";
 import { AppShellLayout } from "./layout/AppShellLayout";
 import { useAuth } from "./modules/auth/AuthContext";
+import { useViewAs } from "./modules/viewAs/ViewAsContext";
 
 import { LoginPage } from "./modules/auth/LoginPage";
 import { ResetPasswordPage } from "./modules/auth/ResetPasswordPage";
@@ -18,7 +19,10 @@ import { AdminBrandingPage } from "./modules/admin/AdminBrandingPage";
 import { AdminStudentsPage } from "./modules/admin/AdminStudentsPage";
 import { AdminCreateStudentPage } from "./modules/admin/AdminCreateStudentPage";
 import { AdminStudentDetailPage } from "./modules/admin/AdminStudentDetailPage";
+import { AdminStudentOverviewPage } from "./modules/admin/AdminStudentOverviewPage";
 import { AdminTeacherStudentsPage } from "./modules/admin/AdminTeacherStudentsPage";
+import { AdminCreateTeacherPage } from "./modules/admin/AdminCreateTeacherPage";
+import { AdminTeacherOverviewPage } from "./modules/admin/AdminTeacherOverviewPage";
 import { AdminSchoolsPage } from "./modules/admin/AdminSchoolsPage";
 import { AdminCreateSchoolPage } from "./modules/admin/AdminCreateSchoolPage";
 import { AdminEditSchoolPage } from "./modules/admin/AdminEditSchoolPage";
@@ -41,6 +45,7 @@ import { AdminEditReportPage } from "./modules/admin/AdminEditReportPage";
 
 import { TeacherDashboardPage } from "./modules/teacher/TeacherDashboardPage";
 import { TeacherStudentsPage } from "./modules/teacher/TeacherStudentsPage";
+import { TeacherProfilePage } from "./modules/teacher/TeacherProfilePage";
 import { TeacherStudentDetailPage } from "./modules/teacher/TeacherStudentDetailPage";
 import { TeacherNewReportPage } from "./modules/teacher/TeacherNewReportPage";
 import { TeacherEditReportPage } from "./modules/teacher/TeacherEditReportPage";
@@ -53,8 +58,13 @@ import { ProfilePage } from "./modules/profile/ProfilePage";
 
 const HomeRedirect: React.FC = () => {
   const { role, loading } = useAuth();
+  // A chosen view wins over the account's primary role, so landing on "/" while
+  // previewing the teacher product does not silently bounce back to the console.
+  const { viewRole, availableRoles } = useViewAs();
 
   if (loading) return null;
+
+  if (availableRoles.includes(viewRole)) return <Navigate to={`/${viewRole}/dashboard`} replace />;
 
   if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
   if (role === "teacher") return <Navigate to="/teacher/dashboard" replace />;
@@ -93,10 +103,16 @@ const App: React.FC = () => {
             <Route path="students/new" element={<AdminCreateStudentPage />} />
             <Route
               path="students/:studentId"
+              element={<AdminStudentOverviewPage />}
+            />
+            <Route
+              path="students/:studentId/edit"
               element={<AdminStudentDetailPage />}
             />
 
             {/* Teacher / student mapping */}
+            <Route path="teachers/new" element={<AdminCreateTeacherPage />} />
+            <Route path="teachers/:teacherId" element={<AdminTeacherOverviewPage />} />
             <Route
               path="teachers/:teacherUserId/students"
               element={<AdminTeacherStudentsPage />}
@@ -174,6 +190,7 @@ const App: React.FC = () => {
           {/* ---------- TEACHER AREA ---------- */}
           <Route path="/teacher" element={<RoleRoute allowed={["teacher"]} />}>
             <Route path="dashboard" element={<TeacherDashboardPage />} />
+            <Route path="profile" element={<TeacherProfilePage />} />
             <Route path="students" element={<TeacherStudentsPage />} />
 		<Route path="students/new" element={<AdminCreateStudentPage />} />
             <Route

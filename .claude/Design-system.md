@@ -166,6 +166,7 @@ import { PageHeader, SectionCard, StatCard, StatusBadge, EmptyState, LoadingStat
 | `LoadingState` | Any pending fetch — never a blank screen |
 | `InlineMessage` | Information that must stay visible in context |
 | `FormActions` | Save / cancel / destructive row, consistent order and emphasis |
+| `ContactCell` | Email / phone / LINE as copy-to-clipboard icons in one narrow cell |
 
 Everything else comes from **Mantine**, themed by `buildTheme()`. If a pattern repeats in three pages, promote it to `src/design-system/components/` rather than copying it a fourth time.
 
@@ -269,6 +270,25 @@ Prefer the smallest change that satisfies the request.
 - No zebra striping. Hover is the only row emphasis.
 - Sort defaults to the column the user cares about (most recent, or overdue first), not database order.
 - Long lists get search before they get pagination.
+- **Contact details are icons, not columns.** An email column and a phone column cost ~370px to show values nobody reads off the screen. One `ContactCell` replaces both: hover reads the value, click copies it. Icons keep their position on every row, so a missing value reads as missing.
+- Anything copied confirms twice: the control itself changes for a moment, and a notification names what is now on the clipboard, because a clipboard is invisible. One notification at a time — a second copy replaces the first.
+
+### Account access
+
+Whether a person can sign in is a separate question from what their record says, and it is never stored on the record. It is read from `auth.users` through `admin_user_access_state()`; the actions run in the `admin-user-access` edge function, which is the only thing holding the service role.
+
+| State | Means | Offered |
+| --- | --- | --- |
+| Active | Has signed in | Send password link · Remove access |
+| Invited | Invitation sent, not used | Send again · Copy sign-in link · Remove access |
+| Invite not used | Sent over a week ago, still unused | Same as Invited — chase on another channel |
+| Access removed | Sign-in blocked, record untouched | Restore access |
+| No account | No sign-in exists | Send invitation · Copy sign-in link |
+
+- The badge states what is true now; the menu offers only what fits that state. An active account is never offered an invitation.
+- A generated sign-in link **is a credential**. It is confirmed before copying, never printed on screen, never logged, and never stored — only the fact that somebody copied one is recorded.
+- Removing access is reversible and deletes nothing. Say so in the confirmation.
+- Every access action is recorded in `user_access_events` with who did it, so "did anyone chase this teacher?" has an answer.
 
 ### Forms
 
@@ -394,6 +414,7 @@ This UI renders information about students and donors. Follow `DATA_POLICY.md` p
 | `src/design-system/branding.ts` | DB branding → theme conversion |
 | `src/design-system/theme.ts` | `buildTheme()` for `MantineProvider` |
 | `src/design-system/components/` | Shared page patterns |
+| `src/modules/admin/userAccess.ts` | Account state, access actions and their copy — the only definition |
 | `src/design-system/index.ts` | The only import surface |
 | `design.md` | Product, architecture, role and workflow reference |
 | `.claude/Design-system.md` | This file |

@@ -5,9 +5,14 @@
 //
 //   KPI row  →  filter bar  →  bordered grid  →  pagination
 //
-// Everything a list page repeated by hand — search, per-column filters, sort,
-// filter chips, paging, the empty case — lives here once. A page supplies
-// columns, rows and its KPIs; it does not own any of that state.
+// Everything a list page repeated by hand — per-column filters, sort, filter
+// chips, paging, the empty case — lives here once. A page supplies columns,
+// rows and its KPIs; it does not own any of that state.
+//
+// Finding a record by name is the global search's job (the top bar, ⌘K), not
+// each table's: a per-table box only ever searched the page you already had
+// open. What stays here is narrowing a list you are already looking at —
+// column filters and sort.
 //
 // The grid is the design system's DataTable, so every column header carries a
 // sort control and an Excel-style filter menu automatically.
@@ -18,36 +23,22 @@ import {
   DataTable,
   EmptyState,
   FilterBar,
-  KpiCard,
   Pagination,
   type AppliedFilter,
   type DataColumn,
-  type KpiAccent,
   type SortState,
 } from "../lumen";
+import { KpiRow, type KpiItem } from "./KpiRow";
 
-export interface TableKpi {
-  label: React.ReactNode;
-  value: React.ReactNode;
-  footnote?: React.ReactNode;
-  delta?: React.ReactNode;
-  deltaLabel?: React.ReactNode;
-  trend?: "up" | "down" | "flat";
-  accent?: KpiAccent;
-}
+/** The KPI band above a table is the same band detail screens use. */
+export type TableKpi = KpiItem;
 
 export interface TableSectionProps<R extends { id: React.Key }> {
   /** The KPI tiles above the grid. Every list screen carries a row of these. */
   kpis?: TableKpi[];
   columns: DataColumn<R>[];
   rows: R[];
-  /**
-   * Row fields the search box matches against. Defaults to every column key,
-   * which is usually what you want.
-   */
-  searchKeys?: (keyof R | string)[];
-  searchPlaceholder?: string;
-  /** Selects and other narrow controls beside the search box. */
+  /** Selects and other narrow controls on the filter bar. */
   controls?: React.ReactNode;
   /**
    * Buttons on the right of the filter bar. At most ONE may be
@@ -73,14 +64,12 @@ export function TableSection<R extends { id: React.Key }>({
   kpis,
   columns,
   rows,
-  searchKeys,
-  searchPlaceholder,
   controls,
   actions,
   onRowClick,
   selectable = false,
   bulkActions,
-  density = "default",
+  density = "compact",
   pageSize: initialPageSize = 25,
   maxHeight = 560,
   emptyTitle = "Nothing to show yet",
@@ -88,29 +77,16 @@ export function TableSection<R extends { id: React.Key }>({
   emptyAction,
   emptyIcon = "inbox",
 }: TableSectionProps<R>) {
-  const [q, setQ] = React.useState("");
   const [sort, setSort] = React.useState<SortState | null>(null);
   const [filters, setFilters] = React.useState<Record<string, string[]>>({});
   const [selected, setSelected] = React.useState<React.Key[]>([]);
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(initialPageSize);
 
-  const keys = React.useMemo(
-    () => (searchKeys && searchKeys.length ? searchKeys : columns.map((c) => c.key)),
-    [searchKeys, columns],
-  );
-
-  // Search → column filters → sort. Paging happens last, so the count in the
-  // footer is the size of the whole filtered set, not of the current page.
+  // Column filters → sort. Paging happens last, so the count in the footer is
+  // the size of the whole filtered set, not of the current page.
   const filtered = React.useMemo(() => {
     let out = rows;
-
-    if (q.trim()) {
-      const needle = q.trim().toLowerCase();
-      out = out.filter((r) =>
-        keys.some((k) => String((r as any)[k] ?? "").toLowerCase().includes(needle)),
-      );
-    }
 
     Object.entries(filters).forEach(([key, values]) => {
       if (values && values.length) {
@@ -136,7 +112,7 @@ export function TableSection<R extends { id: React.Key }>({
     }
 
     return out;
-  }, [rows, q, filters, sort, keys, columns]);
+  }, [rows, filters, sort, columns]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pageCount);
@@ -157,67 +133,39 @@ export function TableSection<R extends { id: React.Key }>({
   const resetToFirstPage = () => setPage(1);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {kpis && kpis.length > 0 && (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
+      {kpis && kpis.length > 0 && <KpiRow items={kpis} />}
+
+      {(controls || actions || chips.length > 0) && (
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)},minmax(180px,1fr))`,
-            gap: 20,
-            overflowX: "auto",
-            padding: "2px 1px 4px",
+            position: "sticky",
+            top: 0,
+            zIndex: 20,
+            padding: "var(--sp-2) 0",
+            background: "var(--surface-card)",
+            borderBottom: "1px solid var(--border-subtle)",
           }}
         >
-          {kpis.map((k, i) => (
-            <div key={i} style={{ minWidth: 0 }}>
-              <KpiCard
-                strip
-                label={k.label}
-                value={k.value}
-                footnote={k.footnote}
-                delta={k.delta}
-                deltaLabel={k.deltaLabel}
-                trend={k.trend}
-                accent={(["blue", "teal", "amber", "plum"] as KpiAccent[])[i % 4]}
-              />
-            </div>
-          ))}
+          <FilterBar
+            controls={controls}
+            applied={chips}
+            onRemove={(c) => {
+              const chip = c as (typeof chips)[number];
+              setFilters((f) => ({
+                ...f,
+                [chip.columnKey]: (f[chip.columnKey] || []).filter((v) => v !== chip.value),
+              }));
+              resetToFirstPage();
+            }}
+            onClearAll={() => {
+              setFilters({});
+              resetToFirstPage();
+            }}
+            actions={actions}
+          />
         </div>
       )}
-
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 20,
-          padding: "12px 0",
-          background: "var(--surface-card)",
-          borderBottom: "1px solid var(--border-subtle)",
-        }}
-      >
-        <FilterBar
-          search={q}
-          onSearchChange={(e) => {
-            setQ(e.target.value);
-            resetToFirstPage();
-          }}
-          controls={controls}
-          applied={chips}
-          onRemove={(c) => {
-            const chip = c as (typeof chips)[number];
-            setFilters((f) => ({
-              ...f,
-              [chip.columnKey]: (f[chip.columnKey] || []).filter((v) => v !== chip.value),
-            }));
-            resetToFirstPage();
-          }}
-          onClearAll={() => {
-            setFilters({});
-            resetToFirstPage();
-          }}
-          actions={actions}
-        />
-      </div>
 
       {selectable && selected.length > 0 && bulkActions && (
         <div
@@ -253,19 +201,18 @@ export function TableSection<R extends { id: React.Key }>({
       >
         {filtered.length === 0 ? (
           <EmptyState
-            icon={q || chips.length ? "filter" : emptyIcon}
-            title={q || chips.length ? "No matches" : emptyTitle}
+            icon={chips.length ? "filter" : emptyIcon}
+            title={chips.length ? "No matches" : emptyTitle}
             description={
-              q || chips.length
-                ? "Clear a column filter or widen your search to see more rows."
+              chips.length
+                ? "Clear a column filter to see more rows."
                 : emptyDescription
             }
             action={
-              q || chips.length ? (
+              chips.length ? (
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    setQ("");
                     setFilters({});
                     resetToFirstPage();
                   }}

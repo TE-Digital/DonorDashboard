@@ -167,15 +167,15 @@ export const AdminContactRequestsPage: React.FC = () => {
     const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const recent = requests.filter((r) => new Date(r.created_at).getTime() >= week).length;
     return [
-      { label: "Requests", value: requests.length, footnote: "received in total", accent: "blue" },
+      { label: "Requests", value: requests.length, footnote: "received in total", mark: "requests" },
       {
         label: "Awaiting reply",
         value: open,
         footnote: open ? "need handling" : "inbox clear",
-        accent: open ? "amber" : "teal",
+        mark: open ? "overdue" : "ontrack",
       },
-      { label: "Renewals", value: renewals, footnote: "donor renewals", accent: "teal" },
-      { label: "This week", value: recent, footnote: "in the last 7 days", accent: "plum" },
+      { label: "Renewals", value: renewals, footnote: "donor renewals", mark: "donors" },
+      { label: "This week", value: recent, footnote: "in the last 7 days", mark: "time" },
     ];
   })();
 
@@ -273,6 +273,7 @@ export const AdminContactRequestsPage: React.FC = () => {
         <PageHeader
           title="Contact & renewal requests"
           subtitle="Overview of donor renewal requests and other contact leads submitted via the dashboards or future public forms."
+          actions={<LumenButton variant="secondary" icon="refresh-cw" onClick={loadRequests}>Refresh</LumenButton>}
         />
 
         {error && (
@@ -285,7 +286,6 @@ export const AdminContactRequestsPage: React.FC = () => {
           kpis={kpis}
           columns={columns}
           rows={filteredRequests}
-          searchKeys={["name", "email", "message", "source"]}
           controls={
             <>
               <Select
@@ -317,11 +317,6 @@ export const AdminContactRequestsPage: React.FC = () => {
           emptyTitle="No contact requests"
           emptyDescription="Requests submitted from the dashboards appear here."
           emptyIcon="inbox"
-          actions={
-            <LumenButton variant="secondary" icon="download" onClick={loadRequests}>
-              Refresh
-            </LumenButton>
-          }
         />
       </Stack>
 

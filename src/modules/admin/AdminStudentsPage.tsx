@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabaseClient";
 import { Anchor, Group, Stack, Text } from "@mantine/core";
 import { Link, useNavigate } from "react-router-dom";
 import {
+  ContactCell,
   LoadingState,
   PageHeader,
   StatusBadge,
@@ -11,6 +12,7 @@ import {
   type TableKpi,
 } from "../../design-system";
 import { Button, type DataColumn } from "../../design-system/lumen";
+import { StudentFormDrawer } from "./StudentFormDrawer";
 import styles from "./AdminDirectory.module.scss";
 
 type StudentRow = {
@@ -24,6 +26,9 @@ type StudentRow = {
   grade_level: string | null;
   village: string | null;
   scholarship: string | null;
+  /** Who to call about this student, and on which number. From students.contact. */
+  guardian_name: string | null;
+  guardian_phone: string | null;
   birthdate: string | null;
   age_years: number | null;
   last_report_date: string | null;
@@ -35,6 +40,7 @@ export const AdminStudentsPage: React.FC = () => {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -43,7 +49,7 @@ export const AdminStudentsPage: React.FC = () => {
     const { data: sData, error: sError } = await supabase
       .from("students")
       .select(
-        "id, name, nickname, school_id, responsible_teacher_id, grade_level, village, scholarship, created_at, birthdate, monthly_support_expected"
+        "id, name, nickname, school_id, responsible_teacher_id, grade_level, village, scholarship, created_at, birthdate, monthly_support_expected, contact"
       )
       .order("name", { ascending: true });
 
@@ -195,6 +201,8 @@ export const AdminStudentsPage: React.FC = () => {
         grade_level: s.grade_level ?? null,
         village: s.village ?? null,
         scholarship: s.scholarship ?? null,
+        guardian_name: s.contact?.guardian ?? null,
+        guardian_phone: s.contact?.phone ?? null,
         birthdate: s.birthdate ?? null,
         age_years,
         last_report_date: lastReportDate,
@@ -278,19 +286,19 @@ export const AdminStudentsPage: React.FC = () => {
       : null;
 
     return [
-      { label: "Students", value: students.length, footnote: "on the register", accent: "blue" },
+      { label: "Students", value: students.length, footnote: "on the register", mark: "students" },
       {
         label: "Reports overdue",
         value: overdue,
         footnote: overdue ? "need chasing" : "all up to date",
-        accent: overdue ? "amber" : "teal",
+        mark: overdue ? "overdue" : "ontrack",
       },
-      { label: "Schools represented", value: schools, footnote: "with a student", accent: "teal" },
+      { label: "Schools represented", value: schools, footnote: "with a student", mark: "schools" },
       {
         label: "Average age",
         value: avgAge ?? "—",
         footnote: avgAge ? "years" : "no birthdates on file",
-        accent: "plum",
+        mark: "average",
       },
     ];
   }, [students]);
@@ -346,6 +354,23 @@ export const AdminStudentsPage: React.FC = () => {
           "–"
         ),
     },
+    {
+      // The guardian's number, one click from the clipboard. A teacher chasing
+      // a missing report needs to dial it, not read it.
+      key: "contact",
+      label: "Contact",
+      width: 90,
+      sortable: false,
+      filterable: false,
+      render: (s) => (
+        <ContactCell
+          phone={s.guardian_phone}
+          owner={s.guardian_name ? `${s.guardian_name} · ${s.name ?? ""}`.trim() : s.name}
+          channels={["phone"]}
+          labels={{ phone: "Copy guardian's phone number" }}
+        />
+      ),
+    },
     { key: "grade_level", label: "Grade", width: 90 },
     { key: "village", label: "Village", width: 130 },
     { key: "scholarship", label: "Scholarship", width: 140 },
@@ -392,9 +417,28 @@ export const AdminStudentsPage: React.FC = () => {
       )}
 
       <Stack gap="md" className={styles.page}>
+        <StudentFormDrawer
+          opened={studentDrawerOpen}
+          onClose={() => setStudentDrawerOpen(false)}
+          onCreated={(student) => {
+            setStudentDrawerOpen(false);
+            navigate(`/admin/students/${student.id}`);
+          }}
+        />
+
         <PageHeader
           title="Students"
           subtitle="Overview of all registered students, their schools, teachers, and report status."
+          actions={
+            <>
+              <Button variant="secondary" icon="download" onClick={handleExport} disabled={exporting}>
+                {exporting ? "Exporting…" : "Export CSV"}
+              </Button>
+              <Button variant="primary" icon="plus" onClick={() => setStudentDrawerOpen(true)}>
+                Add student
+              </Button>
+            </>
+          }
         />
 
         {!loading && (
@@ -404,26 +448,14 @@ export const AdminStudentsPage: React.FC = () => {
             rows={students}
             density="compact"
             pageSize={14}
-            searchPlaceholder="Search students, schools, teachers, or IDs"
-            searchKeys={["name", "nickname", "school_name", "teacher_name", "village"]}
             onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
             emptyTitle="No students found"
             emptyDescription="Start by adding a new student."
             emptyIcon="users"
             emptyAction={
-              <Button variant="secondary" icon="plus" onClick={() => navigate("/admin/students/new")}>
+              <Button variant="secondary" icon="plus" onClick={() => setStudentDrawerOpen(true)}>
                 Add student
               </Button>
-            }
-            actions={
-              <>
-                <Button variant="secondary" icon="download" onClick={handleExport} disabled={exporting}>
-                  {exporting ? "Exporting…" : "Export CSV"}
-                </Button>
-                <Button variant="primary" icon="plus" onClick={() => navigate("/admin/students/new")}>
-                  Add student
-                </Button>
-              </>
             }
           />
         )}

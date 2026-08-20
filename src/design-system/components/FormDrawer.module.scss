@@ -1,0 +1,116 @@
+// src/design-system/components/FormDrawer.module.scss
+//
+// The drawer is three bands: a header that stays, a body that scrolls, and a
+// footer that stays. Mantine's own padding is turned off in the component so
+// the three own their edges — otherwise the footer floats above a padded gap.
+
+.content {
+  display: flex;
+  flex-direction: column;
+  // Mantine's drawer content scrolls itself by default, which would carry the
+  // header and the action bar away with the fields. Only .scroll scrolls here.
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+
+.header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+.heading {
+  min-width: 0;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+}
+
+.crumb {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.crumb:hover,
+.crumb:focus-visible {
+  color: var(--text-heading);
+  text-decoration: underline;
+}
+
+.crumbCurrent {
+  color: var(--text-heading);
+  font-weight: var(--fw-medium);
+}
+
+.crumbSeparator {
+  color: var(--text-subtle);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.subtitle {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  text-wrap: pretty;
+}
+
+// The only band that scrolls. `min-height: 0` is what lets it shrink inside the
+// flex column instead of pushing the footer off the bottom of the drawer.
+.scroll {
+  // The saving overlay a form renders is absolutely positioned; without this it
+  // resolves to an ancestor outside the drawer and dims the whole window.
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-6);
+}
+
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+.footerStatus {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}

@@ -135,7 +135,7 @@ export const shadow = {
 
 export const fontSize = {
   xs: 12,
-  sm: 13,
+  sm: 14,
   md: 14,
   lg: 16,
   xl: 19,

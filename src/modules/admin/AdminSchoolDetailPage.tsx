@@ -9,10 +9,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Menu, Modal, Stack, Text, Group } from "@mantine/core";
-import { useNavigate, useParams } from "react-router-dom";
-import { LoadingState, TableSection } from "../../design-system";
-import { Badge, Button, Icon, Tabs, type DataColumn } from "../../design-system/lumen";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { KpiRow, LoadingState, TableSection, type KpiItem } from "../../design-system";
+import { Badge, Banner, Button, Icon, Tabs, type DataColumn } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
+import { StudentFormDrawer } from "./StudentFormDrawer";
+import { TeacherFormDrawer } from "./TeacherFormDrawer";
+import { isMissingColumnError, teacherColumnsAvailable } from "./teacherProfile";
 import {
   deriveSchoolProfile,
   statusTone,
@@ -75,6 +78,21 @@ export const AdminSchoolDetailPage: React.FC = () => {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Roster building happens here, in drawers, rather than by leaving the page.
+  const [teacherDrawerOpen, setTeacherDrawerOpen] = useState(false);
+  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
+  const [notice, setNotice] = useState<{ tone: "success" | "warning"; text: string } | null>(null);
+  /** Bumped after a drawer saves, to re-run the load effect. */
+  const [reloadKey, setReloadKey] = useState(0);
+  /** False until the teacher-profile migration lands: a teacher cannot name a
+   *  school, so this page can only see the ones supervising its students. */
+  const [teacherLinkSupported, setTeacherLinkSupported] = useState(true);
+
+  // The add-school route lands here with ?created=1 rather than confirming on a
+  // screen the admin is about to leave.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const justCreated = searchParams.get("created") === "1";
+
   useEffect(() => {
     const load = async () => {
       if (!schoolId) {
@@ -129,6 +147,30 @@ export const AdminSchoolDetailPage: React.FC = () => {
       const profilesById = new Map<string, any>();
       (profileData ?? []).forEach((profile: any) => profilesById.set(profile.id, profile));
 
+      // Teachers reach a school two ways: by supervising one of its students,
+      // and by representing it on their own profile. The second needs the
+      // school_id column from the teacher-profile migration, so a missing
+      // column simply means nobody is linked that way yet.
+      const schoolTeacherResult = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone")
+        .eq("school_id", schoolId);
+
+      if (schoolTeacherResult.error && !isMissingColumnError(schoolTeacherResult.error)) {
+        console.error("Error loading school teachers", schoolTeacherResult.error);
+      }
+
+      setTeacherLinkSupported(!isMissingColumnError(schoolTeacherResult.error));
+
+      const schoolTeachers = (schoolTeacherResult.data ?? []) as any[];
+      schoolTeachers.forEach((profile) => {
+        if (!profilesById.has(profile.id)) profilesById.set(profile.id, profile);
+      });
+
+      const allTeacherIds = Array.from(
+        new Set([...teacherIds, ...schoolTeachers.map((profile) => profile.id as string)]),
+      );
+
       // Latest report per student, and the set of students reporting in each period.
       const latestByStudent = new Map<string, string>();
       const byPeriod = new Map<string, Set<string>>();
@@ -155,7 +197,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
         lastReport: latestByStudent.get(student.id) ?? null,
       }));
 
-      const mappedTeachers: TeacherRow[] = teacherIds.map((id) => {
+      const mappedTeachers: TeacherRow[] = allTeacherIds.map((id) => {
         const profile = profilesById.get(id);
         const mine = mappedStudents.filter((student) => student.teacherId === id);
         const latest = mine
@@ -196,7 +238,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
     };
 
     void load();
-  }, [schoolId]);
+  }, [schoolId, reloadKey]);
 
   const profile: SchoolProfile | null = useMemo(
     () => (school ? deriveSchoolProfile(school) : null),
@@ -270,12 +312,12 @@ export const AdminSchoolDetailPage: React.FC = () => {
   const unassigned = students.filter((student) => !student.teacherId).length;
   const reported = students.filter((student) => student.lastReport).length;
 
-  const kpis = [
-    { label: "Students recorded", value: String(students.length) },
-    { label: "Teachers recorded", value: String(teachers.length) },
-    { label: "Grade range", value: `${profile.gradeFrom}–${profile.gradeTo}` },
-    { label: "Dormitory", value: profile.dormitory },
-    { label: "Reporting", value: `${reported}/${students.length || 0}` },
+  const kpis: KpiItem[] = [
+    { label: "Students recorded", value: String(students.length), mark: "students" },
+    { label: "Teachers recorded", value: String(teachers.length), mark: "teachers" },
+    { label: "Grade range", value: `${profile.gradeFrom}–${profile.gradeTo}`, mark: "grade" },
+    { label: "Dormitory", value: profile.dormitory, mark: "dormitory" },
+    { label: "Reporting", value: `${reported}/${students.length || 0}`, mark: "reports" },
   ];
 
   const overviewSections: Array<{ title: string; fields: Array<[string, string, number]> }> = [
@@ -409,8 +451,8 @@ export const AdminSchoolDetailPage: React.FC = () => {
               </span>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item onClick={() => navigate("/admin/students/new")}>Add student</Menu.Item>
-              <Menu.Item onClick={() => navigate("/admin/users/new")}>Invite teacher</Menu.Item>
+              <Menu.Item onClick={() => setStudentDrawerOpen(true)}>Add student</Menu.Item>
+              <Menu.Item onClick={() => setTeacherDrawerOpen(true)}>Add teacher</Menu.Item>
               <Menu.Item onClick={() => navigate("/admin/reports/new")}>Add report</Menu.Item>
             </Menu.Dropdown>
           </Menu>
@@ -433,14 +475,41 @@ export const AdminSchoolDetailPage: React.FC = () => {
         </div>
       </header>
 
-      <div className={styles.detailKpis}>
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className={styles.detailKpi}>
-            <span className={styles.detailKpiLabel}>{kpi.label}</span>
-            <span className={styles.detailKpiValue}>{kpi.value}</span>
-          </div>
-        ))}
-      </div>
+      {justCreated && (
+        <Banner
+          tone="success"
+          title="School created"
+          action={
+            <Button
+              variant="ghost"
+              onClick={() => {
+                searchParams.delete("created");
+                setSearchParams(searchParams, { replace: true });
+              }}
+            >
+              Dismiss
+            </Button>
+          }
+        >
+          {school.name} is on the programme. Add the teachers who represent it and the students who
+          attend it — both open here with the school already filled in.
+        </Banner>
+      )}
+
+      {notice && (
+        <Banner
+          tone={notice.tone}
+          action={
+            <Button variant="ghost" onClick={() => setNotice(null)}>
+              Dismiss
+            </Button>
+          }
+        >
+          {notice.text}
+        </Banner>
+      )}
+
+      <KpiRow items={kpis} />
 
       <Tabs
         value={tab}
@@ -454,7 +523,33 @@ export const AdminSchoolDetailPage: React.FC = () => {
       />
 
       {tab === "overview" && (
-        <div className={styles.detailOverview}>
+        <>
+          <Banner
+            tone={students.length === 0 || teachers.length === 0 ? "warning" : "info"}
+            title={
+              students.length === 0 || teachers.length === 0
+                ? "This school has no roster yet"
+                : "Roster"
+            }
+            action={
+              <Group gap="xs" wrap="nowrap">
+                <Button variant="secondary" icon="plus" onClick={() => setTeacherDrawerOpen(true)}>
+                  Add teacher
+                </Button>
+                <Button variant="primary" icon="plus" onClick={() => setStudentDrawerOpen(true)}>
+                  Add student
+                </Button>
+              </Group>
+            }
+          >
+            {teachers.length} teacher{teachers.length === 1 ? "" : "s"} and {students.length} student
+            {students.length === 1 ? "" : "s"} are linked to {school.name}. Both forms open here with
+            the school already selected.
+            {!teacherLinkSupported &&
+              " A teacher invited from here is created and emailed, but cannot carry this school until the teacher-profile migration is applied — they will appear above once they supervise one of its students."}
+          </Banner>
+
+          <div className={styles.detailOverview}>
           <div className={styles.detailFields}>
             {overviewSections.map((section) => (
               <section key={section.title}>
@@ -502,8 +597,9 @@ export const AdminSchoolDetailPage: React.FC = () => {
                 </div>
               ))}
             </div>
-          </aside>
-        </div>
+            </aside>
+          </div>
+        </>
       )}
 
       {tab === "teachers" && (
@@ -512,11 +608,13 @@ export const AdminSchoolDetailPage: React.FC = () => {
           rows={teachers}
           density="compact"
           pageSize={14}
-          searchPlaceholder="Search teachers, email or IDs"
-          searchKeys={["displayId", "name", "email", "phone"]}
-          onRowClick={(teacher) => navigate(`/admin/teachers/${teacher.id}/students`)}
+          onRowClick={(teacher) => navigate(`/admin/teachers/${teacher.id}`)}
           emptyTitle="No teachers recorded for this school"
-          emptyDescription="Teachers appear here once they supervise a student at this school."
+          emptyDescription={
+            teacherLinkSupported
+              ? "Teachers appear here once they represent this school or supervise one of its students."
+              : "Teachers appear here once they supervise a student at this school. Linking a teacher to a school directly needs the teacher-profile migration."
+          }
           emptyIcon="users"
         />
       )}
@@ -527,17 +625,10 @@ export const AdminSchoolDetailPage: React.FC = () => {
           rows={students}
           density="compact"
           pageSize={14}
-          searchPlaceholder="Search students, grades or teachers"
-          searchKeys={["displayId", "name", "grade", "teacherName", "scholarship"]}
           onRowClick={(student) => navigate(`/admin/students/${student.id}`)}
           emptyTitle="No students recorded for this school"
           emptyDescription="Add a student and link them to this school."
           emptyIcon="graduation-cap"
-          actions={
-            <Button variant="primary" icon="plus" onClick={() => navigate("/admin/students/new")}>
-              Add student
-            </Button>
-          }
         />
       )}
 
@@ -573,6 +664,44 @@ export const AdminSchoolDetailPage: React.FC = () => {
           })}
         </div>
       )}
+
+      <TeacherFormDrawer
+        opened={teacherDrawerOpen}
+        onClose={() => setTeacherDrawerOpen(false)}
+        defaultSchoolId={school.id}
+        lockSchool
+        contextLabel={school.name}
+        onCreated={(teacher) => {
+          setTeacherDrawerOpen(false);
+          setNotice(
+            teacher.warning || !teacher.extended
+              ? {
+                  tone: "warning",
+                  text:
+                    teacher.warning ??
+                    `The invitation for ${teacher.email} was sent, but the Thai name, LINE ID, school and notes were not saved — the profiles table does not have those columns yet.`,
+                }
+              : {
+                  tone: "success",
+                  text: `An invitation email was requested for ${teacher.email}. They represent ${school.name}.`,
+                },
+          );
+          setReloadKey((key) => key + 1);
+        }}
+      />
+
+      <StudentFormDrawer
+        opened={studentDrawerOpen}
+        onClose={() => setStudentDrawerOpen(false)}
+        defaultSchoolId={school.id}
+        lockSchool
+        contextLabel={school.name}
+        onCreated={(student) => {
+          setStudentDrawerOpen(false);
+          setNotice({ tone: "success", text: `${student.name} was added to ${school.name}.` });
+          setReloadKey((key) => key + 1);
+        }}
+      />
     </Stack>
   );
 };

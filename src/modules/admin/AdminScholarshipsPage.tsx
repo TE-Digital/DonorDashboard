@@ -256,19 +256,19 @@ export const AdminScholarshipsPage: React.FC = () => {
     const active = tableRows.filter((r) => r.status === "active").length;
     const currency = tableRows[0]?.currency ?? "THB";
     return [
-      { label: "Scholarships", value: tableRows.length, footnote: "in this view", accent: "blue" },
+      { label: "Scholarships", value: tableRows.length, footnote: "in this view", mark: "scholarships" },
       {
         label: "Committed",
         value: total.toLocaleString("en-US", { maximumFractionDigits: 0 }),
         footnote: currency,
-        accent: "teal",
+        mark: "money",
       },
-      { label: "Active now", value: active, footnote: "running this period", accent: "amber" },
+      { label: "Active now", value: active, footnote: "running this period", mark: "time" },
       {
         label: "Paid",
         value: paid,
         footnote: `${tableRows.length - paid} awaiting payment`,
-        accent: "plum",
+        mark: "ontrack",
       },
     ];
   })();
@@ -319,6 +319,12 @@ export const AdminScholarshipsPage: React.FC = () => {
       <PageHeader
         title="Scholarships"
         subtitle="Every award, who funds it, and whether it has been paid."
+        actions={
+          <>
+            <LumenButton variant="secondary" icon="download" onClick={handleExport}>Export to Excel</LumenButton>
+            <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/scholarships/new")}>Add scholarship</LumenButton>
+          </>
+        }
       />
 
       <InlineMessage tone="error">{error}</InlineMessage>
@@ -327,7 +333,6 @@ export const AdminScholarshipsPage: React.FC = () => {
         kpis={kpis}
         columns={columns}
         rows={tableRows}
-        searchKeys={["student", "donor", "grant"]}
         onRowClick={(r) => navigate(`/admin/scholarships/${r.id}/edit`)}
         controls={
           <>
@@ -362,20 +367,6 @@ export const AdminScholarshipsPage: React.FC = () => {
           >
             Add scholarship
           </LumenButton>
-        }
-        actions={
-          <>
-            <LumenButton variant="secondary" icon="download" onClick={handleExport}>
-              Export to Excel
-            </LumenButton>
-            <LumenButton
-              variant="primary"
-              icon="plus"
-              onClick={() => navigate("/admin/scholarships/new")}
-            >
-              Add scholarship
-            </LumenButton>
-          </>
         }
       />
     </Stack>

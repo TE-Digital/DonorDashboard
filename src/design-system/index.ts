@@ -17,6 +17,10 @@ export type { PageHeaderProps } from "./components/PageHeader";
 export { SectionCard } from "./components/SectionCard";
 export type { SectionCardProps } from "./components/SectionCard";
 
+// The KPI band. Lists, detail records and dashboards all render this one.
+export { KpiRow } from "./components/KpiRow";
+export type { KpiItem, KpiMark, KpiRowProps } from "./components/KpiRow";
+
 export { StatCard } from "./components/StatCard";
 export type { StatCardProps } from "./components/StatCard";
 
@@ -38,6 +42,7 @@ export {
   FormSection,
   FieldLabel,
   FormError,
+  FormFeedback,
   FormFooter,
 } from "./components/FormLayout";
 export type {
@@ -45,12 +50,24 @@ export type {
   FormBodyProps,
   FormSectionProps,
   FieldLabelProps,
+  FormFeedbackProps,
   FormFooterProps,
   FormStep,
+  FormTone,
 } from "./components/FormLayout";
+
+// The form that opens on top of another screen: right-hand drawer, sticky
+// header and action bar, only the fields scroll.
+export { FormDrawer } from "./components/FormDrawer";
+export type { FormDrawerCrumb, FormDrawerProps } from "./components/FormDrawer";
 
 export { FormActions } from "./components/FormActions";
 export type { FormActionsProps } from "./components/FormActions";
+
+// Contact channels as copy-to-clipboard icons. Replaces an email column and a
+// phone column with one narrow cell.
+export { ContactCell, CopyIconButton, copyToClipboard, showCopyFeedback, showCopyFailure } from "./components/ContactCell";
+export type { ContactCellProps, ContactKind, CopyFeedback, CopyIconButtonProps } from "./components/ContactCell";
 
 // The standard list-screen shape: KPI row, filter bar, sortable + filterable
 // grid, pagination. Every table in the product is built from this.

@@ -1,0 +1,40 @@
+// The KPI band shared by list screens, detail records and dashboards.
+// Column count comes from the item count via --kpi-cols; below the desktop
+// breakpoint the row wraps on its own rather than scrolling sideways.
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(var(--kpi-cols, 4), minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.cell {
+  min-width: 0;
+}
+
+.clickable,
+.cell > * {
+  height: 100%;
+}
+
+.clickable {
+  border-radius: var(--radius);
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--action-primary);
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .row {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

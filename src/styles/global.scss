@@ -112,6 +112,30 @@ select {
   --button-bd: 1px solid var(--border-subtle);
 }
 
+// A button mid-save is busy, not disabled: it keeps its own colour and its
+// label, and the spinner sits where an icon would. Mantine's default greys it
+// out and hides the label, which reads as "this control died".
+//
+// Mantine leaves `data-variant` off a default (filled) button, so the busy
+// rules match on `[data-loading][disabled]` — two attributes, enough to beat
+// the `:disabled` greying above — and only paint the fill when the button is
+// the filled one.
+.mantine-Button-root[data-loading][disabled] {
+  opacity: 1;
+  cursor: progress;
+}
+
+.mantine-Button-root[data-loading][disabled]:not([data-variant]),
+.mantine-Button-root[data-loading][disabled][data-variant="filled"] {
+  --button-bg: var(--action-primary);
+  --button-color: var(--text-inverse);
+  --button-bd: 1px solid var(--action-primary);
+}
+
+// Mantine swaps the label out for a centred spinner using inline transforms;
+// that reads fine once the fill stays live. The words for what is happening
+// come from the form footer's status line beside the button.
+
 .mantine-ActionIcon-root {
   --ai-radius: var(--radius);
   --ai-bg: transparent;
@@ -136,8 +160,11 @@ select {
 }
 
 // ── Inputs ───────────────────────────────────────────────────────────────
-// A field is where a person does the actual work, so it gets the room to say
-// so: a 52px box, 16px value text, and a 14px label sitting directly above it.
+// A field is where a person does the actual work, but it sits on the same grid
+// as everything else: a 44px box on the control ramp, 14px value text, and a
+// 14px label directly above it. The old 52px/16px field was a size no other
+// control in the app used, which is what made forms read as a different
+// product from the screens around them.
 // Mantine drives every input dimension off `--input-height-*`, so remapping
 // that ramp to the control tokens restyles TextInput, Select, NumberInput,
 // Textarea, DateInput and friends in one place — no per-component overrides.
@@ -151,9 +178,9 @@ select {
 .mantine-Input-wrapper {
   --input-height-xs: var(--control-h-sm);
   --input-height-sm: var(--control-h-md);
-  --input-height-md: var(--control-h-xl);
-  --input-height-lg: var(--control-h-xl);
-  --input-height-xl: 60px;
+  --input-height-md: var(--control-h-lg);
+  --input-height-lg: var(--control-h-lg);
+  --input-height-xl: var(--control-h-xl);
 }
 
 .mantine-Input-input {
@@ -171,17 +198,17 @@ select {
 .mantine-Input-input[data-size="md"],
 .mantine-Input-input[data-size="lg"],
 .mantine-Input-input[data-size="xl"] {
-  padding-inline: var(--sp-4);
-  font-size: var(--fs-control);
-  line-height: var(--lh-control);
+  padding-inline: var(--sp-3);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
 }
 
 // Multi-line fields keep the same rhythm but grow downward instead of
 // centring a single line, so the first row of text is not glued to the border.
 .mantine-Textarea-input,
 textarea.mantine-Input-input {
-  min-height: calc(var(--control-h-xl) + var(--sp-7));
-  padding-block: var(--sp-3);
+  min-height: calc(var(--control-h-lg) + var(--sp-6));
+  padding-block: var(--sp-2);
   line-height: var(--lh-body);
 }
 
@@ -275,8 +302,8 @@ textarea.mantine-Input-input {
 .mantine-SegmentedControl-label {
   display: grid;
   place-items: center;
-  min-height: calc(var(--control-h-xl) - 2px);
-  padding-inline: var(--sp-4);
+  min-height: calc(var(--control-h-lg) - 2px);
+  padding-inline: var(--sp-3);
   color: var(--text-body);
   font-size: var(--fs-body);
 }

@@ -10,16 +10,15 @@ import {
   Select,
   Textarea,
   Grid,
-  Divider,
   Avatar,
   FileInput,
   Table,
   Badge,
   Image,
 } from "@mantine/core";
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useNavigate, useParams, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { LoadingState, StatusBadge } from "../../design-system";
+import { FormSection, LoadingState, StatusBadge } from "../../design-system";
 
 type School = { id: string; name: string };
 type TeacherOption = { value: string; label: string };
@@ -59,6 +58,7 @@ export const AdminStudentDetailPage: React.FC = () => {
   const params = useParams<{ studentId?: string; id?: string }>();
   const routeStudentId = params.studentId ?? params.id ?? "";
   const isNew = !routeStudentId || routeStudentId === "create";
+  const [searchParams] = useSearchParams();
 
   const navigate = useNavigate();
 
@@ -360,6 +360,11 @@ export const AdminStudentDetailPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeStudentId, isNew]);
 
+  useEffect(() => {
+    const teacherUserId = searchParams.get("teacherUserId");
+    if (isNew && teacherUserId) setTeacherProfileId(teacherUserId);
+  }, [isNew, searchParams]);
+
   // ---------- derive public URL for photo ----------
   useEffect(() => {
     if (profilePhotoPath) {
@@ -552,7 +557,7 @@ export const AdminStudentDetailPage: React.FC = () => {
     navigate("/admin/students");
   };
 
-  const title = isNew ? "Add student" : "Student details";
+  const title = isNew ? "Add student" : "Edit student";
 
   return (
     <div style={{ position: "relative" }}>
@@ -567,7 +572,7 @@ export const AdminStudentDetailPage: React.FC = () => {
             <Text size="sm" c="dimmed">
               {isNew
                 ? "Create a new student, link them to a school and teacher, and capture the minimum contact details."
-                : "Edit the student's information, contact details, and see related scholarships and reports."}
+                : "Update the student's information, contacts, and programme links."}
             </Text>
           </div>
 
@@ -595,12 +600,8 @@ export const AdminStudentDetailPage: React.FC = () => {
           <Stack gap="lg">
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 4 }}>
+                <FormSection title="Photo" hint="Internal record photo">
                 <Stack gap="sm">
-                  <Text fw={500} size="sm">
-                    Photo
-                  </Text>
-                  <Divider />
-
                   <Group>
                     <Avatar
                       size={96}
@@ -629,10 +630,12 @@ export const AdminStudentDetailPage: React.FC = () => {
                     {isNew ? "Save student first" : "Upload"}
                   </Button>
                 </Stack>
+                </FormSection>
               </Grid.Col>
 
               {/* RIGHT COLUMN: form fields */}
               <Grid.Col span={{ base: 12, md: 8 }}>
+                <FormSection title="Student" hint="Identity and placement">
                 <Stack gap="sm">
                   <TextInput
                     label="Student name"
@@ -690,17 +693,14 @@ export const AdminStudentDetailPage: React.FC = () => {
                     onChange={(e) => setMonthlySupport(e.currentTarget.value)}
                   />
                 </Stack>
+                </FormSection>
               </Grid.Col>
             </Grid>
 
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 6 }}>
+                <FormSection title="Links & support" hint="Who is responsible, and under which grant">
                 <Stack gap="sm">
-                  <Text fw={500} size="sm">
-                    Links & roles
-                  </Text>
-                  <Divider />
-
                   <Select
                     label="Responsible teacher"
                     placeholder="Select teacher"
@@ -719,15 +719,12 @@ export const AdminStudentDetailPage: React.FC = () => {
                     clearable
                   />
                 </Stack>
+                </FormSection>
               </Grid.Col>
 
               <Grid.Col span={{ base: 12, md: 6 }}>
+                <FormSection title="Contact" hint="Internal only — never shown to donors">
                 <Stack gap="sm">
-                  <Text fw={500} size="sm">
-                    Contact (internal only)
-                  </Text>
-                  <Divider />
-
                   <TextInput
                     label="Guardian name"
                     value={contactGuardian}
@@ -756,15 +753,11 @@ export const AdminStudentDetailPage: React.FC = () => {
                     }
                   />
                 </Stack>
+                </FormSection>
               </Grid.Col>
             </Grid>
 
-            <Stack gap="sm">
-              <Text fw={500} size="sm">
-                Short bio / background
-              </Text>
-              <Divider />
-
+            <FormSection title="Background" hint="Context for teachers and donor reports">
               <Textarea
                 minRows={4}
                 autosize
@@ -772,18 +765,18 @@ export const AdminStudentDetailPage: React.FC = () => {
                 onChange={(e) => setBio(e.currentTarget.value)}
                 placeholder="Anything that helps donors or teachers understand the student's situation (not public web content)."
               />
-            </Stack>
+            </FormSection>
 
             <Group justify="space-between" mt="md">
-              <Link to="/admin/students">
-                <Text size="sm">← Back to students</Text>
+              <Link to={isNew ? "/admin/students" : `/admin/students/${routeStudentId}`}>
+                <Text size="sm">← {isNew ? "Back to students" : "Back to overview"}</Text>
               </Link>
               <Group>
                 <Button
                   variant="outline"
                   color="gray"
                   component={Link}
-                  to="/admin/students"
+                  to={isNew ? "/admin/students" : `/admin/students/${routeStudentId}`}
                 >
                   Cancel
                 </Button>
@@ -796,12 +789,10 @@ export const AdminStudentDetailPage: React.FC = () => {
         </form>
 
         {/* Scholarships */}
-        <Stack gap="sm" mt="lg">
-          <Group justify="space-between" align="center">
-            <Text fw={500} size="sm">
-              Scholarships
-            </Text>
-            {!isNew && studentIdForLinks && (
+        <FormSection
+          title="Scholarships"
+          actions={
+            !isNew && studentIdForLinks ? (
               <Button
                 component={Link}
                 to={`/admin/scholarships/new${studentQueryParam}`}
@@ -810,9 +801,9 @@ export const AdminStudentDetailPage: React.FC = () => {
               >
                 New scholarship
               </Button>
-            )}
-          </Group>
-          <Divider />
+            ) : null
+          }
+        >
 
 {isNew ? (
   <Text size="sm" c="dimmed">
@@ -882,15 +873,13 @@ export const AdminStudentDetailPage: React.FC = () => {
     </Table.Tbody>
   </Table>
 )}
-        </Stack>
+        </FormSection>
 
         {/* Reports */}
-        <Stack gap="sm" mt="lg">
-          <Group justify="space-between" align="center">
-            <Text fw={500} size="sm">
-              Term updates / reports
-            </Text>
-            {!isNew && studentIdForLinks && (
+        <FormSection
+          title="Term updates / reports"
+          actions={
+            !isNew && studentIdForLinks ? (
               <Button
                 component={Link}
                 to={`/admin/reports/new${studentQueryParam}`}
@@ -899,9 +888,9 @@ export const AdminStudentDetailPage: React.FC = () => {
               >
                 New report
               </Button>
-            )}
-          </Group>
-          <Divider />
+            ) : null
+          }
+        >
 
           {isNew ? (
             <Text size="sm" c="dimmed">
@@ -990,7 +979,7 @@ export const AdminStudentDetailPage: React.FC = () => {
               </Table.Tbody>
             </Table>
           )}
-        </Stack>
+        </FormSection>
       </Stack>
     </div>
   );

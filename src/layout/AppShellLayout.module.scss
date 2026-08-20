@@ -124,3 +124,9 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-panel);
 }
+
+// The preview banner sits above the page content, inside the same column, so it
+// scrolls with the page rather than pinning a permanent stripe to the chrome.
+.viewNotice {
+  margin-bottom: var(--sp-5);
+}

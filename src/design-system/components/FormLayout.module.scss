@@ -4,31 +4,26 @@
 // different from the next. Field, label and description styling is not here —
 // styles/global.scss owns that, for inputs on every screen at once.
 //
-// The rhythm: 32px page title, a step strip when the form is multi-part, then
-// sections separated by a hairline rule, and a sticky action bar at the foot.
+// The rhythm: the shared page header, a step strip when the form is multi-part,
+// then sections separated by a hairline rule, and the action bar at the foot of
+// the page — pinned there even when the form is short.
+//
+// The page is a flex column that fills the scroll panel, so `margin-top: auto`
+// on the action bar puts it on the bottom edge rather than trailing whatever
+// the last field happened to be.
 
 .page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
   width: 100%;
   max-width: none;
-  padding: 2px var(--sp-1) var(--sp-8);
+  padding: 2px var(--sp-1) 0;
   color: var(--text-heading);
 }
 
-.title {
-  margin: 0 0 var(--sp-7);
-  color: var(--text-heading);
-  // Stays on the scale at both ends: display (32) up to hero (44).
-  font-size: clamp(var(--fs-display), 3vw, var(--fs-hero));
-  line-height: var(--lh-hero);
-  font-weight: var(--fw-bold);
-  letter-spacing: var(--ls-tight);
-}
-
-.subtitle {
-  margin: calc(var(--sp-7) * -1 + var(--sp-2)) 0 var(--sp-7);
-  color: var(--text-muted);
-  font-size: var(--fs-body);
-  line-height: var(--lh-body);
+.header {
+  margin-bottom: var(--sp-6);
 }
 
 // ── Step strip ───────────────────────────────────────────────────────────
@@ -87,33 +82,47 @@
 // ── Sections ─────────────────────────────────────────────────────────────
 
 .form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   width: 100%;
 }
 
 .section {
-  padding: var(--sp-7) 0 var(--sp-8);
+  padding: var(--sp-5) 0 var(--sp-6);
+
+  &:first-of-type {
+    padding-top: 0;
+  }
 }
 
 .sectionHeading {
   display: flex;
   align-items: baseline;
   gap: var(--sp-3);
-  margin: 0 0 var(--sp-6);
-  padding: 0 0 var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  padding: 0 0 var(--sp-3);
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.sectionActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
 
 .sectionTitle {
   margin: 0;
   color: var(--text-heading);
-  font-size: var(--fs-h2);
-  line-height: var(--lh-h2);
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
   font-weight: var(--fw-semibold);
 }
 
 .sectionHint {
   color: var(--text-subtle);
-  font-size: var(--fs-body);
+  font-size: var(--fs-sm);
 }
 
 // The label above a control that is not an <input> — a SegmentedControl, a
@@ -131,18 +140,60 @@
   color: var(--red-500);
 }
 
-.error {
-  margin-top: var(--sp-5);
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--red-100);
+// ── Feedback ─────────────────────────────────────────────────────────────
+// What the form says back. One shape, four tones; the glyph and the stroke do
+// the work, so a success does not read as a second error.
+
+.feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-3);
+  border: 1px solid;
   border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+}
+
+.feedbackText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feedbackTitle {
+  font-weight: var(--fw-semibold);
+}
+
+.error {
+  border-color: var(--red-100);
   color: var(--red-700);
   background: var(--red-50);
-  font-size: var(--fs-body);
+}
+
+.success {
+  border-color: var(--green-100);
+  color: var(--green-700);
+  background: var(--green-50);
+}
+
+.info {
+  border-color: var(--blue-100);
+  color: var(--blue-700);
+  background: var(--blue-25);
+}
+
+.warning {
+  border-color: var(--amber-100);
+  color: var(--amber-700);
+  background: var(--amber-50);
 }
 
 // ── Action bar ───────────────────────────────────────────────────────────
-// Stays in reach on a long form instead of hiding at the bottom of the scroll.
+// `margin-top: auto` holds it on the bottom edge of a short form; `sticky`
+// keeps it in reach on a long one. Both, so it is in the same place either way.
 
 .actions {
   position: sticky;
@@ -153,8 +204,8 @@
   justify-content: space-between;
   gap: var(--sp-3);
   flex-wrap: wrap;
-  margin-top: var(--sp-1);
-  padding: var(--sp-4) 0;
+  margin-top: auto;
+  padding: var(--sp-3) 0;
   border-top: 1px solid var(--border-subtle);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(10px);
@@ -164,6 +215,11 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
+}
+
+.actionsStatus {
+  color: var(--text-subtle);
+  font-size: var(--fs-sm);
 }
 
 @media (max-width: 760px) {

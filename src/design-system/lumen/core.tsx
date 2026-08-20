@@ -194,6 +194,8 @@ export interface InputProps {
   fullWidth?: boolean;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
   ariaLabel?: string;
+  /** Reach the underlying field — focusing a dialog's box on open, mostly. */
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -208,6 +210,7 @@ export const Input: React.FC<InputProps> = ({
   fullWidth,
   onChange,
   ariaLabel,
+  inputRef,
 }) => {
   const [f, setF] = React.useState(false);
   const h = H[size];
@@ -235,6 +238,7 @@ export const Input: React.FC<InputProps> = ({
     >
       {icon && <Icon name={icon} size={14} color="var(--text-subtle)" />}
       <input
+        ref={inputRef}
         type={type}
         value={value}
         defaultValue={defaultValue}

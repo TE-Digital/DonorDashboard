@@ -1,14 +1,16 @@
 // src/modules/admin/AdminDashboardPage.tsx
 import React, { useEffect, useState } from "react";
-import { SimpleGrid, Stack, Button } from "@mantine/core";
+import { Stack, Button } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { HeroSection } from "../../components/HeroSection";
-import { LoadingState, PageHeader, StatCard } from "../../design-system";
+import { KpiRow, LoadingState, PageHeader } from "../../design-system";
+import { StudentFormDrawer } from "./StudentFormDrawer";
 
 export const AdminDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
 
   const [stats, setStats] = useState({
     students: 0,
@@ -131,11 +133,20 @@ export const AdminDashboardPage: React.FC = () => {
     <Stack>
       <HeroSection />
 
+      <StudentFormDrawer
+        opened={studentDrawerOpen}
+        onClose={() => setStudentDrawerOpen(false)}
+        onCreated={(student) => {
+          setStudentDrawerOpen(false);
+          navigate(`/admin/students/${student.id}`);
+        }}
+      />
+
       <PageHeader
         title="Dashboard Overview"
         actions={
           <>
-            <Button variant="default" size="xs" onClick={() => navigate("/admin/students/new")}>
+            <Button variant="default" size="xs" onClick={() => setStudentDrawerOpen(true)}>
               Add student
             </Button>
             <Button variant="default"
@@ -158,19 +169,23 @@ export const AdminDashboardPage: React.FC = () => {
         }
       />
 
-      <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md" mt="xs">
-        <StatCard label="Students" value={stats.students} />
-        <StatCard label="Teachers" value={stats.teachers} />
-        <StatCard label="Schools" value={stats.schools} />
-        <StatCard label="Donors" value={stats.donors} />
-        <StatCard label="Active scholarships" value={stats.scholarships_active} />
-        <StatCard label="Total scholarships" value={stats.scholarships_total} />
-        <StatCard label="Overdue reports" value={stats.overdue_reports} />
-        <StatCard
-          label="Open contact requests"
-          value={stats.contact_requests_unhandled}
-        />
-      </SimpleGrid>
+      <KpiRow
+        columns={4}
+        items={[
+          { label: "Students", value: stats.students, mark: "students" },
+          { label: "Teachers", value: stats.teachers, mark: "teachers" },
+          { label: "Schools", value: stats.schools, mark: "schools" },
+          { label: "Donors", value: stats.donors, mark: "donors" },
+          { label: "Active scholarships", value: stats.scholarships_active, mark: "ontrack" },
+          { label: "Total scholarships", value: stats.scholarships_total, mark: "scholarships" },
+          { label: "Overdue reports", value: stats.overdue_reports, mark: "overdue" },
+          {
+            label: "Open contact requests",
+            value: stats.contact_requests_unhandled,
+            mark: "requests",
+          },
+        ]}
+      />
     </Stack>
   );
 };

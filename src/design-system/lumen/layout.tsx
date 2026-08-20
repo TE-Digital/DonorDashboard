@@ -128,7 +128,19 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         </p>
       )}
     </div>
-    {actions && <div style={{ display: "flex", gap: 8, paddingTop: 6 }}>{actions}</div>}
+    {actions && (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          flexWrap: "wrap",
+          gap: 8,
+          paddingTop: 6,
+        }}
+      >
+        {actions}
+      </div>
+    )}
   </header>
 );
 

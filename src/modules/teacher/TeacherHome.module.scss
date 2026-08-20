@@ -1,0 +1,121 @@
+// src/modules/teacher/TeacherHome.module.scss
+//
+// The teacher product's two local layouts: the due-report list on the overview,
+// and the identity block on the profile. Everything else on those screens is a
+// shared component.
+
+.dueList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dueRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.dueRow:last-child {
+  border-bottom: none;
+}
+
+// The name and its context are the click target for the student; the actions
+// beside them are their own buttons, so the row is not one big ambiguous hit.
+.dueIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dueName {
+  color: var(--text-heading);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.dueIdentity:hover .dueName,
+.dueIdentity:focus-visible .dueName {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dueMeta {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-wrap: pretty;
+}
+
+.dueActions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--sp-5) var(--sp-4);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+// ── Profile ──────────────────────────────────────────────────────────────
+
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.profileIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profileName {
+  margin: 0;
+  font-size: var(--fs-h2);
+  line-height: var(--lh-h2);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.profileMeta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-4) var(--sp-5);
+}
+
+.fieldLabel {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
+
+.fieldValue {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-heading);
+  font-size: var(--fs-sm);
+  text-wrap: pretty;
+}

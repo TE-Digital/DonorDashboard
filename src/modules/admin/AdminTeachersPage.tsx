@@ -1,10 +1,20 @@
 // src/modules/admin/AdminTeachersPage.tsx
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Anchor, Stack, Text } from "@mantine/core";
+import { Anchor, Avatar, Stack, Text } from "@mantine/core";
 import { Link, useNavigate } from "react-router-dom";
-import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
-import { Badge, type DataColumn } from "../../design-system/lumen";
+import { ContactCell, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { TeacherFormDrawer } from "./TeacherFormDrawer";
+import { AccessBadge, AccessMenu } from "./AccessActions";
+import {
+  ACCESS_META,
+  accessStateOf,
+  loadAccessMap,
+  type AccessMap,
+} from "./userAccess";
+import { TEACHER_BASE_COLUMNS, TEACHER_EXTENDED_COLUMNS, isMissingColumnError } from "./teacherProfile";
+import { Badge, Button, type DataColumn } from "../../design-system/lumen";
+import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import styles from "./AdminDirectory.module.scss";
 
 interface TeacherRow {
@@ -12,6 +22,8 @@ interface TeacherRow {
   full_name: string | null;
   email: string | null;
   phone: string | null;
+  /** LINE is the channel teachers actually answer on. Null until the profile migration lands. */
+  line_id: string | null;
   created_at: string | null;
   studentCount: number;
   overdueCount: number;
@@ -24,20 +36,38 @@ interface TeacherRow {
 export const AdminTeachersPage: React.FC = () => {
   const [teachers, setTeachers] = useState<TeacherRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teacherDrawerOpen, setTeacherDrawerOpen] = useState(false);
+  /** Who can sign in, read from auth.users rather than stored on the profile. */
+  const [access, setAccess] = useState<AccessMap>({ byUser: {}, available: false, error: null });
 
-  useEffect(() => {
-    const load = async () => {
+  const load = React.useCallback(async () => {
       setLoading(true);
 
-      // 1) Load all profiles (users)
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, phone, created_at");
+      // Who can sign in travels with the directory. An admin scanning teachers
+      // asks "who still has no account?" before anything else on this screen.
+      setAccess(await loadAccessMap());
 
-      if (profilesError) {
-        console.error("Error loading profiles", profilesError);
+      // 1) Load all profiles (users). The extended columns carry the LINE ID —
+      //    the channel a teacher actually answers on — and are dropped when the
+      //    teacher-profile migration has not been applied.
+      const extended = await supabase.from("profiles").select(TEACHER_EXTENDED_COLUMNS);
+
+      if (extended.error && !isMissingColumnError(extended.error)) {
+        console.error("Error loading profiles", extended.error);
         setLoading(false);
         return;
+      }
+
+      let profiles = extended.data as any[] | null;
+
+      if (extended.error) {
+        const base = await supabase.from("profiles").select(TEACHER_BASE_COLUMNS);
+        if (base.error) {
+          console.error("Error loading profiles", base.error);
+          setLoading(false);
+          return;
+        }
+        profiles = base.data as any[];
       }
 
       // 2) Load all roles
@@ -65,6 +95,7 @@ export const AdminTeachersPage: React.FC = () => {
           full_name: p.full_name,
           email: p.email,
           phone: p.phone,
+          line_id: p.line_id ?? null,
           created_at: p.created_at,
           studentCount: 0,
           overdueCount: 0,
@@ -226,10 +257,11 @@ export const AdminTeachersPage: React.FC = () => {
 
       setTeachers(enriched);
       setLoading(false);
-    };
-
-    load();
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const navigate = useNavigate();
 
@@ -240,18 +272,33 @@ export const AdminTeachersPage: React.FC = () => {
     const withOverdue = teachers.filter((t) => t.overdueCount > 0).length;
     const avg = teachers.length ? Math.round((students / teachers.length) * 10) / 10 : 0;
 
+    // Teachers who cannot use the platform yet: no account, or an invitation
+    // still sitting unopened. This is the number an admin acts on.
+    const waiting = access.available
+      ? teachers.filter((t) => {
+          const state = accessStateOf(access.byUser[t.id]);
+          return state === "none" || state === "invited" || state === "stale";
+        }).length
+      : 0;
+
     return [
-      { label: "Teachers", value: teachers.length, footnote: "with an account", accent: "blue" },
-      { label: "Students covered", value: students, footnote: "assigned in total", accent: "teal" },
+      { label: "Teachers", value: teachers.length, footnote: "in the directory", mark: "teachers" },
+      {
+        label: "Not signed in yet",
+        value: access.available ? waiting : "—",
+        footnote: access.available ? "invited or without an account" : "account state unavailable",
+        mark: "accounts",
+      },
+      { label: "Students covered", value: students, footnote: "assigned in total", mark: "students" },
       {
         label: "Teachers with overdue",
         value: withOverdue,
         footnote: `${overdue} reports outstanding`,
-        accent: withOverdue ? "amber" : "teal",
+        mark: withOverdue ? "overdue" : "ontrack",
       },
-      { label: "Average caseload", value: avg, footnote: "students per teacher", accent: "plum" },
+      { label: "Average caseload", value: avg, footnote: "students per teacher", mark: "average" },
     ];
-  }, [teachers]);
+  }, [teachers, access]);
 
   const columns: DataColumn<TeacherRow>[] = [
     {
@@ -266,27 +313,49 @@ export const AdminTeachersPage: React.FC = () => {
       label: "Name",
       width: 200,
       render: (t) => (
-        <Anchor component={Link} to={`/admin/teachers/${t.id}/students`}>
-          {t.full_name || "(no name)"}
-        </Anchor>
+        <div className={styles.profileName}>
+          <Avatar size={28} style={profileAvatarStyle(t.id)}>{profileInitials(t.full_name)}</Avatar>
+          <Anchor component={Link} to={`/admin/teachers/${t.id}`}>
+            {t.full_name || "(no name)"}
+          </Anchor>
+        </div>
       ),
     },
     { key: "schools", label: "School", width: 200 },
     { key: "subject", label: "Subject", width: 150, muted: true },
     {
-      key: "email",
-      label: "Email",
-      width: 230,
-      render: (t) =>
-        t.email ? (
-          <Anchor href={`mailto:${t.email}`}>{t.email}</Anchor>
-        ) : (
-          <Text c="dimmed" size="sm">
-            no email
-          </Text>
-        ),
+      // One cell instead of an email column and a phone column. Hover reads the
+      // value, click puts it on the clipboard — which is what an admin was
+      // going to do with it anyway.
+      key: "contact",
+      label: "Contact",
+      width: 110,
+      sortable: false,
+      filterable: false,
+      render: (t) => (
+        <ContactCell
+          email={t.email}
+          phone={t.phone}
+          line={t.line_id}
+          owner={t.full_name || "This teacher"}
+          channels={["email", "phone", "line"]}
+        />
+      ),
     },
-    { key: "phone", label: "Phone", width: 140, render: (t) => t.phone || "—" },
+    {
+      key: "access",
+      label: "Account",
+      width: 150,
+      // Sorting and filtering both work off the label, so "Invite not used"
+      // groups together in the column menu the way it reads on screen.
+      filterValue: (t) => ACCESS_META[accessStateOf(access.byUser[t.id])].label,
+      render: (t) => (
+        <AccessBadge
+          state={access.available ? accessStateOf(access.byUser[t.id]) : "unknown"}
+          inviteCount={access.byUser[t.id]?.invite_count}
+        />
+      ),
+    },
     {
       key: "created_at",
       label: "Created",
@@ -312,13 +381,46 @@ export const AdminTeachersPage: React.FC = () => {
           </Text>
         ),
     },
+    {
+      // Row-level actions live at the end of the row and never conflict with
+      // the row click, which opens the teacher.
+      key: "actions",
+      label: "",
+      width: 60,
+      align: "right",
+      sortable: false,
+      filterable: false,
+      render: (t) => (
+        <AccessMenu
+          userId={t.id}
+          name={t.full_name || "this teacher"}
+          email={t.email}
+          access={access.byUser[t.id]}
+          available={access.available}
+          onChanged={() => void load()}
+        />
+      ),
+    },
   ];
 
   if (loading) return <LoadingState />;
 
   return (
     <Stack className={styles.page}>
-      <PageHeader title="Teachers" subtitle="Teacher directory, assigned students, and report health." />
+      <TeacherFormDrawer
+        opened={teacherDrawerOpen}
+        onClose={() => setTeacherDrawerOpen(false)}
+        onCreated={(teacher) => {
+          setTeacherDrawerOpen(false);
+          navigate(`/admin/teachers/${teacher.id}`);
+        }}
+      />
+
+      <PageHeader
+        title="Teachers"
+        subtitle="Teacher directory, assigned students, and report health."
+        actions={<Button variant="primary" icon="plus" onClick={() => setTeacherDrawerOpen(true)}>Add teacher</Button>}
+      />
 
       <TableSection
         kpis={kpis}
@@ -326,9 +428,7 @@ export const AdminTeachersPage: React.FC = () => {
         rows={teachers}
         density="compact"
         pageSize={14}
-        searchPlaceholder="Search teachers, email, phone, or IDs"
-        searchKeys={["full_name", "email", "phone", "schools"]}
-        onRowClick={(t) => navigate(`/admin/teachers/${t.id}/students`)}
+        onRowClick={(t) => navigate(`/admin/teachers/${t.id}`)}
         emptyTitle="No teachers found"
         emptyDescription="Teachers appear here once they have an account."
         emptyIcon="users"

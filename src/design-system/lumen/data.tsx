@@ -255,7 +255,7 @@ export function DataTable<R extends { id: React.Key }>({
 
   const selW = 40;
   const cell = (align?: string, num?: boolean): React.CSSProperties => ({
-    padding: "0 16px",
+    padding: "0 var(--sp-3)",
     textAlign: (align as React.CSSProperties["textAlign"]) || "left",
     whiteSpace: "nowrap",
     fontVariantNumeric: num ? "tabular-nums" : undefined,
@@ -291,9 +291,9 @@ export function DataTable<R extends { id: React.Key }>({
                   zIndex: 4,
                   width: selW,
                   background: "var(--n-50)",
-                  height: 40,
+                  height: 36,
                   borderBottom: "1px solid var(--border-default)",
-                  padding: "0 0 0 16px",
+                  padding: "0 0 0 var(--sp-3)",
                 }}
               >
                 <Checkbox
@@ -316,7 +316,7 @@ export function DataTable<R extends { id: React.Key }>({
                     left: stick ? (selectable ? selW : 0) : undefined,
                     zIndex: stick ? 4 : 3,
                     background: "var(--n-50)",
-                    height: 40,
+                    height: 36,
                     borderBottom: "1px solid var(--border-default)",
                     boxShadow: stick ? "var(--shadow-sticky)" : undefined,
                     fontWeight: "var(--fw-semibold)" as unknown as number,
@@ -333,7 +333,7 @@ export function DataTable<R extends { id: React.Key }>({
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
-                      padding: "0 8px 0 16px",
+                      padding: "0 var(--sp-2) 0 var(--sp-3)",
                       justifyContent: c.align === "right" ? "flex-end" : "flex-start",
                     }}
                   >
@@ -347,7 +347,7 @@ export function DataTable<R extends { id: React.Key }>({
                         background: "transparent",
                         border: "none",
                         padding: 0,
-                        height: 40,
+                        height: 36,
                         font: "inherit",
                         color: active ? "var(--text-heading)" : "inherit",
                         cursor: c.sortable === false ? "default" : "pointer",
@@ -420,7 +420,7 @@ export function DataTable<R extends { id: React.Key }>({
                       zIndex: 2,
                       background: bg,
                       width: selW,
-                      padding: "0 0 0 16px",
+                      padding: "0 0 0 var(--sp-3)",
                       borderBottom: "1px solid var(--border-subtle)",
                     }}
                   >
@@ -556,17 +556,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <div style={{ flex: "1 1 260px", minWidth: 200 }}>
-        <Input
-          icon="search"
-          size="md"
-          fullWidth
-          placeholder="Search"
-          value={search}
-          onChange={onSearchChange}
-          ariaLabel="Search"
-        />
-      </div>
+      {onSearchChange && (
+        <div style={{ flex: "1 1 260px", minWidth: 200 }}>
+          <Input
+            icon="search"
+            size="md"
+            fullWidth
+            placeholder="Search"
+            value={search}
+            onChange={onSearchChange}
+            ariaLabel="Search"
+          />
+        </div>
+      )}
       {controls}
       <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>{actions}</div>
     </div>
@@ -603,6 +605,31 @@ const KPI_ACCENTS: Record<KpiAccent, string> = {
   neutral: "var(--n-400)",
 };
 
+// The mark tile: the lightest step of the family behind the glyph, and a step
+// dark enough to hold its own on it. Amber and teal need a deeper glyph than
+// their 500 to stay legible on their own tint.
+const KPI_TINTS: Record<KpiAccent, string> = {
+  blue: "var(--blue-25)",
+  teal: "var(--teal-50)",
+  amber: "var(--amber-50)",
+  green: "var(--green-50)",
+  plum: "var(--plum-50)",
+  orange: "var(--orange-50)",
+  pink: "var(--pink-50)",
+  neutral: "var(--n-100)",
+};
+
+const KPI_MARKS: Record<KpiAccent, string> = {
+  blue: "var(--blue-500)",
+  teal: "var(--teal-600)",
+  amber: "var(--amber-700)",
+  green: "var(--green-600)",
+  plum: "var(--plum-500)",
+  orange: "var(--orange-600)",
+  pink: "var(--pink-600)",
+  neutral: "var(--n-600)",
+};
+
 export interface KpiCardProps {
   label: React.ReactNode;
   value: React.ReactNode;
@@ -612,7 +639,12 @@ export interface KpiCardProps {
   trend?: "up" | "down" | "flat";
   accent?: KpiAccent;
   footnote?: React.ReactNode;
-  /** Joins the KPI into the flat, shared-border strip used above data tables. */
+  /**
+   * The glyph in the tinted tile. Its subject is what the accent colour means
+   * on a strip KPI — same metric, same mark, on every screen.
+   */
+  icon?: string;
+  /** The product KPI tile: mark on the left, value and label on the right. */
   strip?: boolean;
 }
 
@@ -625,41 +657,169 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   trend = "flat",
   accent = "blue",
   footnote,
+  icon,
   strip = false,
 }) => {
   const tone =
     trend === "up" ? "var(--green-700)" : trend === "down" ? "var(--red-500)" : "var(--text-subtle)";
+
+  const meta = (delta || footnote) && (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        marginTop: strip ? 2 : 8,
+        fontSize: 11,
+        lineHeight: "15px",
+        color: "var(--text-subtle)",
+      }}
+    >
+      {delta && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            color: tone,
+            fontWeight: "var(--fw-medium)" as unknown as number,
+          }}
+        >
+          {delta}
+        </span>
+      )}
+      <span>{deltaLabel || footnote}</span>
+    </div>
+  );
+
+  // The product tile: one line. Mark, then value, label and footnote running on
+  // together — a KPI reads as a sentence, not a stacked block. The footnote is
+  // the only part allowed to truncate, so the number and its name always show.
+  if (strip) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          height: "100%",
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: "var(--radius)",
+          boxShadow: "var(--shadow-card)",
+          padding: "var(--sp-2) var(--sp-3)",
+        }}
+      >
+        {icon && (
+          <span
+            style={{
+              display: "inline-flex",
+              flex: "0 0 auto",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 30,
+              height: 30,
+              borderRadius: "var(--radius)",
+              background: KPI_TINTS[accent] || KPI_TINTS.blue,
+              color: KPI_MARKS[accent] || KPI_MARKS.blue,
+            }}
+          >
+            <Icon name={icon} size={18} strokeWidth={1.5} />
+          </span>
+        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 6,
+            minWidth: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            style={{
+              flex: "0 0 auto",
+              fontSize: 18,
+              lineHeight: "24px",
+              fontWeight: "var(--fw-semibold)" as unknown as number,
+              letterSpacing: "var(--ls-tight)",
+              color: "var(--text-heading)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {value}
+          </span>
+          {unit && (
+            <span style={{ flex: "0 0 auto", fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>
+              {unit}
+            </span>
+          )}
+          <span
+            style={{
+              flex: "0 0 auto",
+              fontSize: "var(--fs-sm)",
+              lineHeight: "var(--lh-sm)",
+              color: "var(--text-muted)",
+            }}
+          >
+            {label}
+          </span>
+          {(delta || footnote) && (
+            <span
+              style={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                fontSize: "var(--fs-xs)",
+                lineHeight: "var(--lh-xs)",
+                color: "var(--text-subtle)",
+              }}
+            >
+              <span style={{ color: "var(--border-default)", padding: "0 2px" }}>·</span>
+              {delta && (
+                <span
+                  style={{
+                    color: tone,
+                    fontWeight: "var(--fw-medium)" as unknown as number,
+                    paddingRight: 3,
+                  }}
+                >
+                  {delta}
+                </span>
+              )}
+              {deltaLabel || footnote}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
         background: "var(--surface-card)",
         border: "1px solid var(--border-subtle)",
-        borderTop: strip ? `3px solid ${KPI_ACCENTS[accent] || KPI_ACCENTS.blue}` : undefined,
-        borderRadius: strip ? 3 : "var(--radius-lg)",
+        borderRadius: "var(--radius-lg)",
         boxShadow: "var(--shadow-card)",
-        minHeight: strip ? 116 : undefined,
-        padding: strip ? 20 : 20,
+        padding: "var(--sp-4)",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: strip ? 8 : 8 }}>
-        {!strip && (
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: KPI_ACCENTS[accent] || KPI_ACCENTS.blue,
-              flex: "0 0 auto",
-            }}
-          />
-        )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <span
           style={{
-            fontSize: strip ? 11 : "var(--fs-xs)",
-            color: strip ? "var(--text-subtle)" : "var(--text-muted)",
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            background: KPI_ACCENTS[accent] || KPI_ACCENTS.blue,
+            flex: "0 0 auto",
+          }}
+        />
+        <span
+          style={{
+            fontSize: "var(--fs-xs)",
+            color: "var(--text-muted)",
             fontWeight: "var(--fw-medium)" as unknown as number,
-            letterSpacing: strip ? "0.075em" : undefined,
-            textTransform: strip ? "uppercase" : undefined,
           }}
         >
           {label}
@@ -668,8 +828,8 @@ export const KpiCard: React.FC<KpiCardProps> = ({
       <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
         <span
           style={{
-            fontSize: strip ? 26 : "var(--fs-h1)",
-            lineHeight: strip ? 1.16 : "var(--lh-h1)",
+            fontSize: "var(--fs-h1)",
+            lineHeight: "var(--lh-h1)",
             fontWeight: "var(--fw-semibold)" as unknown as number,
             letterSpacing: "var(--ls-tight)",
             color: "var(--text-heading)",
@@ -680,33 +840,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         </span>
         {unit && <span style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>{unit}</span>}
       </div>
-      {(delta || footnote) && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginTop: strip ? 8 : 12,
-            fontSize: 11,
-            color: "var(--text-subtle)",
-          }}
-        >
-          {delta && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-                color: tone,
-                fontWeight: "var(--fw-medium)" as unknown as number,
-              }}
-            >
-              {delta}
-            </span>
-          )}
-          <span>{deltaLabel || footnote}</span>
-        </div>
-      )}
+      {meta}
     </div>
   );
 };

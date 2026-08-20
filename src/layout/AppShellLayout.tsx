@@ -12,8 +12,11 @@ import { Burger, Drawer, Image, ScrollArea } from "@mantine/core";
 import { useMantineTheme } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useAuth } from "../modules/auth/AuthContext";
+import { useViewAs } from "../modules/viewAs/ViewAsContext";
+import { ViewAsSwitcher } from "../modules/viewAs/ViewAsSwitcher";
 import { useBranding } from "../modules/theme/BrandingContext";
-import { Button, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
+import { Banner, Button, IconButton, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
+import { GlobalSearchDialog } from "../modules/search/GlobalSearchDialog";
 import classes from "./AppShellLayout.module.scss";
 
 type AppRole = "admin" | "teacher" | "donor";
@@ -74,12 +77,14 @@ function detailTitle(resource: string, tail: string[]): string {
 
 export const AppShellLayout: React.FC = () => {
   const { profile, role, roles, logout } = useAuth();
+  const { viewRole, simulated, simulatedName, resetView } = useViewAs();
   const branding = useBranding();
   const location = useLocation();
   const navigate = useNavigate();
   const theme = useMantineTheme();
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const effectiveRoles: AppRole[] = useMemo(() => {
     const result: AppRole[] = [];
@@ -102,10 +107,23 @@ export const AppShellLayout: React.FC = () => {
   // Every destination from the previous nav is still reachable; only the
   // grouping and ordering changed.
   const modules = useMemo<NavModule[]>(() => {
-    const isAdmin = effectiveRoles.includes("admin");
-    const isTeacher = effectiveRoles.includes("teacher");
-    const isDonor = effectiveRoles.includes("donor");
+    // The nav follows the view, not the account: an admin in teacher view gets
+    // the teacher product whole, without the admin console bleeding into it.
+    const isAdmin = viewRole === "admin" && effectiveRoles.includes("admin");
+    const isTeacher = viewRole === "teacher";
+    const isDonor = viewRole === "donor" && effectiveRoles.includes("donor");
     const out: NavModule[] = [];
+
+    // The teacher product is three rows and no more: what is due, who it is
+    // due for, and who you are.
+    if (isTeacher) {
+      return [
+        { id: "/teacher/dashboard", label: "Overview", icon: "house" },
+        { id: "sec-teaching", section: "Teaching" },
+        { id: "/teacher/students", label: "My students", icon: "graduation-cap" },
+        { id: "/teacher/profile", label: "My profile", icon: "contact" },
+      ];
+    }
 
     // ── 1. Overview ─────────────────────────────────────────────────────
     const overviews: NavChild[] = [];
@@ -177,7 +195,7 @@ export const AppShellLayout: React.FC = () => {
     }
 
     return out;
-  }, [effectiveRoles]);
+  }, [effectiveRoles, viewRole]);
 
   /** Deepest nav id that prefixes the current path — that row lights up. */
   const activeId = useMemo(() => {
@@ -237,13 +255,23 @@ export const AppShellLayout: React.FC = () => {
 
   const navFooter = (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <button type="button" onClick={() => go("/profile")} className={classes.profileRow}>
+      <button
+        type="button"
+        onClick={() => go(viewRole === "teacher" ? "/teacher/profile" : "/profile")}
+        className={classes.profileRow}
+      >
         <span className={classes.avatar}>{initials(profile?.full_name)}</span>
         <span className={classes.profileName}>
-          {profile?.full_name || "Signed in"}
-          {effectiveRoles.length > 0 && (
-            <span className={classes.profileRole}> · {effectiveRoles.join(", ")}</span>
-          )}
+          {viewRole === "teacher" && simulatedName ? simulatedName : profile?.full_name || "Signed in"}
+          <span className={classes.profileRole}>
+            {viewRole === "teacher"
+              ? simulated
+                ? " · teacher (preview)"
+                : " · teacher"
+              : effectiveRoles.length > 0
+                ? ` · ${effectiveRoles.join(", ")}`
+                : ""}
+          </span>
         </span>
       </button>
       <Button variant="secondary" fullWidth size="sm" onClick={handleLogout}>
@@ -251,6 +279,18 @@ export const AppShellLayout: React.FC = () => {
       </Button>
     </div>
   );
+
+  // ⌘K / Ctrl-K anywhere in the app opens the global search.
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const nav = (
     <SideNav
@@ -281,6 +321,8 @@ export const AppShellLayout: React.FC = () => {
             aria-label="Toggle navigation"
           />
           <span className={classes.mobileTitle}>{title}</span>
+          <IconButton icon="search" label="Search" onClick={() => setSearchOpen(true)} />
+          <ViewAsSwitcher />
           <span className={classes.avatar}>{initials(profile?.full_name)}</span>
         </header>
         <Drawer
@@ -297,6 +339,7 @@ export const AppShellLayout: React.FC = () => {
         <main className={classes.mobileMain}>
           <Outlet />
         </main>
+        <GlobalSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
       </div>
     );
   }
@@ -314,12 +357,32 @@ export const AppShellLayout: React.FC = () => {
             title={title}
             notifications={0}
             user={initials(profile?.full_name)}
+            actions={<ViewAsSwitcher />}
+            onSearch={() => setSearchOpen(true)}
           />
           <main className={classes.panel}>
+            {simulated && (
+              <div className={classes.viewNotice}>
+                <Banner
+                  tone="info"
+                  title="Previewing the teacher product"
+                  action={
+                    <Button variant="secondary" onClick={resetView}>
+                      Back to admin
+                    </Button>
+                  }
+                >
+                  You are seeing what {simulatedName ?? "this teacher"} sees. You are still signed in
+                  as {profile?.full_name || "an administrator"}, and anything you save is saved for
+                  real.
+                </Banner>
+              </div>
+            )}
             <Outlet />
           </main>
         </div>
       </div>
+      <GlobalSearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   );
 };

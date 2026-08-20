@@ -1,0 +1,90 @@
+// Contact icons inside a table cell.
+//
+// A directory row carried an email column and a phone column, both of them
+// wider than the data they held and neither of them ever read — an admin does
+// not read an address, they send to it. Two icons replace both columns, and
+// the value itself is one click away on the clipboard.
+
+.row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--motion-hover);
+
+  &:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-default);
+    color: var(--text-heading);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--action-primary);
+    outline-offset: 1px;
+  }
+}
+
+// The 1.2s state straight after a copy. Confirmation lands on the control the
+// admin actually clicked, so the toast is a receipt and not the only signal.
+.copied {
+  background: var(--green-50);
+  border-color: var(--green-500);
+  color: var(--green-600);
+
+  &:hover {
+    background: var(--green-50);
+    border-color: var(--green-500);
+    color: var(--green-600);
+  }
+}
+
+// Nothing recorded for this channel. Kept in place rather than hidden, so the
+// icons stay in the same order on every row and a gap reads as missing data.
+.missing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  color: var(--n-300);
+}
+
+// The value beside the icons, where a screen has room for it (detail pages).
+.value {
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toastValue {
+  font-weight: var(--fw-semibold);
+  word-break: break-all;
+}
+
+.toastOwner {
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  // Touch targets, per the accessibility rule in the design spec.
+  .button,
+  .missing {
+    width: 44px;
+    height: 44px;
+  }
+}

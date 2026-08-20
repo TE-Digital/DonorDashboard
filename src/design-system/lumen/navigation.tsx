@@ -388,6 +388,8 @@ export interface TabItem {
   value: string;
   label: React.ReactNode;
   count?: number;
+  /** Unreachable for now — an unsaved edit on the current tab, typically. */
+  disabled?: boolean;
 }
 
 export interface TabsProps {
@@ -406,7 +408,9 @@ export const Tabs: React.FC<TabsProps> = ({ tabs = [], value, onChange }) => {
           <button
             key={t.value}
             type="button"
-            onClick={() => onChange && onChange(t.value)}
+            disabled={t.disabled}
+            title={t.disabled ? "Finish or cancel the edit first" : undefined}
+            onClick={() => !t.disabled && onChange && onChange(t.value)}
             onMouseEnter={() => setH(t.value)}
             onMouseLeave={() => setH(null)}
             style={{
@@ -417,14 +421,16 @@ export const Tabs: React.FC<TabsProps> = ({ tabs = [], value, onChange }) => {
               font: "inherit",
               fontSize: "var(--fs-body)",
               fontWeight: (on ? "var(--fw-semibold)" : "var(--fw-regular)") as unknown as number,
-              color: on
-                ? "var(--text-heading)"
-                : h === t.value
-                  ? "var(--text-body)"
-                  : "var(--text-muted)",
+              color: t.disabled
+                ? "var(--text-subtle)"
+                : on
+                  ? "var(--text-heading)"
+                  : h === t.value
+                    ? "var(--text-body)"
+                    : "var(--text-muted)",
               borderBottom: "2px solid " + (on ? "var(--action-primary)" : "transparent"),
               marginBottom: -1,
-              cursor: "pointer",
+              cursor: t.disabled ? "not-allowed" : "pointer",
               transition: "var(--motion-hover)",
               display: "inline-flex",
               alignItems: "center",
@@ -460,6 +466,8 @@ export interface TopBarProps {
   actions?: React.ReactNode;
   notifications?: number;
   user?: React.ReactNode;
+  /** Opens the global search. Without it the magnifier is not rendered. */
+  onSearch?: () => void;
 }
 
 export const TopBar: React.FC<TopBarProps> = ({
@@ -470,6 +478,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   actions,
   notifications,
   user,
+  onSearch,
 }) => (
   <header
     style={{
@@ -567,7 +576,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     </div>
     <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
       {actions}
-      <IconButton icon="search" label="Search" />
+      {onSearch && <IconButton icon="search" label="Search" onClick={onSearch} />}
       <span style={{ position: "relative", display: "inline-flex" }}>
         <IconButton icon="bell" label="Notifications" />
         {!!notifications && notifications > 0 && (

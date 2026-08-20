@@ -11,14 +11,14 @@ export interface StatCardProps {
 }
 
 /**
- * The dashboard metric tile, now the design system's KpiCard: accent dot,
- * tabular-figure value at 24/30, footnote line.
+ * A single metric tile in the product's one KPI look: 3px accent rule on top,
+ * uppercase label, tabular-figure value.
  *
- * Prop shape unchanged — `hint` maps to the KPI footnote. Reach for KpiCard
- * directly when a metric has a trend delta to show.
+ * Prop shape unchanged — `hint` maps to the KPI footnote. Prefer KpiRow when a
+ * screen shows a band of metrics; it handles the grid and the accent cycle.
  */
 export const StatCard: React.FC<StatCardProps> = ({ label, value, hint, onClick }) => {
-  const card = <KpiCard label={label} value={value} footnote={hint} accent="blue" />;
+  const card = <KpiCard strip label={label} value={value} footnote={hint} accent="blue" />;
 
   if (!onClick) return card;
 

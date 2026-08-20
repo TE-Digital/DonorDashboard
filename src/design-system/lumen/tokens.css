@@ -164,8 +164,8 @@
   --lh-h3: 22px;
   --fs-body: 14px;
   --lh-body: 21px;
-  --fs-sm: 13px;
-  --lh-sm: 19px;
+  --fs-sm: 14px;
+  --lh-sm: 21px;
   --fs-xs: 12px;
   --lh-xs: 17px;
   --fs-micro: 11px;
@@ -179,8 +179,9 @@
   --ls-normal: 0;
   --ls-caps: 0.06em;
 
-  --text-table: 13px;
-  --lh-table: 18px;
+  /* Body cells use the same reading size as navigation and page content. */
+  --text-table: var(--fs-body);
+  --lh-table: var(--lh-body);
 
   /* Form controls. One size for the value a person types, one for its label,
      one for the helper line underneath — so every field on every page agrees. */

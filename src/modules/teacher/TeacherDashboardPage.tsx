@@ -1,177 +1,208 @@
 // src/modules/teacher/TeacherDashboardPage.tsx
-import React, { useEffect, useState } from "react";
+//
+// What a teacher opens the product for: what is owed, and to whom.
+//
+// The screen leads with the reporting deadline rather than with counts, because
+// the only thing a teacher has to do here is send term updates. Everything else
+// on the page is context for that one job.
+//
+// Whose roster this is comes from the view layer, not the session, so an admin
+// previewing a teacher sees exactly what that teacher would — see
+// modules/viewAs/ViewAsContext.
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Stack } from "@mantine/core";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { useAuth } from "../auth/AuthContext";
-import { SimpleGrid, Stack } from "@mantine/core";
-import { LoadingState, PageHeader, StatCard } from "../../design-system";
+import { KpiRow, LoadingState, PageHeader } from "../../design-system";
+import { Badge, Banner, Button, Card } from "../../design-system/lumen";
+import { useEffectiveTeacherId } from "../viewAs/ViewAsContext";
+import {
+  cycleOf,
+  duePhrase,
+  formatDueDate,
+  reportStatusFor,
+  type ReportState,
+} from "./reportingCycle";
+import styles from "./TeacherHome.module.scss";
 
-type ReportStatus = "ok" | "missing" | "overdue";
-
-interface StudentRow {
+interface RosterStudent {
   id: string;
-  last_report_date?: string | null;
-  report_status?: ReportStatus;
+  name: string;
+  grade: string | null;
+  school: string | null;
+  state: ReportState;
+  lastReport: string | null;
 }
 
-export const TeacherDashboardPage: React.FC = () => {
-  const { profile } = useAuth();
+const TONE: Record<ReportState, "success" | "warning" | "danger"> = {
+  submitted: "success",
+  due: "warning",
+  overdue: "danger",
+};
 
+const STATE_LABEL: Record<ReportState, string> = {
+  submitted: "Sent this cycle",
+  due: "Not sent yet",
+  overdue: "Overdue",
+};
+
+const asDate = (value: string | null) =>
+  value
+    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
+        new Date(value),
+      )
+    : "No report yet";
+
+export const TeacherDashboardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const teacherId = useEffectiveTeacherId();
+
+  const [students, setStudents] = useState<RosterStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    students: 0,
-    scholarships: 0,
-    missingReports: 0,
-  });
+
+  // One "now" for the whole render, so a student cannot be measured against a
+  // different cycle from the one named in the heading.
+  const today = useMemo(() => new Date(), []);
+  const cycle = useMemo(() => cycleOf(today), [today]);
 
   useEffect(() => {
     const load = async () => {
-      if (!profile) return;
+      if (!teacherId) return;
       setLoading(true);
 
-      // 1) Load students + their term_updates (same logic as TeacherStudentsPage)
-      const { data: studentData, error } = await supabase
+      const { data, error } = await supabase
         .from("students")
-        .select(
-          `
-          id,
-          name,
-          school_id,
-          grade_level,
-          village,
-          monthly_support_expected,
-          created_at,
-          grant_type_id,
-          birthdate,
-          bio,
-          schools(name),
-          term_updates ( report_date )
-        `
-        )
-        .eq("responsible_teacher_id", profile.id);
+        .select("id, name, grade_level, schools ( name ), term_updates ( report_date )")
+        .eq("responsible_teacher_id", teacherId)
+        .order("name");
 
       if (error) {
-        console.error("Error loading students for teacher dashboard", error);
-        setStats({ students: 0, scholarships: 0, missingReports: 0 });
+        console.error("Error loading teacher roster", error);
+        setStudents([]);
         setLoading(false);
         return;
       }
 
-      const baseRows: StudentRow[] =
-        studentData?.map((s: any) => {
-          const lastReport = s.term_updates?.length
-            ? [...s.term_updates].sort(
-                (a, b) =>
-                  new Date(b.report_date).getTime() -
-                  new Date(a.report_date).getTime()
-              )[0]
-            : null;
+      const rows: RosterStudent[] = ((data ?? []) as any[]).map((row) => {
+        const reportDates = ((row.term_updates ?? []) as Array<{ report_date: string | null }>)
+          .map((update) => update.report_date)
+          .filter(Boolean) as string[];
 
-          return {
-            id: s.id,
-            last_report_date: lastReport?.report_date ?? null,
-          };
-        }) ?? [];
-
-      const studentIds = baseRows.map((r) => r.id);
-      const studentCount = studentIds.length;
-
-      if (studentIds.length === 0) {
-        setStats({
-          students: 0,
-          scholarships: 0,
-          missingReports: 0,
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 2) Load scholarships for these students (same filter as TeacherStudentsPage)
-      const { data: scholarshipData, error: schError } = await supabase
-        .from("scholarship_awards")
-        .select("id, student_id, status, period_start, period_end")
-        .in("student_id", studentIds);
-
-      if (schError) {
-        console.error(
-          "Error loading scholarships for teacher dashboard",
-          schError
-        );
-      }
-
-      const today = new Date();
-      const todayIso = today.toISOString().slice(0, 10);
-
-      const activeScholarshipStudents = new Set<string>();
-      let totalScholarships = 0;
-
-      (scholarshipData ?? []).forEach((sch: any) => {
-        totalScholarships += 1;
-        if (
-          sch.status === "active" &&
-          sch.period_start <= todayIso &&
-          sch.period_end >= todayIso
-        ) {
-          activeScholarshipStudents.add(sch.student_id);
-        }
+        return {
+          id: row.id,
+          name: row.name ?? "(no name)",
+          grade: row.grade_level ?? null,
+          // supabase-js widens a to-one embed to an array; both shapes appear.
+          school: row.schools?.name ?? row.schools?.[0]?.name ?? null,
+          state: reportStatusFor(reportDates, today).state,
+          lastReport: [...reportDates].sort().at(-1) ?? null,
+        };
       });
 
-      // 3) Determine overdue / missing reports
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-      const sixMonthsAgoIso = sixMonthsAgo.toISOString().slice(0, 10);
-
-      let missingReports = 0;
-
-      baseRows.forEach((row) => {
-        const hasActiveScholarship = activeScholarshipStudents.has(row.id);
-
-        if (!hasActiveScholarship) {
-          // Only students with an active scholarship are required to have reports
-          return;
-        }
-
-        const last = row.last_report_date;
-
-        if (!last) {
-          // No report at all → missing
-          missingReports += 1;
-        } else if (last < sixMonthsAgoIso) {
-          // Report older than 6 months → overdue
-          missingReports += 1;
-        }
-      });
-
-      setStats({
-        students: studentCount,
-        scholarships: totalScholarships,
-        missingReports,
-      });
-
+      setStudents(rows);
       setLoading(false);
     };
 
-    load();
-  }, [profile]);
+    void load();
+  }, [teacherId, today]);
 
-  if (loading) {
-    return <LoadingState />;
-  }
+  const outstanding = students.filter((student) => student.state !== "submitted");
+  const overdue = students.filter((student) => student.state === "overdue");
+  const submitted = students.length - outstanding.length;
+  const deadline = reportStatusFor([], today);
+
+  if (loading) return <LoadingState />;
 
   return (
     <Stack>
-      <PageHeader title="Teacher dashboard" />
+      <PageHeader
+        title="Teaching overview"
+        subtitle={`Reporting cycle ${cycle.label} · closes ${formatDueDate(cycle.end)}`}
+      />
 
-      <SimpleGrid cols={{ base: 2, sm: 3 }}>
-        <StatCard label="My students" value={stats.students} />
-        <StatCard label="Awarded scholarships" value={stats.scholarships} />
-        <StatCard
-          label="Students with overdue reports"
-          value={stats.missingReports}
-        />
-      </SimpleGrid>
+      {/* The one notification the product owes a teacher. */}
+      {outstanding.length > 0 ? (
+        <Banner
+          tone={overdue.length ? "danger" : "warning"}
+          title={
+            overdue.length
+              ? `${overdue.length} report${overdue.length === 1 ? " is" : "s are"} overdue`
+              : `${outstanding.length} report${
+                  outstanding.length === 1 ? "" : "s"
+                } due ${duePhrase(deadline)}`
+          }
+          action={
+            <Button variant="primary" onClick={() => navigate("/teacher/students")}>
+              Open my students
+            </Button>
+          }
+        >
+          The {cycle.label} cycle closes on {formatDueDate(cycle.end)}.{" "}
+          {overdue.length > 0
+            ? "The overdue students went without a report last cycle as well."
+            : "Every student needs one term update inside the cycle."}
+        </Banner>
+      ) : (
+        <Banner tone="success" title="Nothing outstanding">
+          Every student on this roster has a report for {cycle.label}.
+        </Banner>
+      )}
+
+      <KpiRow
+        items={[
+          { label: "My students", value: String(students.length), mark: "students" },
+          {
+            label: "Reports sent this cycle",
+            value: `${submitted}/${students.length}`,
+            mark: "reports",
+          },
+          {
+            label: "Still to send",
+            value: String(outstanding.length),
+            mark: outstanding.length ? "overdue" : "ontrack",
+          },
+        ]}
+      />
+
+      <Card title={`Next reports due · ${cycle.label}`} flush>
+        {outstanding.length === 0 ? (
+          <p className={styles.empty}>
+            Nothing to send. Reports already filed appear on each student's page.
+          </p>
+        ) : (
+          <ul className={styles.dueList}>
+            {outstanding.map((student) => (
+              <li key={student.id} className={styles.dueRow}>
+                <button
+                  type="button"
+                  className={styles.dueIdentity}
+                  onClick={() => navigate(`/teacher/students/${student.id}`)}
+                >
+                  <span className={styles.dueName}>{student.name}</span>
+                  <span className={styles.dueMeta}>
+                    {student.grade ? `Class ${student.grade}` : "Class not set"}
+                    {student.school ? ` · ${student.school}` : ""} · last report{" "}
+                    {asDate(student.lastReport)}
+                  </span>
+                </button>
+                <span className={styles.dueActions}>
+                  <Badge tone={TONE[student.state]}>{STATE_LABEL[student.state]}</Badge>
+                  <Button
+                    variant="secondary"
+                    icon="plus"
+                    onClick={() => navigate(`/teacher/reports/new?studentId=${student.id}`)}
+                  >
+                    Submit report
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </Stack>
   );
 };
 
 export default TeacherDashboardPage;
-

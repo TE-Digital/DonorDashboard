@@ -175,10 +175,10 @@ export const AdminDonorsPage: React.FC = () => {
     const students = rows.reduce((sum, r) => sum + r.studentCount, 0);
     const withAgent = rows.filter((r) => r.agent !== "No agent").length;
     return [
-      { label: "Donors", value: rows.length, footnote: "on record", accent: "blue" },
-      { label: "Actively giving", value: supporting, footnote: "support a student", accent: "teal" },
-      { label: "Students supported", value: students, footnote: "across all donors", accent: "amber" },
-      { label: "With an agent", value: withAgent, footnote: "have a contact", accent: "plum" },
+      { label: "Donors", value: rows.length, footnote: "on record", mark: "donors" },
+      { label: "Actively giving", value: supporting, footnote: "support a student", mark: "ontrack" },
+      { label: "Students supported", value: students, footnote: "across all donors", mark: "students" },
+      { label: "With an agent", value: withAgent, footnote: "have a contact", mark: "accounts" },
     ];
   })();
 
@@ -217,24 +217,22 @@ export const AdminDonorsPage: React.FC = () => {
 
   return (
     <Stack>
-      <PageHeader title="Donors" subtitle="Everyone funding a scholarship, and who looks after them." />
+      <PageHeader
+        title="Donors"
+        subtitle="Everyone funding a scholarship, and who looks after them."
+        actions={<LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/donors/new")}>Add donor</LumenButton>}
+      />
 
       <TableSection
         kpis={kpis}
         columns={columns}
         rows={rows}
-        searchKeys={["name", "email", "phone", "agent"]}
         onRowClick={(d) => navigate(`/admin/donors/${d.id}/edit`)}
         emptyTitle="No donors found"
         emptyDescription="Add a donor to start recording scholarships."
         emptyIcon="users"
         emptyAction={
           <LumenButton variant="secondary" icon="plus" onClick={() => navigate("/admin/donors/new")}>
-            Add donor
-          </LumenButton>
-        }
-        actions={
-          <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/donors/new")}>
             Add donor
           </LumenButton>
         }
