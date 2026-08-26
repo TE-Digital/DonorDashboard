@@ -156,15 +156,30 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ open, on
 
         <div className={styles.body}>
           {!searched && (
-            <p className={styles.hint}>Type at least two letters to search the directory.</p>
+            <div className={styles.emptyState}>
+              <span className={styles.emptyIcon} data-tone="prompt">
+                <Icon name="search" size={20} strokeWidth={1.5} />
+              </span>
+              <p className={styles.emptyText}>Type at least two letters to search the directory.</p>
+            </div>
           )}
 
-          {searched && loading && total === 0 && <p className={styles.hint}>Searching…</p>}
+          {searched && loading && total === 0 && (
+            <div className={styles.emptyState}>
+              <span className={`${styles.emptyIcon} ${styles.emptyIconPulse}`} data-tone="prompt">
+                <Icon name="search" size={20} strokeWidth={1.5} />
+              </span>
+              <p className={styles.emptyText}>Searching…</p>
+            </div>
+          )}
 
           {searched && !loading && total === 0 && (
-            <p className={styles.hint}>
-              Nothing matches “{term.trim()}”.
-            </p>
+            <div className={styles.emptyState}>
+              <span className={styles.emptyIcon} data-tone="empty">
+                <Icon name="inbox" size={20} strokeWidth={1.5} />
+              </span>
+              <p className={styles.emptyText}>Nothing matches “{term.trim()}”.</p>
+            </div>
           )}
 
           {searched &&
@@ -212,14 +227,14 @@ export const GlobalSearchDialog: React.FC<GlobalSearchDialogProps> = ({ open, on
         </div>
 
         <div className={styles.footer}>
-          <span>
+          <span className={styles.footerHint}>
             <kbd>↑</kbd>
             <kbd>↓</kbd> to move
           </span>
-          <span>
+          <span className={styles.footerHint}>
             <kbd>↵</kbd> to open
           </span>
-          <span>
+          <span className={styles.footerHint}>
             <kbd>esc</kbd> to close
           </span>
         </div>

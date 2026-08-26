@@ -10,6 +10,9 @@
   justify-content: center;
   padding: 12vh 16px 16px;
   background: rgba(33, 30, 27, 0.32);
+  // A soft lift off the page behind it — the same "floating panel" feel as
+  // the sticky form footer's blur, not a new effect invented for this dialog.
+  backdrop-filter: blur(2px);
 }
 
 .dialog {
@@ -22,12 +25,15 @@
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-overlay);
+  // Two shadows instead of one: the token's soft ambient falloff, plus a
+  // tight contact shadow that keeps the edge crisp right where it meets the
+  // dimmed canvas. Same --shadow-overlay token as before, just paired.
+  box-shadow: var(--shadow-overlay), 0 1px 1px rgba(33, 30, 27, 0.06);
 }
 
 .field {
   flex: 0 0 auto;
-  padding: var(--sp-3);
+  padding: var(--sp-4);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -36,15 +42,66 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: var(--sp-2) var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-2) var(--sp-4);
 }
 
-.hint {
-  margin: 0;
-  padding: var(--sp-5) var(--sp-3);
-  color: var(--text-subtle);
-  font-size: var(--fs-sm);
+// The idle prompt, the loading pause and the no-results state all use the
+// same shape: an icon in a tinted roundel, then one line of copy — the "lone
+// centered sentence" replaced with something that reads as designed rather
+// than as a fallback.
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-5) var(--sp-7);
   text-align: center;
+}
+
+.emptyIcon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+
+  &[data-tone="prompt"] {
+    color: var(--blue-500);
+    background: var(--blue-25);
+  }
+
+  &[data-tone="empty"] {
+    color: var(--text-subtle);
+    background: var(--surface-sunken);
+  }
+}
+
+// A slow breathe rather than a spinner — this is a 200ms debounce, not a
+// long fetch, so a full loader would read as busier than the wait actually is.
+@keyframes searchPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.emptyIconPulse {
+  animation: searchPulse 1.2s ease-in-out infinite;
+}
+
+.emptyText {
+  margin: 0;
+  max-width: 320px;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-sm);
 }
 
 .group + .group {
@@ -117,27 +174,43 @@
 .footer {
   display: flex;
   flex: 0 0 auto;
-  gap: var(--sp-4);
-  padding: var(--sp-2) var(--sp-3);
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--border-subtle);
   background: var(--surface-sunken);
   color: var(--text-subtle);
   font-size: var(--fs-micro);
+}
 
-  kbd {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    margin-right: 3px;
-    padding: 0 4px;
-    background: var(--n-0);
-    border: 1px solid var(--border-subtle);
-    border-radius: 4px;
-    font-family: var(--font-mono);
-    font-size: 10px;
-  }
+.footerHint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+// A small physical key rather than a stretched label: a slightly heavier
+// bottom edge reads as the key's own depth, same trick a bevel would use.
+.footer kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--n-0);
+  border: 1px solid var(--border-default);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: var(--fw-medium);
+  box-shadow: var(--shadow-card);
+}
+
+.footer kbd + kbd {
+  margin-left: 2px;
 }
 
 @media (max-width: 560px) {

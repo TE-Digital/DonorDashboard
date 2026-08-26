@@ -588,6 +588,25 @@
   align-items: flex-end;
 }
 
+// Rows of fields where some carry helper text under the label and some
+// don't (e.g. Student name / Nickname). Mantine only renders a description
+// node when a field has one, so an undescribed field is shorter than its row
+// neighbour and its input sits higher. SimpleGrid already stretches every
+// field to the row's height (grid's default align-items: stretch); turning
+// each field into a flex column and pushing its input to the bottom of that
+// box moves the slack above the input instead of below it, so every input in
+// a row lands on the same baseline regardless of which fields have a
+// description. Works for any column count and any mix of described /
+// undescribed fields, not just a specific pair.
+.fieldAlign :global(.mantine-InputWrapper-root) {
+  display: flex;
+  flex-direction: column;
+}
+
+.fieldAlign :global(.mantine-InputWrapper-root > .mantine-Input-wrapper) {
+  margin-top: auto;
+}
+
 // While a record is being edited the header carries the only Save, so it has to
 // stay reachable from the bottom of a long form.
 .detailHeaderSticky {

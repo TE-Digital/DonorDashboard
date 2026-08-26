@@ -66,6 +66,9 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
   ) => {
     const [name, setName] = useState("");
     const [nickname, setNickname] = useState("");
+    // Tracks whether the admin has typed into Nickname directly, so the
+    // name-based autofill below knows to stop offering suggestions.
+    const [nicknameTouched, setNicknameTouched] = useState(false);
     const [schoolId, setSchoolId] = useState<string | null>(defaultSchoolId);
     const [gradeLevel, setGradeLevel] = useState("");
     const [birthdate, setBirthdate] = useState("");
@@ -259,163 +262,181 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
       bio,
     ]);
 
+    // Some fields carry helper text under their label and some don't, which
+    // otherwise leaves the shorter fields' inputs sitting higher than their row
+    // neighbours (Mantine only renders a description node when a field has
+    // one). `.fieldAlign` in AdminDirectory.module.scss stretches every field
+    // to the row height and pins its input to the bottom of that box, so
+    // inputs land on the same baseline across a row regardless of which
+    // fields have a description.
     return (
-      <FormBody
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save();
-        }}
-      >
-        <LoadingState variant="overlay" visible={saving} />
-        <div ref={errorRef}>
-          <FormError>{error}</FormError>
-        </div>
+      <div className={styles.fieldAlign}>
+        <FormBody
+          onSubmit={(event) => {
+            event.preventDefault();
+            void save();
+          }}
+        >
+          <LoadingState variant="overlay" visible={saving} />
+          <div ref={errorRef}>
+            <FormError>{error}</FormError>
+          </div>
 
-        <FormSection title="Student" hint="The nickname is the name donors see">
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-            <TextInput
-              label="Student name"
-              required
-              placeholder="Anucha Pankham"
-              value={name}
-              onChange={(event) => setName(event.currentTarget.value)}
-            />
-            <TextInput
-              label="Nickname"
-              description="Used in donor-facing dashboards, emails and reports"
-              placeholder="Optional"
-              value={nickname}
-              onChange={(event) => setNickname(event.currentTarget.value)}
-            />
-          </SimpleGrid>
-        </FormSection>
+          <FormSection title="Student" hint="The nickname is the name donors see">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+              <TextInput
+                label="Student name"
+                required
+                placeholder="Anucha Pankham"
+                value={name}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setName(value);
+                  if (!nicknameTouched) {
+                    setNickname(value);
+                  }
+                }}
+              />
+              <TextInput
+                label="Nickname"
+                description="Used in donor-facing dashboards, emails and reports"
+                placeholder="Optional"
+                value={nickname}
+                onChange={(event) => {
+                  setNicknameTouched(true);
+                  setNickname(event.currentTarget.value);
+                }}
+              />
+            </SimpleGrid>
+          </FormSection>
 
-        <FormSection title="Placement" hint="Where the student studies and lives">
-          <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
-            {!lockSchool && (
+          <FormSection title="Placement" hint="Where the student studies and lives">
+            <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
+              {!lockSchool && (
+                <Select
+                  label="School"
+                  placeholder="Select school"
+                  searchable
+                  clearable
+                  data={schools}
+                  value={schoolId}
+                  onChange={setSchoolId}
+                />
+              )}
+              <TextInput
+                label="Grade level"
+                placeholder="e.g. P4, M2"
+                value={gradeLevel}
+                onChange={(event) => setGradeLevel(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Birthdate"
+                type="date"
+                value={birthdate}
+                onChange={(event) => setBirthdate(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Village"
+                placeholder="Optional"
+                value={village}
+                onChange={(event) => setVillage(event.currentTarget.value)}
+              />
+            </SimpleGrid>
+          </FormSection>
+
+          <FormSection title="Links & support" hint="Who is responsible, and under which grant">
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
               <Select
-                label="School"
-                placeholder="Select school"
+                label="Responsible teacher"
+                placeholder="Select teacher"
                 searchable
                 clearable
-                data={schools}
-                value={schoolId}
-                onChange={setSchoolId}
+                data={teachers}
+                value={teacherProfileId}
+                onChange={setTeacherProfileId}
               />
-            )}
-            <TextInput
-              label="Grade level"
-              placeholder="e.g. P4, M2"
-              value={gradeLevel}
-              onChange={(event) => setGradeLevel(event.currentTarget.value)}
-            />
-            <TextInput
-              label="Birthdate"
-              type="date"
-              value={birthdate}
-              onChange={(event) => setBirthdate(event.currentTarget.value)}
-            />
-            <TextInput
-              label="Village"
-              placeholder="Optional"
-              value={village}
-              onChange={(event) => setVillage(event.currentTarget.value)}
-            />
-          </SimpleGrid>
-        </FormSection>
+              <Select
+                label="Scholarship / grant type"
+                placeholder="Select scholarship"
+                searchable
+                clearable
+                data={grantTypes}
+                value={grantTypeId}
+                onChange={setGrantTypeId}
+              />
+              <TextInput
+                label="Monthly support expected"
+                placeholder="e.g. 800"
+                value={monthlySupport}
+                onChange={(event) => setMonthlySupport(event.currentTarget.value)}
+              />
+            </SimpleGrid>
+          </FormSection>
 
-        <FormSection title="Links & support" hint="Who is responsible, and under which grant">
-          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-            <Select
-              label="Responsible teacher"
-              placeholder="Select teacher"
-              searchable
-              clearable
-              data={teachers}
-              value={teacherProfileId}
-              onChange={setTeacherProfileId}
-            />
-            <Select
-              label="Scholarship / grant type"
-              placeholder="Select scholarship"
-              searchable
-              clearable
-              data={grantTypes}
-              value={grantTypeId}
-              onChange={setGrantTypeId}
-            />
-            <TextInput
-              label="Monthly support expected"
-              placeholder="e.g. 800"
-              value={monthlySupport}
-              onChange={(event) => setMonthlySupport(event.currentTarget.value)}
-            />
-          </SimpleGrid>
-        </FormSection>
+          <FormSection title="Contact" hint="Internal only — never shown to donors">
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+              <TextInput
+                label="Guardian name"
+                required
+                placeholder="Malee Pankham"
+                value={contactGuardian}
+                onChange={(event) => setContactGuardian(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Phone"
+                required
+                placeholder="08x xxx xxxx"
+                value={contactPhone}
+                onChange={(event) => setContactPhone(event.currentTarget.value)}
+              />
+              <TextInput
+                label="Address"
+                placeholder="Optional"
+                value={contactAddress}
+                onChange={(event) => setContactAddress(event.currentTarget.value)}
+              />
+              <TextInput
+                label="LINE / WhatsApp"
+                placeholder="Optional"
+                value={contactLineOrWhatsApp}
+                onChange={(event) => setContactLineOrWhatsApp(event.currentTarget.value)}
+              />
+            </SimpleGrid>
+          </FormSection>
 
-        <FormSection title="Contact" hint="Internal only — never shown to donors">
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-            <TextInput
-              label="Guardian name"
-              required
-              placeholder="Malee Pankham"
-              value={contactGuardian}
-              onChange={(event) => setContactGuardian(event.currentTarget.value)}
+          <FormSection title="Background" hint="Context for teachers and donor reports">
+            <Textarea
+              label="Short bio"
+              minRows={4}
+              autosize
+              placeholder="Anything that helps donors or teachers understand the student's situation (not public web content)."
+              value={bio}
+              onChange={(event) => setBio(event.currentTarget.value)}
             />
-            <TextInput
-              label="Phone"
-              required
-              placeholder="08x xxx xxxx"
-              value={contactPhone}
-              onChange={(event) => setContactPhone(event.currentTarget.value)}
-            />
-            <TextInput
-              label="Address"
-              placeholder="Optional"
-              value={contactAddress}
-              onChange={(event) => setContactAddress(event.currentTarget.value)}
-            />
-            <TextInput
-              label="LINE / WhatsApp"
-              placeholder="Optional"
-              value={contactLineOrWhatsApp}
-              onChange={(event) => setContactLineOrWhatsApp(event.currentTarget.value)}
-            />
-          </SimpleGrid>
-        </FormSection>
+            <div className={styles.sectionNote}>
+              <InlineMessage tone="info" size="xs">
+                A profile photo is added from the student's own page once the record exists.
+              </InlineMessage>
+            </div>
+          </FormSection>
 
-        <FormSection title="Background" hint="Context for teachers and donor reports">
-          <Textarea
-            label="Short bio"
-            minRows={4}
-            autosize
-            placeholder="Anything that helps donors or teachers understand the student's situation (not public web content)."
-            value={bio}
-            onChange={(event) => setBio(event.currentTarget.value)}
-          />
-          <div className={styles.sectionNote}>
-            <InlineMessage tone="info" size="xs">
-              A profile photo is added from the student's own page once the record exists.
-            </InlineMessage>
-          </div>
-        </FormSection>
-
-        {showActions && (
-          <FormFooter
-            left={
-              onCancel && (
-                <Button variant="ghost" type="button" onClick={onCancel}>
-                  Cancel
-                </Button>
-              )
-            }
-          >
-            <Button variant="primary" type="submit" disabled={saving}>
-              {saving ? "Creating…" : submitLabel}
-            </Button>
-          </FormFooter>
-        )}
-      </FormBody>
+          {showActions && (
+            <FormFooter
+              left={
+                onCancel && (
+                  <Button variant="ghost" type="button" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )
+              }
+            >
+              <Button variant="primary" type="submit" disabled={saving}>
+                {saving ? "Creating…" : submitLabel}
+              </Button>
+            </FormFooter>
+          )}
+        </FormBody>
+      </div>
     );
   },
 );
