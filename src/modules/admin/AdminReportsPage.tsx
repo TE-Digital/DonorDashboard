@@ -169,6 +169,7 @@ const RELATIONS: Record<
       table: string;
       displayColumn: string;
       linkBase?: string; // optional route prefix for clickable links
+      linkSuffix?: string; // optional route suffix for clickable links
     }
   >
 > = {
@@ -194,6 +195,7 @@ const RELATIONS: Record<
       table: "donors",
       displayColumn: "name",
       linkBase: "/admin/donors/",
+      linkSuffix: "/edit",
     },
     grant_type_id: {
       table: "grant_types",
@@ -469,6 +471,9 @@ export const AdminReportsPage: React.FC = () => {
 
         for (const field of relFields) {
           const original = row[field];
+          if (original != null) {
+            newRow[`_raw_${field}`] = original;
+          }
           if (
             original != null &&
             relationMaps[field] &&
@@ -809,15 +814,15 @@ export const AdminReportsPage: React.FC = () => {
 
                           // clickable link if we have a linkBase and the original id is present somewhere
                           if (relCfg && value != null) {
-                            // this assumes the id and label are aligned; for generic use we just link by row[c] is label,
-                            // but in many cases ID will also be available as another selected column if needed.
                             const linkBase = relCfg.linkBase;
+                            const linkSuffix = relCfg.linkSuffix ?? "";
+                            const targetId = row[`_raw_${c}`] || row.id;
                             return (
                               <Table.Td key={c}>
                                 {linkBase ? (
                                   <Anchor
                                     component={Link}
-                                    to={`${linkBase}${row.id ?? ""}`}
+                                    to={`${linkBase}${targetId ?? ""}${linkSuffix}`}
                                     size="sm"
                                   >
                                     {String(value)}
