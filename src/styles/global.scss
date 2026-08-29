@@ -258,11 +258,11 @@ textarea.mantine-Input-input {
   color: var(--red-500);
 }
 
+// No helper subtext under field labels anywhere on the platform. The label and
+// the placeholder carry the meaning; anything longer belongs on the page, not
+// in the field. Hidden here so a stray description prop cannot bring it back.
 .mantine-InputWrapper-description {
-  margin-bottom: var(--sp-2);
-  color: var(--text-subtle);
-  font-size: var(--fs-control-help);
-  line-height: var(--lh-xs);
+  display: none;
 }
 
 .mantine-InputWrapper-error {

@@ -40,8 +40,9 @@ export function buildTheme(
 
   return createTheme({
     fontFamily,
-    fontFamilyMonospace:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    // One family everywhere, including the places Mantine would otherwise
+    // reach for a monospace face.
+    fontFamilyMonospace: fontFamily,
     primaryColor: "brand",
     primaryShade: 6,
     defaultRadius,
@@ -305,7 +306,18 @@ export function buildTheme(
       FileInput: {
         defaultProps: { size: "md" },
       },
-      DateInput: { defaultProps: { size: "md" } },
+      // Every date field in the product reads and writes `12 Mar 2026`. Set
+      // here rather than per page: the browser's own `input type="date"` shows
+      // 28/08/2026 in one locale and 08/28/2026 in another, is a different
+      // height from every other control, and carries its own calendar glyph.
+      DateInput: {
+        defaultProps: {
+          size: "md",
+          valueFormat: "DD MMM YYYY",
+          placeholder: "Choose date",
+          popoverProps: { withinPortal: true },
+        },
+      },
     },
   });
 }

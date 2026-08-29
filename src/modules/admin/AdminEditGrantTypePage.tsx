@@ -142,7 +142,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
       <FormBody onSubmit={handleSubmit}>
         <FormError>{error}</FormError>
 
-        <FormSection title="Grant type" hint="What this grant covers and who it is for">
+        <FormSection title="Grant type">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
               label="Name"
@@ -153,7 +153,6 @@ export const AdminEditGrantTypePage: React.FC = () => {
             />
             <Textarea
               label="Description"
-              description="Optional"
               placeholder="Short explanation, conditions, scope…"
               minRows={3}
               value={description}
@@ -162,11 +161,10 @@ export const AdminEditGrantTypePage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Amount & duration" hint="Defaults applied to every scholarship of this type">
+        <FormSection title="Amount & duration">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <NumberInput
               label="Standard scholarship amount"
-              description="For the full period"
               placeholder="e.g. 6000, 8400, 160000"
               value={amountPerPeriod}
               onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}

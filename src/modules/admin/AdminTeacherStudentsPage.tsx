@@ -64,6 +64,8 @@ export const AdminTeacherStudentsPage: React.FC = () => {
       .from("students")
       .select("id, name, school:schools(name)")
       .eq("responsible_teacher_id", teacherUserId)
+      // Archived students leave the working lists. Their records are untouched.
+      .neq("status", "archived")
       .order("name", { ascending: true });
 
     if (studentError) {
@@ -171,6 +173,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
       .from("students")
       .select("id, name")
       .is("responsible_teacher_id", null)
+      .neq("status", "archived")
       .order("name", { ascending: true });
 
     if (error) {

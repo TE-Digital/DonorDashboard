@@ -38,10 +38,10 @@ import { AdminEditGrantTypePage } from "./modules/admin/AdminEditGrantTypePage";
 import { AdminGrantTypesOverviewPage } from "./modules/admin/AdminGrantTypesOverviewPage";
 import { AdminContactRequestsPage } from "./modules/admin/AdminContactRequestsPage";
 import  AdminReportsPage  from "./modules/admin/AdminReportsPage";
+import AdminReportsBetaPage from "./modules/admin/AdminReportsBetaPage";
 
 import { AdminReportFormPage } from "./modules/admin/AdminReportFormPage";
 import { AdminNewReportPage } from "./modules/admin/AdminNewReportPage";
-import { AdminEditReportPage } from "./modules/admin/AdminEditReportPage";
 
 import { TeacherDashboardPage } from "./modules/teacher/TeacherDashboardPage";
 import { TeacherStudentsPage } from "./modules/teacher/TeacherStudentsPage";
@@ -161,6 +161,7 @@ const App: React.FC = () => {
             />
 
 <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="reports-beta" element={<AdminReportsBetaPage />} />
 
             {/* Grant / scholarship types */}
             <Route

@@ -71,7 +71,9 @@ export const TeacherStudentsPage: React.FC = () => {
           term_updates ( report_date )
         `
         )
-        .eq("responsible_teacher_id", teacherId);
+        .eq("responsible_teacher_id", teacherId)
+        // Archived students leave the working lists. Nothing about them is lost.
+        .neq("status", "archived");
 
       if (error) {
         console.error(error);

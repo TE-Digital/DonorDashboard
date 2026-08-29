@@ -2,29 +2,50 @@
 //
 // Creating a student, wherever that is done from.
 //
-// The fields are the ones the add-student screen has always had — identity,
-// placement, links and the internal contact block — regrouped into the sections
-// the rest of the product uses. The guardian and their phone are required
-// because `students_contact_required` rejects a row without them, so the check
-// happens here rather than as a database error the admin has to decode.
+// Three groups, in the order somebody describes a child to you:
 //
-// A profile photo still belongs to the student's own page: the upload is keyed
-// by student id, which does not exist until this form has saved.
+//   1. Personal details — who they are, and who to call about them
+//   2. School           — where they study
+//   3. Teacher & support— who looks after them, and under which grant
+//
+// The guardian sits inside personal details rather than in a contact section of
+// its own, because a guardian is not a separate record: they are how this
+// student is reached. `students_contact_required` agrees — a student row cannot
+// exist without a guardian name and a phone number.
+//
+// Two fields need something that does not exist yet at the moment they are
+// filled in. A school can be created from the school step without losing the
+// half-typed student, and so can a teacher. A photo is held in memory and
+// uploaded straight after the insert, because the storage path is keyed by the
+// student's id, and the id is what the insert returns.
+//
+// The field shapes, validation and lookups all live in studentProfile.ts, which
+// the edit screen and the student's own page read as well. Adding a field here
+// alone is how three screens start disagreeing.
 
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
-import {
-  FormBody,
-  FormError,
-  FormFooter,
-  FormSection,
-  InlineMessage,
-  LoadingState,
-} from "../../design-system";
+import { FormBody, FormError, FormFooter, LoadingState } from "../../design-system";
 import { Button } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
 import { writeFailureMessage, type EntityFormHandle, type EntityFormOwnerProps } from "./entityForm";
-import styles from "./AdminDirectory.module.scss";
+import { SchoolFormDrawer } from "./SchoolFormDrawer";
+import { StudentFields } from "./StudentFields";
+import { logEvent } from "./studentEvents";
+import type { CreatedSchool } from "./SchoolForm";
+import {
+  EMPTY_STUDENT_DETAILS,
+  loadGrantTypeOptions,
+  loadSchoolOptions,
+  loadTeacherOptions,
+  photoProblem,
+  toStudentRow,
+  uploadStudentPhoto,
+  validateStudentDetails,
+  type Option,
+  type SchoolOption,
+  type StudentDetailsInput,
+  type TeacherOption,
+} from "./studentProfile";
 
 export interface CreatedStudent {
   id: string;
@@ -41,11 +62,20 @@ export interface StudentFormProps extends EntityFormOwnerProps {
   defaultTeacherId?: string | null;
   /** Hides the school picker when the context already fixes the school. */
   lockSchool?: boolean;
-}
-
-interface Option {
-  value: string;
-  label: string;
+  /**
+   * Handed in when this form is already inside a drawer. The container turns
+   * "Add school" / "Add teacher" into a step of that same drawer instead of a
+   * second drawer stacked on the first. Left out on a full-page form, where
+   * this component opens its own.
+   */
+  onRequestCreateSchool?: () => void;
+  onRequestCreateTeacher?: () => void;
+  /** Schools created by the container's step, merged in and selected. */
+  extraSchools?: Array<{ id: string; name: string }>;
+  /** Teachers created by the container's step, merged in and selected. */
+  extraTeachers?: Array<{ id: string; name: string; schoolId: string | null }>;
+  /** Reports the chosen school upward, so a container's teacher step starts there. */
+  onSchoolChange?: (schoolId: string | null) => void;
 }
 
 export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
@@ -55,6 +85,11 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
       defaultSchoolId = null,
       defaultTeacherId = null,
       lockSchool = false,
+      onRequestCreateSchool,
+      onRequestCreateTeacher,
+      extraSchools,
+      extraTeachers,
+      onSchoolChange,
       onSavingChange,
       onErrorChange,
       onDirtyChange,
@@ -64,32 +99,30 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
     },
     ref,
   ) => {
-    const [name, setName] = useState("");
-    const [nickname, setNickname] = useState("");
-    // Tracks whether the admin has typed into Nickname directly, so the
-    // name-based autofill below knows to stop offering suggestions.
-    const [nicknameTouched, setNicknameTouched] = useState(false);
-    const [schoolId, setSchoolId] = useState<string | null>(defaultSchoolId);
-    const [gradeLevel, setGradeLevel] = useState("");
-    const [birthdate, setBirthdate] = useState("");
-    const [village, setVillage] = useState("");
-    const [monthlySupport, setMonthlySupport] = useState("");
-    const [teacherProfileId, setTeacherProfileId] = useState<string | null>(defaultTeacherId);
-    const [grantTypeId, setGrantTypeId] = useState<string | null>(null);
-    const [contactGuardian, setContactGuardian] = useState("");
-    const [contactPhone, setContactPhone] = useState("");
-    const [contactAddress, setContactAddress] = useState("");
-    const [contactLineOrWhatsApp, setContactLineOrWhatsApp] = useState("");
-    const [bio, setBio] = useState("");
+    const [details, setDetails] = useState<StudentDetailsInput>({
+      ...EMPTY_STUDENT_DETAILS,
+      schoolId: defaultSchoolId,
+      teacherProfileId: defaultTeacherId,
+    });
 
-    const [schools, setSchools] = useState<Option[]>([]);
-    const [teachers, setTeachers] = useState<Option[]>([]);
+    // Held, not uploaded: the storage path needs the id the insert has not
+    // returned yet. Nothing is written if the save fails.
+    const [photo, setPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+    const [schools, setSchools] = useState<SchoolOption[]>([]);
+    const [teachers, setTeachers] = useState<TeacherOption[]>([]);
     const [grantTypes, setGrantTypes] = useState<Option[]>([]);
+
+    const [schoolDrawerOpen, setSchoolDrawerOpen] = useState(false);
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const errorRef = useRef<HTMLDivElement>(null);
+
+    const set = <K extends keyof StudentDetailsInput>(key: K, value: StudentDetailsInput[K]) =>
+      setDetails((current) => ({ ...current, [key]: value }));
 
     /** Sets the error, tells the container, and brings it into view. */
     const reportError = (message: string | null) => {
@@ -102,79 +135,96 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
       }
     };
 
-    useEffect(() => setSchoolId(defaultSchoolId), [defaultSchoolId]);
-    useEffect(() => setTeacherProfileId(defaultTeacherId), [defaultTeacherId]);
+    useEffect(() => setDetails((current) => ({ ...current, schoolId: defaultSchoolId })), [defaultSchoolId]);
+    useEffect(
+      () => setDetails((current) => ({ ...current, teacherProfileId: defaultTeacherId })),
+      [defaultTeacherId],
+    );
 
-    // Lookups: schools, teacher accounts, grant types.
+    useEffect(() => {
+      onSchoolChange?.(details.schoolId);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [details.schoolId]);
+
     useEffect(() => {
       const load = async () => {
-        const [schoolResult, roleResult, grantResult] = await Promise.all([
-          supabase.from("schools").select("id, name").order("name"),
-          supabase.from("person_roles").select("user_id").eq("role", "teacher"),
-          supabase.from("grant_types").select("id, name").order("name"),
+        const [schoolOptions, teacherOptions, grantOptions] = await Promise.all([
+          loadSchoolOptions(defaultSchoolId),
+          loadTeacherOptions(),
+          loadGrantTypeOptions(),
         ]);
-
-        setSchools(
-          ((schoolResult.data ?? []) as Array<{ id: string; name: string | null }>).map((school) => ({
-            value: school.id,
-            label: school.name ?? "(no name)",
-          })),
-        );
-
-        setGrantTypes(
-          ((grantResult.data ?? []) as Array<{ id: string; name: string | null }>).map((grant) => ({
-            value: grant.id,
-            label: grant.name ?? "(no name)",
-          })),
-        );
-
-        const teacherIds = Array.from(
-          new Set(((roleResult.data ?? []) as Array<{ user_id: string }>).map((row) => row.user_id)),
-        );
-        if (!teacherIds.length) {
-          setTeachers([]);
-          return;
-        }
-
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", teacherIds);
-
-        setTeachers(
-          ((profiles ?? []) as Array<{ id: string; full_name: string | null }>).map((profile) => ({
-            value: profile.id,
-            label: profile.full_name ?? "(no name)",
-          })),
-        );
+        setSchools(schoolOptions);
+        setTeachers(teacherOptions);
+        setGrantTypes(grantOptions);
       };
 
       void load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // A school or teacher created in the drawer's own step arrives as a prop
+    // rather than through a reload: the lists were fetched once, and the
+    // half-typed student must not be re-fetched out from under the admin.
+    useEffect(() => {
+      if (!extraSchools?.length) return;
+      setSchools((current) => {
+        const known = new Set(current.map((school) => school.value));
+        const fresh = extraSchools
+          .filter((school) => !known.has(school.id))
+          .map((school) => ({ value: school.id, label: school.name, is_active: true }));
+        return fresh.length ? [...current, ...fresh].sort((a, b) => a.label.localeCompare(b.label)) : current;
+      });
+      const latest = extraSchools[extraSchools.length - 1];
+      setDetails((current) => (current.schoolId === latest.id ? current : { ...current, schoolId: latest.id }));
+    }, [extraSchools]);
+
+    useEffect(() => {
+      if (!extraTeachers?.length) return;
+      setTeachers((current) => {
+        const known = new Set(current.map((teacher) => teacher.value));
+        const fresh = extraTeachers
+          .filter((teacher) => !known.has(teacher.id))
+          .map((teacher) => ({ value: teacher.id, label: teacher.name, schoolId: teacher.schoolId }));
+        return fresh.length ? [...current, ...fresh].sort((a, b) => a.label.localeCompare(b.label)) : current;
+      });
+      const latest = extraTeachers[extraTeachers.length - 1];
+      setDetails((current) =>
+        current.teacherProfileId === latest.id ? current : { ...current, teacherProfileId: latest.id },
+      );
+    }, [extraTeachers]);
+
+    const choosePhoto = (file: File | null) => {
+      if (!file) return;
+      const problem = photoProblem(file);
+      if (problem) {
+        reportError(problem);
+        return;
+      }
+      reportError(null);
+      setPhoto(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    };
+
+    const clearPhoto = () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhoto(null);
+      setPhotoPreview(null);
+    };
+
+    useEffect(
+      () => () => {
+        if (photoPreview) URL.revokeObjectURL(photoPreview);
+      },
+      [photoPreview],
+    );
 
     // Dirty is measured against the values this form opened with, so a
     // container can ask before discarding. Comparing a snapshot rather than
     // counting keystrokes means typing something and deleting it again
     // correctly counts as clean.
-    const currentValues = JSON.stringify({
-      name,
-      nickname,
-      schoolId,
-      gradeLevel,
-      birthdate,
-      village,
-      monthlySupport,
-      teacherProfileId,
-      grantTypeId,
-      contactGuardian,
-      contactPhone,
-      contactAddress,
-      contactLineOrWhatsApp,
-      bio,
-    });
+    const currentValues = JSON.stringify(details);
     const openedWith = useRef<string>(currentValues);
-    const dirty = currentValues !== openedWith.current;
+    const dirty = currentValues !== openedWith.current || photo !== null;
 
     useEffect(() => {
       onDirtyChange?.(dirty);
@@ -185,82 +235,72 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
       onSavingChange?.(next);
     };
 
+    const handleSchoolCreated = (school: CreatedSchool) => {
+      setSchools((current) =>
+        [...current, { value: school.id, label: school.name, is_active: true }].sort((a, b) =>
+          a.label.localeCompare(b.label),
+        ),
+      );
+      set("schoolId", school.id);
+      setSchoolDrawerOpen(false);
+    };
+
     const save = async () => {
       reportError(null);
 
-      if (!name.trim()) {
-        reportError("The student's name is required.");
-        return;
-      }
-      if (!contactGuardian.trim() || !contactPhone.trim()) {
-        reportError("A guardian name and a phone number are required on every student.");
+      const problem = validateStudentDetails(details);
+      if (problem) {
+        reportError(problem);
         return;
       }
 
       setBusy(true);
 
-      const scholarshipLabel = grantTypeId
-        ? grantTypes.find((grant) => grant.value === grantTypeId)?.label ?? null
+      const scholarshipLabel = details.grantTypeId
+        ? grantTypes.find((grant) => grant.value === details.grantTypeId)?.label ?? null
         : null;
 
       const { data, error: insertError } = await supabase
         .from("students")
-        .insert({
-          name: name.trim(),
-          nickname: nickname.trim() || null,
-          school_id: schoolId,
-          grade_level: gradeLevel.trim() || null,
-          birthdate: birthdate || null,
-          village: village.trim() || null,
-          monthly_support_expected:
-            monthlySupport.trim() !== "" ? Number(monthlySupport.replace(",", ".")) : null,
-          responsible_teacher_id: teacherProfileId,
-          grant_type_id: grantTypeId,
-          scholarship: scholarshipLabel,
-          bio: bio.trim() || null,
-          contact: {
-            guardian: contactGuardian.trim(),
-            phone: contactPhone.trim(),
-            address: contactAddress.trim() || null,
-            line_or_whatsapp: contactLineOrWhatsApp.trim() || null,
-          },
-        })
+        .insert(toStudentRow(details, scholarshipLabel))
         .select("id, name, grade_level, school_id")
         .maybeSingle();
 
-      setBusy(false);
-
       if (insertError || !data?.id) {
+        setBusy(false);
         console.error("Error creating student", insertError);
         reportError(writeFailureMessage(insertError, "student"));
         return;
       }
 
+      // The student exists from here on. A photo that fails to upload is
+      // reported as exactly that — not as a failed save, which would send the
+      // admin back to create a second record.
+      await logEvent(
+        data.id,
+        "student_created",
+        `${details.name.trim()} was added to the programme.`,
+      );
+
+      let photoNote: string | null = null;
+      if (photo) {
+        const result = await uploadStudentPhoto(data.id, photo);
+        photoNote = result.error;
+      }
+
+      setBusy(false);
+
+      if (photoNote) reportError(photoNote);
+
       onCreated({
         id: data.id,
-        name: data.name ?? name.trim(),
+        name: data.name ?? details.name.trim(),
         grade_level: data.grade_level ?? null,
         school_id: data.school_id ?? null,
       });
     };
 
-    useImperativeHandle(ref, () => ({ submit: () => void save() }), [
-      name,
-      nickname,
-      schoolId,
-      gradeLevel,
-      birthdate,
-      village,
-      monthlySupport,
-      teacherProfileId,
-      grantTypeId,
-      grantTypes,
-      contactGuardian,
-      contactPhone,
-      contactAddress,
-      contactLineOrWhatsApp,
-      bio,
-    ]);
+    useImperativeHandle(ref, () => ({ submit: () => void save() }), [details, grantTypes, photo]);
 
     // Some fields carry helper text under their label and some don't, which
     // otherwise leaves the shorter fields' inputs sitting higher than their row
@@ -282,161 +322,56 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
             <FormError>{error}</FormError>
           </div>
 
-          <FormSection title="Student" hint="The nickname is the name donors see">
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              <TextInput
-                label="Student name"
-                required
-                placeholder="Anucha Pankham"
-                value={name}
-                onChange={(event) => {
-                  const value = event.currentTarget.value;
-                  setName(value);
-                  if (!nicknameTouched) {
-                    setNickname(value);
-                  }
-                }}
-              />
-              <TextInput
-                label="Nickname"
-                description="Used in donor-facing dashboards, emails and reports"
-                placeholder="Optional"
-                value={nickname}
-                onChange={(event) => {
-                  setNicknameTouched(true);
-                  setNickname(event.currentTarget.value);
-                }}
-              />
-            </SimpleGrid>
-          </FormSection>
+        <StudentFields
+          details={details}
+          onChange={setDetails}
+          schools={schools}
+          teachers={teachers}
+          grantTypes={grantTypes}
+          lockSchool={lockSchool}
+          onAddSchool={
+            lockSchool
+              ? undefined
+              : () => (onRequestCreateSchool ? onRequestCreateSchool() : setSchoolDrawerOpen(true))
+          }
+          onAddTeacher={onRequestCreateTeacher}
+          photoUrl={photoPreview}
+          photoBusy={saving}
+          onChoosePhoto={choosePhoto}
+          onClearPhoto={photo ? clearPhoto : undefined}
+          photoHint={
+            photo
+              ? `${photo.name} — uploaded as soon as the student is created.`
+              : "Optional. JPG, PNG or WebP up to 5 MB. It can also be added later from the student's page."
+          }
+        />
 
-          <FormSection title="Placement" hint="Where the student studies and lives">
-            <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
-              {!lockSchool && (
-                <Select
-                  label="School"
-                  placeholder="Select school"
-                  searchable
-                  clearable
-                  data={schools}
-                  value={schoolId}
-                  onChange={setSchoolId}
-                />
-              )}
-              <TextInput
-                label="Grade level"
-                placeholder="e.g. P4, M2"
-                value={gradeLevel}
-                onChange={(event) => setGradeLevel(event.currentTarget.value)}
-              />
-              <TextInput
-                label="Birthdate"
-                type="date"
-                value={birthdate}
-                onChange={(event) => setBirthdate(event.currentTarget.value)}
-              />
-              <TextInput
-                label="Village"
-                placeholder="Optional"
-                value={village}
-                onChange={(event) => setVillage(event.currentTarget.value)}
-              />
-            </SimpleGrid>
-          </FormSection>
+        {showActions && (
+          <FormFooter
+            left={
+              onCancel && (
+                <Button variant="ghost" type="button" onClick={onCancel}>
+                  Cancel
+                </Button>
+              )
+            }
+          >
+            <Button variant="primary" type="submit" disabled={saving}>
+              {saving ? "Creating…" : submitLabel}
+            </Button>
+          </FormFooter>
+        )}
 
-          <FormSection title="Links & support" hint="Who is responsible, and under which grant">
-            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
-              <Select
-                label="Responsible teacher"
-                placeholder="Select teacher"
-                searchable
-                clearable
-                data={teachers}
-                value={teacherProfileId}
-                onChange={setTeacherProfileId}
-              />
-              <Select
-                label="Scholarship / grant type"
-                placeholder="Select scholarship"
-                searchable
-                clearable
-                data={grantTypes}
-                value={grantTypeId}
-                onChange={setGrantTypeId}
-              />
-              <TextInput
-                label="Monthly support expected"
-                placeholder="e.g. 800"
-                value={monthlySupport}
-                onChange={(event) => setMonthlySupport(event.currentTarget.value)}
-              />
-            </SimpleGrid>
-          </FormSection>
-
-          <FormSection title="Contact" hint="Internal only — never shown to donors">
-            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-              <TextInput
-                label="Guardian name"
-                required
-                placeholder="Malee Pankham"
-                value={contactGuardian}
-                onChange={(event) => setContactGuardian(event.currentTarget.value)}
-              />
-              <TextInput
-                label="Phone"
-                required
-                placeholder="08x xxx xxxx"
-                value={contactPhone}
-                onChange={(event) => setContactPhone(event.currentTarget.value)}
-              />
-              <TextInput
-                label="Address"
-                placeholder="Optional"
-                value={contactAddress}
-                onChange={(event) => setContactAddress(event.currentTarget.value)}
-              />
-              <TextInput
-                label="LINE / WhatsApp"
-                placeholder="Optional"
-                value={contactLineOrWhatsApp}
-                onChange={(event) => setContactLineOrWhatsApp(event.currentTarget.value)}
-              />
-            </SimpleGrid>
-          </FormSection>
-
-          <FormSection title="Background" hint="Context for teachers and donor reports">
-            <Textarea
-              label="Short bio"
-              minRows={4}
-              autosize
-              placeholder="Anything that helps donors or teachers understand the student's situation (not public web content)."
-              value={bio}
-              onChange={(event) => setBio(event.currentTarget.value)}
-            />
-            <div className={styles.sectionNote}>
-              <InlineMessage tone="info" size="xs">
-                A profile photo is added from the student's own page once the record exists.
-              </InlineMessage>
-            </div>
-          </FormSection>
-
-          {showActions && (
-            <FormFooter
-              left={
-                onCancel && (
-                  <Button variant="ghost" type="button" onClick={onCancel}>
-                    Cancel
-                  </Button>
-                )
-              }
-            >
-              <Button variant="primary" type="submit" disabled={saving}>
-                {saving ? "Creating…" : submitLabel}
-              </Button>
-            </FormFooter>
-          )}
-        </FormBody>
-      </div>
+        {/* On a full-page form, adding a school opens over the page. Inside a
+            drawer the container turns it into a step instead. */}
+        {!onRequestCreateSchool && (
+          <SchoolFormDrawer
+            opened={schoolDrawerOpen}
+            onClose={() => setSchoolDrawerOpen(false)}
+            onCreated={handleSchoolCreated}
+          />
+        )}
+      </FormBody>
     );
   },
 );

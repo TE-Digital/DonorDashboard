@@ -506,7 +506,6 @@ export const AdminTeacherOverviewPage: React.FC = () => {
                 label="Email address"
                 required
                 type="email"
-                description="Updates the directory record. The sign-in address is changed from Users & roles."
                 value={draft.email}
                 onChange={(event) => setField("email", event.currentTarget.value)}
               />
@@ -559,7 +558,6 @@ export const AdminTeacherOverviewPage: React.FC = () => {
                 clearable
                 hidePickedOptions
                 nothingFoundMessage="No student matches — create them instead"
-                description="Unticking a student leaves them without a responsible teacher."
                 data={studentOptions}
                 value={draftStudentIds}
                 onChange={setDraftStudentIds}

@@ -14,6 +14,26 @@ export interface DataColumn<R extends { id: React.Key } = any> {
   muted?: boolean;
   sortable?: boolean;
   filterable?: boolean;
+  /**
+   * Holds this column still while the rest of the table scrolls sideways.
+   *
+   * Identity on the left, status on the right, reference data scrolling in
+   * between: a wide table stays readable because the two columns that tell you
+   * *which row this is* and *what you must do about it* never leave the screen.
+   *
+   * A pinned column needs a numeric `width` — the offsets are arithmetic, and
+   * "auto" is not a number. Pinning more than about a third of the table's
+   * width leaves nothing to scroll and is worse than not pinning at all.
+   */
+  pin?: "left" | "right";
+  /**
+   * Overrides the standard cell padding for this column alone.
+   *
+   * For the rare pair of columns whose contents belong to each other — a status
+   * and the row menu that acts on it — where the default gutters put more air
+   * between them than the meaning allows.
+   */
+  pad?: string;
   filterValue?: (row: R) => unknown;
   render?: (row: R) => React.ReactNode;
 }
@@ -254,8 +274,118 @@ export function DataTable<R extends { id: React.Key }>({
   };
 
   const selW = 40;
-  const cell = (align?: string, num?: boolean): React.CSSProperties => ({
-    padding: "0 var(--sp-3)",
+
+  /**
+   * Where each pinned column sits, in pixels from its edge.
+   *
+   * Left offsets accumulate in column order after the checkbox; right offsets
+   * accumulate backwards from the right edge. `stickyFirstColumn` still works
+   * on a table with no explicit pins, so nothing that already used it changes.
+   */
+  /**
+   * The width each pinned column actually got, measured from its header cell.
+   *
+   * `width` on a `<th>` is a hint, not an instruction: the browser widens a
+   * column whose content does not fit, and it distributes leftover space. Offsets
+   * computed from the declared numbers therefore drift from the real layout, and
+   * two pinned columns end up stacked on the same edge — which is exactly what a
+   * 150px column rendering at 180px does to the 40px menu beside it.
+   *
+   * So the declared width is only the first-paint estimate; from the first
+   * layout onward the offsets come from measurement.
+   */
+  const headCells = React.useRef(new Map<string, HTMLTableCellElement>());
+  const [measured, setMeasured] = React.useState<Record<string, number>>({});
+
+  React.useLayoutEffect(() => {
+    const read = () => {
+      const next: Record<string, number> = {};
+      headCells.current.forEach((element, key) => {
+        next[key] = element.getBoundingClientRect().width;
+      });
+
+      // Only re-render when something really moved. Sub-pixel jitter from a
+      // scrollbar appearing would otherwise loop the observer forever.
+      setMeasured((current) => {
+        const keys = Object.keys(next);
+        const unchanged =
+          keys.length === Object.keys(current).length &&
+          keys.every((key) => Math.abs((current[key] ?? -1) - next[key]) < 0.5);
+        return unchanged ? current : next;
+      });
+    };
+
+    read();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(read);
+    headCells.current.forEach((element) => observer.observe(element));
+    return () => observer.disconnect();
+  }, [columns, selectable, rows.length]);
+
+  const pinned = React.useMemo(() => {
+    const left = new Map<string, number>();
+    const right = new Map<string, number>();
+    const DEFAULT_W = 140;
+    const widthOf = (c: DataColumn<R>) =>
+      measured[c.key] ?? (typeof c.width === "number" ? c.width : DEFAULT_W);
+
+    let cursor = selectable ? selW : 0;
+    columns.forEach((c) => {
+      if (c.pin !== "left") return;
+      left.set(c.key, cursor);
+      cursor += widthOf(c);
+    });
+
+    cursor = 0;
+    [...columns].reverse().forEach((c) => {
+      if (c.pin !== "right") return;
+      right.set(c.key, cursor);
+      cursor += widthOf(c);
+    });
+
+    const lefts = columns.filter((c) => c.pin === "left");
+    const rights = columns.filter((c) => c.pin === "right");
+
+    return {
+      left,
+      right,
+      /** The edge columns carry the shadow that says "more scrolls past here". */
+      lastLeft: lefts.length ? lefts[lefts.length - 1].key : null,
+      firstRight: rights.length ? rights[0].key : null,
+      any: lefts.length > 0 || rights.length > 0,
+    };
+  }, [columns, selectable, measured]);
+
+  /**
+   * Everything one cell needs to hold its position, header and body alike.
+   *
+   * `stickyFirstColumn` is ignored the moment a table pins anything explicitly:
+   * mixing the two would silently stick a second column nobody asked for.
+   */
+  const pinStyle = (c: DataColumn<R>, index: number, background: string): React.CSSProperties => {
+    const legacy = !pinned.any && stickyFirstColumn && index === 0;
+    const leftOffset = c.pin === "left" ? pinned.left.get(c.key) : legacy ? (selectable ? selW : 0) : undefined;
+    const rightOffset = c.pin === "right" ? pinned.right.get(c.key) : undefined;
+
+    if (leftOffset === undefined && rightOffset === undefined) return {};
+
+    return {
+      position: "sticky",
+      left: leftOffset,
+      right: rightOffset,
+      background,
+      boxShadow:
+        c.key === pinned.lastLeft || legacy
+          ? "var(--shadow-sticky)"
+          : c.key === pinned.firstRight
+            ? "var(--shadow-sticky-left, var(--shadow-sticky))"
+            : undefined,
+    };
+  };
+
+  const cell = (align?: string, num?: boolean, pad?: string): React.CSSProperties => ({
+    padding: pad ?? "0 var(--sp-2)",
     textAlign: (align as React.CSSProperties["textAlign"]) || "left",
     whiteSpace: "nowrap",
     fontVariantNumeric: num ? "tabular-nums" : undefined,
@@ -304,21 +434,27 @@ export function DataTable<R extends { id: React.Key }>({
               </th>
             )}
             {columns.map((c, i) => {
-              const stick = stickyFirstColumn && i === 0;
+              const pin = pinStyle(c, i, "var(--n-50)");
+              const stuck = pin.position === "sticky";
               const active = !!sort && sort.key === c.key;
               const filtered = filters[c.key] && filters[c.key].length;
               return (
                 <th
                   key={c.key}
+                  ref={(element) => {
+                    if (element) headCells.current.set(c.key, element);
+                    else headCells.current.delete(c.key);
+                  }}
                   style={{
+                    ...pin,
+                    // A pinned header is stuck both ways at once: to the top of
+                    // the scroll box, and to its own edge.
                     position: "sticky",
                     top: 0,
-                    left: stick ? (selectable ? selW : 0) : undefined,
-                    zIndex: stick ? 4 : 3,
+                    zIndex: stuck ? 4 : 3,
                     background: "var(--n-50)",
                     height: 36,
                     borderBottom: "1px solid var(--border-default)",
-                    boxShadow: stick ? "var(--shadow-sticky)" : undefined,
                     fontWeight: "var(--fw-semibold)" as unknown as number,
                     color: "var(--text-muted)",
                     fontSize: "var(--fs-xs)",
@@ -333,7 +469,7 @@ export function DataTable<R extends { id: React.Key }>({
                       display: "flex",
                       alignItems: "center",
                       gap: 4,
-                      padding: "0 var(--sp-2) 0 var(--sp-3)",
+                      padding: c.pad ?? "0 var(--sp-2) 0 var(--sp-3)",
                       justifyContent: c.align === "right" ? "flex-end" : "flex-start",
                     }}
                   >
@@ -428,21 +564,19 @@ export function DataTable<R extends { id: React.Key }>({
                   </td>
                 )}
                 {columns.map((c, i) => {
-                  const stick = stickyFirstColumn && i === 0;
+                  const pin = pinStyle(c, i, bg);
+                  const stuck = pin.position === "sticky";
                   return (
                     <td
                       key={c.key}
                       style={{
-                        ...cell(c.align, c.numeric),
+                        ...cell(c.align, c.numeric, c.pad),
+                        ...pin,
                         height: h,
-                        position: stick ? "sticky" : undefined,
-                        left: stick ? (selectable ? selW : 0) : undefined,
-                        zIndex: stick ? 2 : 1,
-                        background: stick ? bg : undefined,
-                        boxShadow: stick ? "var(--shadow-sticky)" : undefined,
+                        zIndex: stuck ? 2 : 1,
                         borderBottom: "1px solid var(--border-subtle)",
                         color: c.muted ? "var(--text-muted)" : "var(--text-body)",
-                        fontWeight: (stick
+                        fontWeight: (c.pin === "left" || (stuck && i === 0)
                           ? "var(--fw-medium)"
                           : "var(--fw-regular)") as unknown as number,
                         fontFamily: c.mono ? "var(--font-mono)" : undefined,

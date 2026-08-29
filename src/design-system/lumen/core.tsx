@@ -294,10 +294,8 @@ export const Field: React.FC<FieldProps> = ({ label, hint, error, required, html
       </span>
     )}
     {children}
-    {(error || hint) && (
-      <span style={{ fontSize: "var(--fs-xs)", color: error ? "var(--red-500)" : "var(--text-subtle)" }}>
-        {error || hint}
-      </span>
+    {error && (
+      <span style={{ fontSize: "var(--fs-xs)", color: "var(--red-500)" }}>{error}</span>
     )}
   </label>
 );

@@ -29,10 +29,14 @@ import {
 import { Button } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
 import { SchoolFormDrawer } from "./SchoolFormDrawer";
-import { StudentFormDrawer } from "./StudentFormDrawer";
 import type { CreatedSchool } from "./SchoolForm";
 import type { CreatedStudent } from "./StudentForm";
 import type { EntityFormHandle, EntityFormOwnerProps } from "./entityForm";
+
+// The add-student drawer opens the add-teacher form for its own "Add teacher"
+// step, so a static import here would be a cycle. Loaded on first use instead,
+// which is the only time it can possibly be needed.
+const StudentFormDrawer = React.lazy(() => import("./StudentFormDrawer"));
 import styles from "./AdminDirectory.module.scss";
 import {
   EMPTY_TEACHER_DETAILS,
@@ -45,6 +49,10 @@ import {
 
 export interface CreatedTeacher {
   id: string;
+  /** The name as typed, so a picker can show the new teacher without a reload. */
+  fullName: string;
+  /** The school they represent, for a picker that groups teachers by school. */
+  schoolId: string | null;
   email: string;
   /** False when the extended profile fields could not be written. */
   extended: boolean;
@@ -372,6 +380,8 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
         onCreated({
           id: user.id,
+          fullName: details.fullName.trim(),
+          schoolId: details.schoolId,
           email: user.email || details.email.trim().toLowerCase(),
           extended: profileResult.extended,
           studentCount: studentIds.length,
@@ -405,7 +415,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
         <FormSection
           title="Teacher name"
-          hint="Thai is the legal name; English is what appears in donor-facing reports"
         >
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
@@ -427,13 +436,11 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
         <FormSection
           title="Contact details"
-          hint="LINE is the day-to-day channel; the phone number is the fallback"
         >
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput
               label="Email address"
               placeholder="name@school.org"
-              description="The invitation is sent here, and it becomes the sign-in address"
               required
               type="email"
               value={details.email}
@@ -456,7 +463,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="School" hint="The school this teacher represents">
+        <FormSection title="School">
           {columnsReady === false && (
             <div className={styles.sectionNoteLead}>
               <InlineMessage tone="warning">
@@ -478,11 +485,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
                 placeholder={columnsReady === false ? "Not available yet" : "Select school"}
                 required={columnsReady !== false}
                 disabled={columnsReady === false}
-                description={
-                  columnsReady === false
-                    ? "Needs the teacher-profile migration before a school can be stored"
-                    : undefined
-                }
                 searchable
                 clearable
                 nothingFoundMessage="No school matches — create it instead"
@@ -509,7 +511,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
         <FormSection
           title="Students"
-          hint="Optional. Students can also be assigned later from the teacher's page."
         >
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <MultiSelect
@@ -522,11 +523,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
               data={studentOptions}
               value={studentIds}
               onChange={setStudentIds}
-              description={
-                schoolName
-                  ? `Students at ${schoolName} are listed first`
-                  : "Choose a school above to bring its students to the top of the list"
-              }
             />
             <div className={styles.fieldAction}>
               <Button
@@ -553,7 +549,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           )}
         </FormSection>
 
-        <FormSection title="Notes" hint="Optional. Anything an admin should know about this teacher.">
+        <FormSection title="Notes">
           <Textarea
             label="Notes"
             placeholder="Languages spoken, travel constraints, preferred contact time…"
@@ -563,7 +559,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           />
         </FormSection>
 
-        <FormSection title="Account invitation" hint="The teacher role is assigned automatically">
+        <FormSection title="Account invitation">
           <InlineMessage tone="info">
             Saving creates a user account with the Teacher role and emails an invitation to the
             address above. The teacher sets their own password from that message.
@@ -594,13 +590,15 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           />
         )}
 
-        {!onRequestCreateStudent && (
-          <StudentFormDrawer
-            opened={studentDrawerOpen}
-            onClose={() => setStudentDrawerOpen(false)}
-            defaultSchoolId={details.schoolId}
-            onCreated={handleStudentCreated}
-          />
+        {!onRequestCreateStudent && studentDrawerOpen && (
+          <React.Suspense fallback={null}>
+            <StudentFormDrawer
+              opened
+              onClose={() => setStudentDrawerOpen(false)}
+              defaultSchoolId={details.schoolId}
+              onCreated={handleStudentCreated}
+            />
+          </React.Suspense>
         )}
       </FormBody>
     );

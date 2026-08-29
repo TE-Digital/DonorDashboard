@@ -57,6 +57,25 @@ export function formatDateRange(from: DateLike, to: DateLike): string {
   return `${formatDate(a)} – ${formatDate(b)}`;
 }
 
+/**
+ * A stored `yyyy-mm-dd` as a Date, for a `DateInput` to hold.
+ *
+ * Parsed as local midnight rather than through `new Date("2026-08-28")`, which
+ * ISO-parses to UTC and lands on the previous day for anyone west of Greenwich.
+ * A birthdate that shifts by a day depending on who opens the record is the kind
+ * of bug nobody reports and everybody distrusts.
+ */
+export function parseDateInput(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (match) {
+    const [, year, month, day] = match;
+    const d = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  return toDate(value);
+}
+
 /** `yyyy-mm-dd`, for date inputs and Supabase date columns. Never for display. */
 export function toDateInputValue(value: DateLike): string {
   const d = toDate(value);

@@ -273,11 +273,6 @@ export const ProfilePage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.currentTarget.value)}
               disabled={!isOwnProfile}
-              description={
-                isOwnProfile
-                  ? "This email is used for login and donor communication."
-                  : "Email is managed via authentication and can only be changed by the user."
-              }
             />
 
             <TextInput

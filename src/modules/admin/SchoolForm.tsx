@@ -13,7 +13,6 @@
 
 import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import {
-  NumberInput,
   SegmentedControl,
   Select,
   SimpleGrid,
@@ -32,7 +31,15 @@ import {
 } from "../../design-system";
 import { Button } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
-import { DORMITORY_OPTIONS, GRADES, PROVINCES, SCHOOL_SYSTEMS } from "./schoolProfile";
+import {
+  DEFAULT_REPORTING_PERIOD_MONTHS,
+  DORMITORY_OPTIONS,
+  GRADES,
+  PROVINCES,
+  REPORTING_PERIODS,
+  SCHOOL_SYSTEMS,
+} from "./schoolProfile";
+import { isMissingColumnError } from "./teacherProfile";
 import { writeFailureMessage, type EntityFormHandle, type EntityFormOwnerProps } from "./entityForm";
 import styles from "./AdminDirectory.module.scss";
 
@@ -51,7 +58,11 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
     const [schoolSystem, setSchoolSystem] = useState<string>(SCHOOL_SYSTEMS[0]);
     const [gradeFrom, setGradeFrom] = useState<string | null>("K1");
     const [gradeTo, setGradeTo] = useState<string | null>("P6");
-    const [totalEnrollment, setTotalEnrollment] = useState<number | string>("");
+    // How often this school reports. Every student assigned here inherits it,
+    // which is why it is asked once, on the school, and never per student.
+    const [reportingPeriod, setReportingPeriod] = useState<string>(
+      String(DEFAULT_REPORTING_PERIOD_MONTHS),
+    );
     const [dormitoryStatus, setDormitoryStatus] = useState<string | null>(DORMITORY_OPTIONS[0]);
 
     // Names
@@ -102,7 +113,7 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
       schoolSystem,
       gradeFrom,
       gradeTo,
-      totalEnrollment,
+      reportingPeriod,
       dormitoryStatus,
       thaiName,
       englishName,
@@ -158,11 +169,24 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         .filter(Boolean)
         .join(", ");
 
-      const { data, error: insertError } = await supabase
+      const base = { name: englishName.trim(), address: composedAddress || null };
+
+      // The reporting period is a real column, but a database without the
+      // migration should still be able to create a school rather than fail on
+      // a field it has never heard of.
+      let { data, error: insertError } = await supabase
         .from("schools")
-        .insert({ name: englishName.trim(), address: composedAddress || null })
+        .insert({ ...base, reporting_period_months: Number(reportingPeriod) })
         .select("id, name")
         .maybeSingle();
+
+      if (insertError && isMissingColumnError(insertError)) {
+        ({ data, error: insertError } = await supabase
+          .from("schools")
+          .insert(base)
+          .select("id, name")
+          .maybeSingle());
+      }
 
       setBusy(false);
 
@@ -198,11 +222,16 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
           <FormError>{error}</FormError>
         </div>
 
-        <FormSection title="Programme" hint="School system and the grades iCare covers here">
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="lg">
-            <div>
+        <FormSection title="Programme">
+          {/* Four fields, not five. Total enrollment was asked for and never
+              stored, and it is a number that changes every term anyway — the
+              student records are the count. The reporting period replaces it,
+              and unlike enrollment it is a fact the rest of the product uses. */}
+          <div className={styles.programmeGrid}>
+            <div className={styles.systemField}>
               <FieldLabel>School system</FieldLabel>
               <SegmentedControl
+                fullWidth
                 value={schoolSystem}
                 onChange={setSchoolSystem}
                 data={SCHOOL_SYSTEMS}
@@ -211,16 +240,25 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
             </div>
             <Select label="Grade from" value={gradeFrom} onChange={setGradeFrom} data={GRADES} allowDeselect={false} />
             <Select label="Grade to" value={gradeTo} onChange={setGradeTo} data={GRADES} allowDeselect={false} />
-            <NumberInput label="Total enrollment" value={totalEnrollment} onChange={setTotalEnrollment} placeholder="132" min={0} hideControls />
             <Select label="Dormitory status" value={dormitoryStatus} onChange={setDormitoryStatus} data={DORMITORY_OPTIONS} allowDeselect={false} />
-          </SimpleGrid>
+          </div>
+          <div className={styles.reportingRow}>
+            <Select
+              label="Reporting period"
+              description="How often this school reports on a student. Everyone assigned here inherits it."
+              value={reportingPeriod}
+              onChange={(value) => value && setReportingPeriod(value)}
+              data={REPORTING_PERIODS}
+              allowDeselect={false}
+            />
+          </div>
         </FormSection>
 
-        <FormSection title="School names" hint="Thai is the legal name; English is used in reports">
+        <FormSection title="School names">
           <div className={styles.namesGrid}>
             <TextInput label="Thai school name" required value={thaiName} onChange={(e) => setThaiName(e.currentTarget.value)} placeholder="โรงเรียน..." />
             <TextInput label="English school name" required value={englishName} onChange={(e) => setEnglishName(e.currentTarget.value)} placeholder="Ban ... School" />
-            <TextInput label="School code" value={schoolCode} onChange={(e) => setSchoolCode(e.currentTarget.value)} placeholder="50100123" description="Optional" />
+            <TextInput label="School code" value={schoolCode} onChange={(e) => setSchoolCode(e.currentTarget.value)} placeholder="50100123" />
           </div>
         </FormSection>
 
@@ -229,7 +267,7 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
             <Select label="Province" required searchable value={province} onChange={setProvince} data={PROVINCES} />
             <TextInput label="District" required value={district} onChange={(e) => setDistrict(e.currentTarget.value)} placeholder="Search districts" />
             <TextInput label="Subdistrict" required value={subdistrict} onChange={(e) => setSubdistrict(e.currentTarget.value)} placeholder="Search subdistricts" />
-            <DateInput label="Date joined iCare" value={dateJoined} onChange={setDateJoined} valueFormat="DD MMM YYYY" placeholder="Choose date" clearable />
+            <DateInput label="Date joined iCare" value={dateJoined} onChange={setDateJoined} clearable />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
             <Textarea label="Thai address" minRows={3} value={thaiAddress} onChange={(e) => setThaiAddress(e.currentTarget.value)} placeholder="บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด" />
@@ -237,7 +275,7 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Principal" hint="Optional">
+        <FormSection title="Principal">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput label="Principal name" value={principalName} onChange={(e) => setPrincipalName(e.currentTarget.value)} placeholder="Name (ชื่อ-สกุล)" />
             <TextInput label="Principal phone" value={principalPhone} onChange={(e) => setPrincipalPhone(e.currentTarget.value)} placeholder="08x xxx xxxx" />
@@ -245,7 +283,7 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Contact person" hint="Required for school coordination">
+        <FormSection title="Contact person">
           <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
             <TextInput label="Contact person" required value={contactName} onChange={(e) => setContactName(e.currentTarget.value)} placeholder="Name (ชื่อ-สกุล)" />
             <TextInput label="Contact phone" value={contactPhone} onChange={(e) => setContactPhone(e.currentTarget.value)} placeholder="08x xxx xxxx" />
@@ -254,7 +292,7 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Description" hint="Access, language needs, or visit constraints">
+        <FormSection title="Description">
           <Textarea label="Description" minRows={4} value={description} onChange={(e) => setDescription(e.currentTarget.value)} placeholder="Anything a field officer should know before visiting" />
           <div className={styles.sectionNote}>
             <InlineMessage tone="info" size="xs">

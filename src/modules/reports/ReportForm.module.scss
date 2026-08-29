@@ -1,0 +1,100 @@
+// Attachments on a term report.
+//
+// One row per file: what it is, whether a donor sees it, and how to take it
+// off. The sharing tick is a control on the row rather than a bulk setting,
+// because it is a decision about one photograph of one child.
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+// Still listed, and visibly on its way out. Removing a file from a child's
+// record should never happen without the person seeing it happen.
+.rowRemoved {
+  background: var(--n-25);
+  color: var(--text-muted);
+}
+
+.thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--n-25);
+  color: var(--text-muted);
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-sm);
+  word-break: break-all;
+}
+
+.removedNote {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.empty {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.privacyNote {
+  margin-top: var(--sp-4);
+}
+
+@media (max-width: 720px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .name {
+    flex: 1 1 100%;
+    order: -1;
+  }
+}

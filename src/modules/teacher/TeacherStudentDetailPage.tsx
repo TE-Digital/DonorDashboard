@@ -22,6 +22,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { ReportList } from "../reports";
 import { asRow } from "../../lib/supabaseRelations";
 import {
   LoadingState,
@@ -566,65 +567,14 @@ export const TeacherStudentDetailPage: React.FC = () => {
         </Stack>
       </Card>
 
-      {/* Recent reports */}
+      {/* Term reports, from the shared reports module — the same list, the same
+          form and the same privacy rules the admin screens use. Written from
+          here in a drawer, because a teacher writing a report is looking at the
+          student while they write it. */}
       <Card withBorder>
         <Stack gap="sm">
-          <Group justify="space-between" align="center">
-            <Text fw={500}>Recent term updates</Text>
-            <Button
-              component={Link}
-              to={`/teacher/reports/new?studentId=${studentId}`}
-              size="xs"
-              variant="subtle"
-            >
-              New report
-            </Button>
-          </Group>
-          {reports.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              No reports have been created for this student yet.
-            </Text>
-          ) : (
-            <Table striped highlightOnHover withTableBorder withColumnBorders>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Date</Table.Th>
-                  <Table.Th>Grade</Table.Th>
-                  <Table.Th>Summary</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {reports.map((r) => {
-                  const dateLabel = r.report_date
-                    ? new Date(r.report_date).toLocaleDateString()
-                    : "No date";
-                  const summary =
-                    r.grade_text ||
-                    (r.info
-                      ? r.info.length > 120
-                        ? r.info.slice(0, 117) + "..."
-                        : r.info
-                      : "");
-
-                  return (
-                    <Table.Tr key={r.id}>
-                      <Table.Td>
-                        <Anchor
-                          component={Link}
-                          to={`/teacher/reports/${r.id}/edit`}
-                          size="sm"
-                        >
-                          {dateLabel}
-                        </Anchor>
-                      </Table.Td>
-                      <Table.Td>{r.grade || ""}</Table.Td>
-                      <Table.Td>{summary}</Table.Td>
-                    </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          )}
+          <Text fw={500}>Term updates</Text>
+          <ReportList studentId={studentId ?? ""} studentName={student?.name ?? null} />
         </Stack>
       </Card>
     </Stack>

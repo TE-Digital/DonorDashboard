@@ -1,0 +1,81 @@
+// The completion meter. Narrow enough for a table cell, legible enough to be
+// the KPI on a record page.
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.compact .track {
+  width: 56px;
+}
+
+.full .track {
+  width: 100%;
+  min-width: 120px;
+  height: 8px;
+}
+
+.clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+
+  &:hover .track {
+    box-shadow: 0 0 0 3px var(--surface-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--action-primary);
+    outline-offset: 2px;
+  }
+}
+
+.track {
+  display: inline-block;
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: var(--radius-xs, 3px);
+  background: var(--n-200);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width var(--dur-normal, 200ms) var(--ease-standard, ease);
+}
+
+// Colour repeats what the number already says; it never carries it alone.
+.danger {
+  background: var(--red-500);
+}
+
+.warning {
+  background: var(--amber-500);
+}
+
+.success {
+  background: var(--green-500);
+}
+
+.value {
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.full .value {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}

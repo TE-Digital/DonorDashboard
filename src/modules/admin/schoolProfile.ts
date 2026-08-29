@@ -19,6 +19,17 @@ export interface SchoolRecord {
   name: string;
   address: string | null;
   created_at: string | null;
+  /**
+   * A real column, unlike everything else derived here. Undefined only when the
+   * caller did not select it, or before the is_active migration is applied.
+   */
+  is_active?: boolean | null;
+  /**
+   * Also a real column. Months between term reports for students here, and the
+   * reason the students directory can say who is late. Undefined before the
+   * reporting-period migration is applied.
+   */
+  reporting_period_months?: number | null;
 }
 
 export interface SchoolProfile {
@@ -53,6 +64,34 @@ export const SCHOOL_SYSTEMS: SchoolSystem[] = ["Government", "Border Police"];
 export const SCHOOL_STATUSES: SchoolStatus[] = ["Active", "Pending", "Inactive"];
 export const DORMITORY_OPTIONS = ["None", "Boys only", "Girls only", "Mixed dormitory"];
 
+/**
+ * How often a school reports. A student inherits the period of the school they
+ * are assigned to, so this is set once, on the school, and never per student.
+ */
+export const REPORTING_PERIODS = [
+  { value: "1", label: "Monthly" },
+  { value: "3", label: "Every 3 months" },
+  { value: "4", label: "Every 4 months (three terms)" },
+  { value: "6", label: "Every 6 months (two terms)" },
+  { value: "12", label: "Yearly" },
+];
+
+/** The period every school starts on, and the fallback when none is stored. */
+export const DEFAULT_REPORTING_PERIOD_MONTHS = 6;
+
+/** The stored period, or the default, never a value outside the allowed set. */
+export const reportingPeriodMonths = (school: Pick<SchoolRecord, "reporting_period_months"> | null | undefined): number => {
+  const months = Number(school?.reporting_period_months);
+  return REPORTING_PERIODS.some((option) => Number(option.value) === months)
+    ? months
+    : DEFAULT_REPORTING_PERIOD_MONTHS;
+};
+
+/** "Every 4 months (three terms)" for a stored number of months. */
+export const reportingPeriodLabel = (months: number | null | undefined): string =>
+  REPORTING_PERIODS.find((option) => Number(option.value) === Number(months))?.label ??
+  REPORTING_PERIODS.find((option) => Number(option.value) === DEFAULT_REPORTING_PERIOD_MONTHS)!.label;
+
 export const PROVINCES = [
   "Chiang Rai", "Chiang Mai", "Mae Hong Son", "Tak", "Kanchanaburi",
   "Nan", "Phayao", "Lampang", "Lamphun", "Phrae", "Uttaradit",
@@ -86,7 +125,9 @@ export const deriveSchoolProfile = (school: SchoolRecord): SchoolProfile => {
     displayId: `SCH-${String(1000 + (seed % 9000)).padStart(4, "0")}`,
     code: String(50100000 + (seed % 99999)),
     system,
-    status: seed % 11 === 4 ? "Inactive" : seed % 7 === 3 ? "Pending" : "Active",
+    // The one status that is a fact rather than a placeholder: is_active is a
+    // column, set by closing or reopening a school. Anything else is Active.
+    status: school.is_active === false ? "Inactive" : "Active",
     province: parts.at(-1) ?? PLACEHOLDER,
     district: parts.at(-2) ?? PLACEHOLDER,
     gradeFrom,

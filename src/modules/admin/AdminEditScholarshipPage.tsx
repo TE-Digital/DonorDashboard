@@ -310,7 +310,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
       <FormBody onSubmit={handleSubmit}>
         <FormError>{error}</FormError>
 
-        <FormSection title="Grant" hint="The template this scholarship is issued from">
+        <FormSection title="Grant">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Grant type"
@@ -324,11 +324,10 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="People" hint="Both optional — a scholarship can be linked later">
+        <FormSection title="People">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Student"
-              description="Optional"
               placeholder="Select student"
               data={studentOptions}
               value={studentId}
@@ -338,7 +337,6 @@ export const AdminEditScholarshipPage: React.FC = () => {
             />
             <Select
               label="Donor"
-              description="Optional"
               placeholder="Select donor"
               data={donorOptions}
               value={donorId}
@@ -349,7 +347,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Period & amount" hint="What is granted, and for how long">
+        <FormSection title="Period & amount">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <DateInput label="Period start" value={periodStart} onChange={setPeriodStart} required />
             <DateInput label="Period end" value={periodEnd} onChange={setPeriodEnd} required />
@@ -368,7 +366,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Status & payment" hint="Where this scholarship stands today">
+        <FormSection title="Status & payment">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Status"
@@ -402,7 +400,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Internal notes" hint="Admins only — never shown to the donor">
+        <FormSection title="Internal notes">
           <Textarea
             label="Notes"
             minRows={3}
