@@ -30,6 +30,18 @@ export interface SchoolRecord {
    * reporting-period migration is applied.
    */
   reporting_period_months?: number | null;
+  /**
+   * Real columns as of the school-location migration, and the only place a
+   * screen should read a school's location as fact.
+   *
+   * The `province` and `district` on SchoolProfile below are derived from the
+   * address and, failing that, from the row id. They were always placeholders;
+   * with these columns in place, anything that ranks, groups or funds by
+   * location must read them and not the derived pair. Undefined before the
+   * migration is applied, null when nobody has recorded it.
+   */
+  province?: string | null;
+  district?: string | null;
 }
 
 export interface SchoolProfile {
@@ -59,6 +71,23 @@ export const GRADES = [
   "P1", "P2", "P3", "P4", "P5", "P6",
   "M1", "M2", "M3", "M4", "M5", "M6",
 ];
+
+/**
+ * The grade list as picker options, keeping whatever a record already holds.
+ *
+ * Grade was free text on the admin form and a "Grade 1…12" picker on the
+ * teacher's, so the same column holds `P4`, `4`, `Grade 4` and `ป.4`, and every
+ * grade filter downstream is wrong. One list fixes new records; carrying the
+ * current value as its own option means fixing it does not silently blank the
+ * older ones.
+ */
+export const gradeOptions = (current?: string | null): Array<{ value: string; label: string }> => {
+  const options = GRADES.map((grade) => ({ value: grade, label: grade }));
+  const held = (current ?? "").trim();
+  return held && !GRADES.includes(held)
+    ? [...options, { value: held, label: `${held} (as recorded)` }]
+    : options;
+};
 
 export const SCHOOL_SYSTEMS: SchoolSystem[] = ["Government", "Border Police"];
 export const SCHOOL_STATUSES: SchoolStatus[] = ["Active", "Pending", "Inactive"];

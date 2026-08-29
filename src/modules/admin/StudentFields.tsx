@@ -14,7 +14,7 @@
 // prevent.
 
 import React, { useMemo, useRef } from "react";
-import { Avatar, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
+import { Avatar, NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import {
   FieldLabel,
@@ -24,6 +24,7 @@ import {
   toDateInputValue,
 } from "../../design-system";
 import { Button } from "../../design-system/lumen";
+import { gradeOptions } from "./schoolProfile";
 import {
   GUARDIAN_RELATIONSHIPS,
   PHOTO_ACCEPT,
@@ -31,13 +32,25 @@ import {
   type Option,
   type SchoolOption,
   type StudentDetailsInput,
+  type StudentField,
   type TeacherOption,
 } from "./studentProfile";
+import { EARLIEST_BIRTHDATE, fieldId, today, type FieldErrors } from "../../design-system/fieldValidation";
 import styles from "./AdminDirectory.module.scss";
 
 export interface StudentFieldsProps {
   details: StudentDetailsInput;
   onChange: (next: StudentDetailsInput) => void;
+  /**
+   * What is wrong with which field, from the last save attempt.
+   *
+   * Marked on the field itself rather than summarised at the top: an admin
+   * fixing four empty fields should see four of them, not be told about one and
+   * sent back to submit again.
+   */
+  errors?: FieldErrors<StudentField>;
+  /** Namespaces the field ids, so two forms on one page cannot collide. */
+  formId?: string;
 
   schools: SchoolOption[];
   teachers: TeacherOption[];
@@ -64,6 +77,8 @@ export interface StudentFieldsProps {
 export const StudentFields: React.FC<StudentFieldsProps> = ({
   details,
   onChange,
+  errors = {},
+  formId = "student",
   schools,
   teachers,
   grantTypes,
@@ -81,6 +96,9 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
 
   const set = <K extends keyof StudentDetailsInput>(key: K, value: StudentDetailsInput[K]) =>
     onChange({ ...details, [key]: value });
+
+  /** id + error together, so no field can be marked without being reachable. */
+  const field = (key: StudentField) => ({ id: fieldId(formId, key), error: errors[key] });
 
   const schoolName = useMemo(
     () => schools.find((school) => school.value === details.schoolId)?.label ?? null,
@@ -117,16 +135,34 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
       <FormSection title="Personal details">
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           <TextInput
-            label="Student name"
+            label="Student name (English)"
+            {...field("name")}
             required
             placeholder="Anucha Pankham"
             disabled={disabled}
             value={details.name}
             onChange={(event) => set("name", event.currentTarget.value)}
           />
+          {/* Required, and sat beside the English name rather than tucked into
+              an "other details" group: the two together are the child's name,
+              and a Thai report with a Latin name in the middle of it reads as
+              software that was not built for the people using it. */}
+          <TextInput
+            label="Student name (Thai)"
+            {...field("nameTh")}
+            required
+            placeholder="อนุชา ปานคำ"
+            lang="th"
+            disabled={disabled}
+            value={details.nameTh}
+            onChange={(event) => set("nameTh", event.currentTarget.value)}
+          />
+        </SimpleGrid>
+
+        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
           <TextInput
             label="Nickname"
-            placeholder="Optional"
+            placeholder="e.g. Nong"
             disabled={disabled}
             value={details.nickname}
             onChange={(event) => set("nickname", event.currentTarget.value)}
@@ -174,15 +210,21 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
           <DateInput
             label="Birthdate"
-            placeholder="Optional"
+            {...field("birthdate")}
+            placeholder="DD/MM/YYYY"
             clearable
+            // The picker cannot offer a date that would make every age on the
+            // platform negative. The validator still checks: typing into the
+            // field is not the only way a value gets here.
+            maxDate={today()}
+            minDate={EARLIEST_BIRTHDATE}
             disabled={disabled}
             value={parseDateInput(details.birthdate)}
             onChange={(value) => set("birthdate", toDateInputValue(value))}
           />
           <TextInput
             label="Village"
-            placeholder="Optional"
+            placeholder="e.g. Ban Mai"
             disabled={disabled}
             value={details.village}
             onChange={(event) => set("village", event.currentTarget.value)}
@@ -207,6 +249,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           <TextInput
             label="Guardian name"
+            {...field("guardianName")}
             required
             placeholder="Malee Pankham"
             disabled={disabled}
@@ -215,7 +258,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
           />
           <Select
             label="Relationship to student"
-            placeholder="Optional"
+            placeholder="e.g. Mother"
             clearable
             disabled={disabled}
             data={GUARDIAN_RELATIONSHIPS as unknown as string[]}
@@ -227,6 +270,10 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
         <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg" mt="lg">
           <TextInput
             label="Phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            {...field("phone")}
             required
             placeholder="08x xxx xxxx"
             disabled={disabled}
@@ -235,14 +282,14 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
           />
           <TextInput
             label="Address"
-            placeholder="Optional"
+            placeholder="House no., Moo, subdistrict"
             disabled={disabled}
             value={details.address}
             onChange={(event) => set("address", event.currentTarget.value)}
           />
           <TextInput
             label="LINE / WhatsApp"
-            placeholder="Optional"
+            placeholder="@line-id or +66…"
             disabled={disabled}
             value={details.lineOrWhatsApp}
             onChange={(event) => set("lineOrWhatsApp", event.currentTarget.value)}
@@ -268,12 +315,15 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
               This student is at {schoolName ?? "this school"}.
             </InlineMessage>
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
-              <TextInput
+              <Select
                 label="Grade level"
-                placeholder="e.g. P4, M2"
+                placeholder="Select grade"
+                searchable
+                clearable
+                data={gradeOptions(details.gradeLevel)}
                 disabled={disabled}
-                value={details.gradeLevel}
-                onChange={(event) => set("gradeLevel", event.currentTarget.value)}
+                value={details.gradeLevel || null}
+                onChange={(value) => set("gradeLevel", value ?? "")}
               />
             </SimpleGrid>
           </>
@@ -281,6 +331,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="School"
+              {...field("schoolId")}
               required
               placeholder="Select school"
               searchable
@@ -291,12 +342,15 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
               value={details.schoolId}
               onChange={(value) => set("schoolId", value)}
             />
-            <TextInput
+            <Select
               label="Grade level"
-              placeholder="e.g. P4, M2"
+              placeholder="Select grade"
+              searchable
+              clearable
+              data={gradeOptions(details.gradeLevel)}
               disabled={disabled}
-              value={details.gradeLevel}
-              onChange={(event) => set("gradeLevel", event.currentTarget.value)}
+              value={details.gradeLevel || null}
+              onChange={(value) => set("gradeLevel", value ?? "")}
             />
           </SimpleGrid>
         )}
@@ -337,13 +391,16 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
             value={details.grantTypeId}
             onChange={(value) => set("grantTypeId", value)}
           />
-          <TextInput
+          <NumberInput
             label="Monthly support expected (THB)"
+            {...field("monthlySupport")}
             placeholder="e.g. 800"
-            inputMode="decimal"
+            min={0}
+            thousandSeparator=","
+            hideControls
             disabled={disabled}
             value={details.monthlySupport}
-            onChange={(event) => set("monthlySupport", event.currentTarget.value)}
+            onChange={(value: string | number) => set("monthlySupport", value === "" ? "" : String(value))}
           />
         </SimpleGrid>
       </FormSection>

@@ -54,10 +54,16 @@
   cursor: pointer;
 }
 
-.crumb:hover,
 .crumb:focus-visible {
   color: var(--text-heading);
   text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .crumb:hover {
+    color: var(--text-heading);
+    text-decoration: underline;
+  }
 }
 
 .crumbCurrent {

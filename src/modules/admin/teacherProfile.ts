@@ -11,6 +11,7 @@
 // fields are missing instead of failing the whole save.
 
 import { supabase } from "../../lib/supabaseClient";
+import { isEmail, isPhone, type FieldErrors } from "../../design-system/fieldValidation";
 
 /** Columns that exist on `profiles` regardless of migration state. */
 export const TEACHER_BASE_COLUMNS = "id, full_name, email, phone, created_at";
@@ -31,6 +32,9 @@ export interface TeacherProfile {
 }
 
 /** The form's shape — every value a string, as the inputs hold them. */
+/** Every field the form can mark. */
+export type TeacherField = keyof TeacherDetailsInput;
+
 export interface TeacherDetailsInput {
   fullName: string;
   fullNameTh: string;
@@ -88,10 +92,12 @@ export const teacherColumnsAvailable = async (): Promise<boolean> => {
   return true;
 };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Required-field check for the teacher form. Returns the first problem, or null.
+ * Required-field check for the teacher form, as a map of field to message.
+ *
+ * Every problem at once, not the first one: an admin who left four fields empty
+ * should see four marked fields, not make four submits.
  *
  * Email, phone and LINE ID are all mandatory: LINE is how field staff actually
  * reach a teacher, and the phone number is the fallback when it fails.
@@ -102,17 +108,40 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const validateTeacherDetails = (
   values: TeacherDetailsInput,
   options: { requireSchool?: boolean } = {},
-): string | null => {
+): FieldErrors<TeacherField> => {
   const { requireSchool = true } = options;
-  if (!values.fullName.trim()) return "Full name in English is required.";
-  if (!values.fullNameTh.trim()) return "Full name in Thai is required.";
-  if (!values.email.trim()) return "Email address is required.";
-  if (!EMAIL_PATTERN.test(values.email.trim())) return "Enter a valid email address.";
-  if (!values.phone.trim()) return "Phone number is required.";
-  if (!values.lineId.trim()) return "LINE ID is required.";
-  if (requireSchool && !values.schoolId) return "Select the school this teacher represents.";
-  return null;
+  const errors: FieldErrors<TeacherField> = {};
+
+  if (!values.fullName.trim()) errors.fullName = "Full name in English is required.";
+  if (!values.fullNameTh.trim()) errors.fullNameTh = "Full name in Thai is required.";
+
+  if (!values.email.trim()) {
+    errors.email = "An email address is required — the invitation is sent to it.";
+  } else if (!isEmail(values.email)) {
+    errors.email = "Enter a valid email address, for example name@school.org.";
+  }
+
+  if (!values.phone.trim()) {
+    errors.phone = "A phone number is required.";
+  } else if (!isPhone(values.phone)) {
+    errors.phone = "Enter a Thai phone number, for example 081 234 5678.";
+  }
+
+  if (!values.lineId.trim()) errors.lineId = "A LINE ID is required.";
+  if (requireSchool && !values.schoolId) errors.schoolId = "Select the school this teacher represents.";
+
+  return errors;
 };
+
+/** The order the form asks for these, so focus lands where the eye already is. */
+export const TEACHER_FIELD_ORDER = [
+  "fullName",
+  "fullNameTh",
+  "email",
+  "phone",
+  "lineId",
+  "schoolId",
+] as const satisfies readonly TeacherField[];
 
 /** The row payload for the extended columns, trimmed and nulled. */
 const extendedPayload = (values: TeacherDetailsInput) => ({

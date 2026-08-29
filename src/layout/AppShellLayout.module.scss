@@ -58,8 +58,10 @@
   cursor: pointer;
   transition: var(--motion-hover);
 
-  &:hover {
-    background: rgba(33, 30, 27, 0.045);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: rgba(33, 30, 27, 0.045);
+    }
   }
 }
 

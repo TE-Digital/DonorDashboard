@@ -21,7 +21,21 @@ import {
   LoadingState,
   PageHeader,
   StatusBadge,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  isPhone,
+  type FieldErrors,
 } from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "donor-edit";
+
+type DonorField = "name" | "email" | "phone";
+const DONOR_FIELD_ORDER: readonly DonorField[] = ["name", "email", "phone"];
 
 type DonorContact = {
   address?: string | null;
@@ -87,6 +101,7 @@ export const AdminEditDonorPage: React.FC = () => {
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [awards, setAwards] = useState<AwardRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<DonorField>>({});
   const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
@@ -202,6 +217,23 @@ export const AdminEditDonorPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!donorId) return;
+
+    // The same rules the add-donor form applies to the same row.
+    const problems: FieldErrors<DonorField> = {};
+    if (!name.trim()) problems.name = "A donor needs a name — a person or an organisation.";
+    if (email.trim() && !isEmail(email)) {
+      problems.email = "Enter a complete email address, for example name@example.com.";
+    }
+    if (phone.trim() && !isPhone(phone)) {
+      problems.phone = "Enter a Thai phone number, for example 081 234 5678.";
+    }
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, DONOR_FIELD_ORDER));
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -393,6 +425,9 @@ export const AdminEditDonorPage: React.FC = () => {
 
             <TextInput
               label="Name"
+              id={fieldId(FORM_ID, "name")}
+              error={fieldErrors.name}
+              required
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
             />
@@ -407,11 +442,21 @@ export const AdminEditDonorPage: React.FC = () => {
             <Group grow>
               <TextInput
                 label="Email"
+                id={fieldId(FORM_ID, "email")}
+                error={fieldErrors.email}
+                type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.currentTarget.value)}
               />
               <TextInput
                 label="Phone"
+                id={fieldId(FORM_ID, "phone")}
+                error={fieldErrors.phone}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.currentTarget.value)}
               />
@@ -466,6 +511,7 @@ export const AdminEditDonorPage: React.FC = () => {
               Internal notes
             </Text>
             <Textarea
+              aria-label="Internal notes"
               minRows={2}
               value={noteInternal}
               onChange={(e) => setNoteInternal(e.currentTarget.value)}

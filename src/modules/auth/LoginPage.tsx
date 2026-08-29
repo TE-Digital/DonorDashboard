@@ -13,7 +13,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./AuthContext";
 import { useBranding } from "../theme/BrandingContext";
-import { InlineMessage, textRole } from "../../design-system";
+import { InlineMessage, isEmail, textRole, useDocumentTitle } from "../../design-system";
+import type { FieldErrors } from "../../design-system/fieldValidation";
 import { color } from "../../design-system";
 import classes from "./AuthSurface.module.scss";
 
@@ -22,10 +23,13 @@ export const LoginPage: React.FC = () => {
   const { session } = useAuth();
   const branding = useBranding();
 
+  useDocumentTitle("Sign in");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<"email" | "password">>({});
 
   useEffect(() => {
     if (session) navigate("/");
@@ -33,6 +37,24 @@ export const LoginPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // The form is noValidate, so this is the only validation: the browser's
+    // own bubble is unstyled, disappears on the next click and is not reliably
+    // announced, and every other form in the product answers on the field.
+    const problems: FieldErrors<"email" | "password"> = {};
+    if (!email.trim()) {
+      problems.email = "Enter the email address you sign in with.";
+    } else if (!isEmail(email)) {
+      problems.email = "That does not look like an email address.";
+    }
+    if (!password) problems.password = "Enter your password.";
+
+    setFieldErrors(problems);
+    if (Object.keys(problems).length) {
+      setError(null);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -44,6 +66,15 @@ export const LoginPage: React.FC = () => {
     if (signInError) setError(signInError.message);
     setSubmitting(false);
   };
+
+  /** A field stops being wrong the moment it is edited. */
+  const clear = (key: "email" | "password") =>
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
 
   return (
     <div
@@ -85,25 +116,35 @@ export const LoginPage: React.FC = () => {
         </Stack>
 
         <Card p="lg" className={classes.card}>
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} noValidate>
             <Stack gap="sm">
               <InlineMessage tone="error">{error}</InlineMessage>
 
               <TextInput
                 label="Email"
+                autoComplete="username"
                 required
                 type="email"
                 placeholder="you@example.com"
+                error={fieldErrors.email}
                 value={email}
-                onChange={(e) => setEmail(e.currentTarget.value)}
+                onChange={(e) => {
+                  clear("email");
+                  setEmail(e.currentTarget.value);
+                }}
               />
 
               <PasswordInput
                 label="Password"
+                autoComplete="current-password"
                 required
                 placeholder="Your password"
+                error={fieldErrors.password}
                 value={password}
-                onChange={(e) => setPassword(e.currentTarget.value)}
+                onChange={(e) => {
+                  clear("password");
+                  setPassword(e.currentTarget.value);
+                }}
                 // no custom "show/hide password" text – use Mantine default
               />
 

@@ -10,7 +10,21 @@ import {
   FormPage,
   FormSection,
   LoadingState,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  isPhone,
+  type FieldErrors,
 } from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "donor-new";
+
+type DonorField = "name" | "email" | "phone";
+const DONOR_FIELD_ORDER: readonly DonorField[] = ["name", "email", "phone"];
 
 type AgentOption = { value: string; label: string };
 
@@ -38,6 +52,7 @@ export const AdminCreateDonorPage: React.FC = () => {
 
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<DonorField>>({});
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   useEffect(() => {
@@ -89,6 +104,25 @@ export const AdminCreateDonorPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // A donor with no name is a row nobody can find again, and the form used to
+    // accept one: there was no client-side validation on this screen at all.
+    const problems: FieldErrors<DonorField> = {};
+    if (!name.trim()) problems.name = "A donor needs a name — a person or an organisation.";
+    if (email.trim() && !isEmail(email)) {
+      problems.email = "Enter a complete email address, for example name@example.com.";
+    }
+    if (phone.trim() && !isPhone(phone)) {
+      problems.phone = "Enter a Thai phone number, for example 081 234 5678.";
+    }
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, DONOR_FIELD_ORDER));
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -147,6 +181,9 @@ const { data: inserted, error: insertError } = await supabase
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
               label="Name"
+              id={fieldId(FORM_ID, "name")}
+              error={fieldErrors.name}
+              required
               placeholder="e.g., Jane Doe or Company XYZ"
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
@@ -167,6 +204,8 @@ const { data: inserted, error: insertError } = await supabase
             <div>
               <TextInput
                 label="Email"
+                id={fieldId(FORM_ID, "email")}
+                error={fieldErrors.email}
                 value={email}
                 onChange={(e) => {
                   setEmail(e.currentTarget.value);
@@ -178,6 +217,11 @@ const { data: inserted, error: insertError } = await supabase
             </div>
             <TextInput
               label="Phone"
+              id={fieldId(FORM_ID, "phone")}
+              error={fieldErrors.phone}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.currentTarget.value)}
               placeholder="+66…"

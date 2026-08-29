@@ -14,6 +14,22 @@ import { supabase } from "../../lib/supabaseClient";
 import { useBranding } from "../theme/BrandingContext";
 import { color } from "../../design-system";
 import classes from "./AuthSurface.module.scss";
+import {
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  useDocumentTitle,
+  type FieldErrors,
+} from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "reset-password";
+
+type PasswordField = "password" | "confirm";
+const PASSWORD_FIELD_ORDER: readonly PasswordField[] = ["password", "confirm"];
 
 type Mode = "checking" | "request" | "reset";
 
@@ -28,6 +44,12 @@ export const ResetPasswordPage: React.FC = () => {
   const [sending, setSending] = useState(false);
   const [requestMessage, setRequestMessage] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<PasswordField>>({});
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // One route, two screens: asking for the link, and setting the new password
+  // once the link is followed.
+  useDocumentTitle(mode === "reset" ? "Set a new password" : "Reset password");
 
   // reset-password state
   const [newPassword, setNewPassword] = useState("");
@@ -64,6 +86,23 @@ export const ResetPasswordPage: React.FC = () => {
 
   const handleRequestLink = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // The password half of this page already answers on the field. The request
+    // half was leaving it to the browser, so the same form spoke two different
+    // languages depending on which state it was in.
+    const problem = !email.trim()
+      ? "Enter the email address you sign in with."
+      : !isEmail(email)
+        ? "That does not look like an email address."
+        : null;
+
+    setEmailError(problem);
+    if (problem) {
+      setRequestError(null);
+      setRequestMessage(null);
+      return;
+    }
+
     setSending(true);
     setRequestError(null);
     setRequestMessage(null);
@@ -91,12 +130,18 @@ export const ResetPasswordPage: React.FC = () => {
     setResetError(null);
     setResetMessage(null);
 
-    if (!newPassword) {
-      setResetError("Please enter a new password.");
-      return;
+    const problems: FieldErrors<PasswordField> = {};
+    if (!newPassword || newPassword.length < 8) {
+      problems.password = "Use at least 8 characters.";
     }
     if (newPassword !== confirmPassword) {
-      setResetError("Passwords do not match.");
+      problems.confirm = "The two passwords do not match.";
+    }
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setResetError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, PASSWORD_FIELD_ORDER));
       return;
     }
 
@@ -187,7 +232,7 @@ export const ResetPasswordPage: React.FC = () => {
 
         <Card withBorder shadow="sm" radius="md" p="lg" className={classes.card}>
           {mode === "request" && (
-            <form onSubmit={handleRequestLink}>
+            <form onSubmit={handleRequestLink} noValidate>
               <Stack gap="sm">
                 {requestError && (
                   <Text c="red" fz="sm">
@@ -202,11 +247,16 @@ export const ResetPasswordPage: React.FC = () => {
 
                 <TextInput
                   label="Email"
+                  autoComplete="username"
                   required
                   type="email"
                   placeholder="you@example.com"
+                  error={emailError}
                   value={email}
-                  onChange={(e) => setEmail(e.currentTarget.value)}
+                  onChange={(e) => {
+                    if (emailError) setEmailError(null);
+                    setEmail(e.currentTarget.value);
+                  }}
                 />
 
                 <Button type="submit" loading={sending}>
@@ -225,7 +275,7 @@ export const ResetPasswordPage: React.FC = () => {
           )}
 
           {mode === "reset" && (
-            <form onSubmit={handleResetPassword}>
+            <form onSubmit={handleResetPassword} noValidate>
               <Stack gap="sm">
                 {resetError && (
                   <Text c="red" fz="sm">
@@ -240,6 +290,9 @@ export const ResetPasswordPage: React.FC = () => {
 
                 <PasswordInput
                   label="New password"
+                  id={fieldId(FORM_ID, "password")}
+                  error={fieldErrors.password}
+                  autoComplete="new-password"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.currentTarget.value)}
@@ -254,6 +307,9 @@ export const ResetPasswordPage: React.FC = () => {
 
                 <PasswordInput
                   label="Confirm new password"
+                  id={fieldId(FORM_ID, "confirm")}
+                  error={fieldErrors.confirm}
+                  autoComplete="new-password"
                   required
                   value={confirmPassword}
                   onChange={(e) =>

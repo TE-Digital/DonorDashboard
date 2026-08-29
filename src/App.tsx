@@ -8,8 +8,30 @@ import { useViewAs } from "./modules/viewAs/ViewAsContext";
 
 import { LoginPage } from "./modules/auth/LoginPage";
 import { ResetPasswordPage } from "./modules/auth/ResetPasswordPage";
-import { DesignSystemPage } from "./modules/designsystem/DesignSystemPage";
-import { GrantsConsolePage } from "./modules/designsystem/GrantsConsolePage";
+// The design-system catalogue is a development tool and does not ship.
+//
+// Three things are needed to actually remove it, and only the third works on
+// its own. A static import survives dead-code elimination even when the JSX
+// using it is unreachable. A top-level `React.lazy(() => import(...))` gets
+// code-split but the chunk is still emitted, because the lazy() call itself
+// runs unconditionally. Putting the dynamic import inside the dead ternary
+// branch is what lets Rollup drop it: in a production build
+// `import.meta.env.DEV` is the literal `false`, so the branch — and the only
+// reference to these modules — is gone before chunking.
+const GrantsConsolePage = import.meta.env.DEV
+  ? React.lazy(() =>
+      import("./modules/designsystem/GrantsConsolePage").then((m) => ({
+        default: m.GrantsConsolePage,
+      })),
+    )
+  : null;
+const DesignSystemPage = import.meta.env.DEV
+  ? React.lazy(() =>
+      import("./modules/designsystem/DesignSystemPage").then((m) => ({
+        default: m.DesignSystemPage,
+      })),
+    )
+  : null;
 
 import { AdminDashboardPage } from "./modules/admin/AdminDashboardPage";
 import { AdminTeachersPage } from "./modules/admin/AdminTeachersPage";
@@ -29,6 +51,7 @@ import { AdminEditSchoolPage } from "./modules/admin/AdminEditSchoolPage";
 import { AdminSchoolDetailPage } from "./modules/admin/AdminSchoolDetailPage";
 import { AdminDonorsPage } from "./modules/admin/AdminDonorsPage";
 import { AdminCreateDonorPage } from "./modules/admin/AdminCreateDonorPage";
+import { AdminDonorDetailPage } from "./modules/admin/AdminDonorDetailPage";
 import { AdminEditDonorPage } from "./modules/admin/AdminEditDonorPage";
 import { AdminScholarshipsPage } from "./modules/admin/AdminScholarshipsPage";
 import { AdminCreateScholarshipPage } from "./modules/admin/AdminCreateScholarshipPage";
@@ -51,8 +74,10 @@ import { TeacherNewReportPage } from "./modules/teacher/TeacherNewReportPage";
 import { TeacherEditReportPage } from "./modules/teacher/TeacherEditReportPage";
 
 import { DonorDashboardPage } from "./modules/donor/DonorDashboardPage";
+import { DonorOverviewPage } from "./modules/donor/DonorOverviewPage";
 import { DonorStudentDetailPage } from "./modules/donor/DonorStudentDetailPage";
 import { DonorRenewPage } from "./modules/donor/DonorRenewPage";
+import { ReportVerifyPage } from "./modules/reports/ReportVerifyPage";
 
 import { ProfilePage } from "./modules/profile/ProfilePage";
 
@@ -68,7 +93,7 @@ const HomeRedirect: React.FC = () => {
 
   if (role === "admin") return <Navigate to="/admin/dashboard" replace />;
   if (role === "teacher") return <Navigate to="/teacher/dashboard" replace />;
-  if (role === "donor") return <Navigate to="/donor/dashboard" replace />;
+  if (role === "donor") return <Navigate to="/donor/overview" replace />;
   return <Navigate to="/login" replace />;
 };
 
@@ -79,9 +104,34 @@ const App: React.FC = () => {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       {/* Lumen design system: the grants console is the reference screen, the
-          token/component catalogue lives one level down. */}
-      <Route path="/design-system" element={<GrantsConsolePage />} />
-      <Route path="/design-system/reference" element={<DesignSystemPage />} />
+          token/component catalogue lives one level down.
+
+          Development only. These were public, unauthenticated routes in
+          production — they read no data, so nothing leaked, but an internal
+          catalogue of the platform's screens is not something to serve to
+          anyone who guesses the URL. `import.meta.env.DEV` is replaced with a
+          literal `false` at build time, so the branch and both pages are
+          dropped from the production bundle rather than merely hidden. */}
+      {GrantsConsolePage && DesignSystemPage && (
+        <>
+          <Route
+            path="/design-system"
+            element={
+              <React.Suspense fallback={null}>
+                <GrantsConsolePage />
+              </React.Suspense>
+            }
+          />
+          <Route
+            path="/design-system/reference"
+            element={
+              <React.Suspense fallback={null}>
+                <DesignSystemPage />
+              </React.Suspense>
+            }
+          />
+        </>
+      )}
  	<Route path="/welcome" element={<WelcomeSetPasswordPage />} />
 
       {/* Auth-protected area */}
@@ -138,6 +188,10 @@ const App: React.FC = () => {
             {/* Donors */}
             <Route path="donors" element={<AdminDonorsPage />} />
             <Route path="donors/new" element={<AdminCreateDonorPage />} />
+            {/* The money-and-students view. A donor row now opens this rather
+                than the edit form: people arrive asking what a donor has given,
+                not to change their name. */}
+            <Route path="donors/:donorId" element={<AdminDonorDetailPage />} />
             <Route
               path="donors/:donorId/edit"
               element={<AdminEditDonorPage />}
@@ -179,6 +233,9 @@ const App: React.FC = () => {
 
             {/* Reports / term updates (ADMIN) */}
             <Route path="reports/new" element={<AdminNewReportPage />} />
+            {/* Where a submitted report is read against what the donor will
+                see, and deliberately sent. */}
+            <Route path="reports/:reportId/verify" element={<ReportVerifyPage />} />
             <Route
               path="reports/:reportId/edit"
               element={<AdminReportFormPage />}
@@ -207,6 +264,9 @@ const App: React.FC = () => {
 
           {/* ---------- DONOR AREA ---------- */}
           <Route path="/donor" element={<RoleRoute allowed={["donor"]} />}>
+            {/* The donor's home: reports first, then their students, then their
+                giving. The old dashboard is now the students list beneath it. */}
+            <Route path="overview" element={<DonorOverviewPage />} />
             <Route path="dashboard" element={<DonorDashboardPage />} />
 	            <Route path="renew" element={<DonorRenewPage />} />
             <Route

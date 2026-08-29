@@ -11,7 +11,24 @@ import {
 import { supabase } from "../../lib/supabaseClient";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { InlineMessage, LoadingState, PageHeader } from "../../design-system";
+import {
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  type FieldErrors,
+} from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "my-profile";
+
+type ProfileField = "email" | "newPassword" | "confirmPassword";
+const PROFILE_FIELD_ORDER: readonly ProfileField[] = ["email", "newPassword", "confirmPassword"];
 
 export const ProfilePage: React.FC = () => {
   const { session, role, loading: authLoading } = useAuth();
@@ -31,6 +48,7 @@ export const ProfilePage: React.FC = () => {
   const [savingPassword, setSavingPassword] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<ProfileField>>({});
 
   // Determine which user we're editing and load their profile
   useEffect(() => {
@@ -102,18 +120,22 @@ export const ProfilePage: React.FC = () => {
     try {
       // If user is editing their own profile, also update auth email
       if (isOwnProfile) {
-        if (!trimmedEmail) {
-          setError("Email cannot be empty.");
-          setSavingProfile(false);
-          return;
-        }
+        // Marked on the field. `includes("@")` accepted "a@b" and rejected
+        // nothing else; the shared check is the one every other form uses.
+        const problem = !trimmedEmail
+          ? "An email address is required — it is how you sign in."
+          : !isEmail(trimmedEmail)
+            ? "Enter a complete email address, for example name@example.com."
+            : null;
 
-        // Basic sanity check; you can replace with stricter validation if needed
-        if (!trimmedEmail.includes("@")) {
-          setError("Please enter a valid email address.");
+        if (problem) {
+          setFieldErrors((current) => ({ ...current, email: problem }));
+          setError("One field needs attention before this can be saved.");
+          focusField(FORM_ID, "email");
           setSavingProfile(false);
           return;
         }
+        setFieldErrors((current) => ({ ...current, email: undefined }));
 
         const { error: authError } = await supabase.auth.updateUser({
           email: trimmedEmail,
@@ -216,13 +238,18 @@ export const ProfilePage: React.FC = () => {
     setError(null);
     setMessage(null);
 
+    const problems: FieldErrors<ProfileField> = {};
     if (!newPassword || newPassword.length < 6) {
-      setError("Password should have at least 6 characters.");
-      setSavingPassword(false);
-      return;
+      problems.newPassword = "Use at least 6 characters.";
     }
     if (newPassword !== newPasswordConfirm) {
-      setError("Passwords do not match.");
+      problems.confirmPassword = "The two passwords do not match.";
+    }
+    setFieldErrors((current) => ({ ...current, ...problems }));
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, PROFILE_FIELD_ORDER));
       setSavingPassword(false);
       return;
     }
@@ -270,6 +297,11 @@ export const ProfilePage: React.FC = () => {
 
             <TextInput
               label="Email"
+              id={fieldId(FORM_ID, "email")}
+              error={fieldErrors.email}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.currentTarget.value)}
               disabled={!isOwnProfile}
@@ -277,12 +309,15 @@ export const ProfilePage: React.FC = () => {
 
             <TextInput
               label="Full name"
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.currentTarget.value)}
             />
 
             <TextInput
               label="Phone"
+              type="tel"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(e.currentTarget.value)}
             />
@@ -305,12 +340,18 @@ export const ProfilePage: React.FC = () => {
 
               <PasswordInput
                 label="New password"
+                id={fieldId(FORM_ID, "newPassword")}
+                error={fieldErrors.newPassword}
+                autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.currentTarget.value)}
               />
 
               <PasswordInput
                 label="Confirm new password"
+                id={fieldId(FORM_ID, "confirmPassword")}
+                error={fieldErrors.confirmPassword}
+                autoComplete="new-password"
                 value={newPasswordConfirm}
                 onChange={(e) =>
                   setNewPasswordConfirm(e.currentTarget.value)

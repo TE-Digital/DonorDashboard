@@ -47,6 +47,39 @@ select {
   @include transition(background-color, border-color, color, box-shadow);
 }
 
+// Press feedback, once, for every pressable control in the app.
+//
+// Nothing here had an :active state before, so a click produced no acknowledgement
+// until the network answered -- on a slow save, that is a second of the interface
+// appearing not to have heard. The scale is small enough that nobody will name it
+// and large enough that its absence was felt.
+//
+// A button mid-save is excluded: it is already showing a spinner, and scaling a
+// control that is busy reads as a second, phantom press.
+button:not(:disabled):not([data-disabled]):not([data-loading]),
+[role="button"]:not([aria-disabled="true"]),
+a[href] {
+  transition: background-color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-press) var(--ease-standard);
+}
+
+button:not(:disabled):not([data-disabled]):not([data-loading]):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(var(--press-scale));
+}
+
+// Movement is what causes motion sickness; the colour change beside it carries
+// the same "heard you" information and stays.
+@media (prefers-reduced-motion: reduce) {
+  button:active,
+  [role="button"]:active {
+    transform: none;
+  }
+}
+
 // ── Buttons ──────────────────────────────────────────────────────────────
 // Only `filled` carries the blue. Everything else is an outline, so the blue
 // never has to compete.
@@ -220,6 +253,25 @@ textarea.mantine-Input-input {
 .mantine-Input-input:focus-within {
   border-color: var(--border-focus);
   box-shadow: var(--focus-ring);
+}
+
+/* A field the form has marked. The project sets its own border-color on every
+   input, which wins over Mantine's error variant — so without this a field with
+   a message under it looks exactly like a field without one, and the message is
+   the only thing carrying the meaning. Never colour alone: the sentence under
+   the field is what a colour-blind admin reads. */
+.mantine-Input-input[data-error],
+.mantine-Input-input[aria-invalid="true"] {
+  border-color: var(--red-500);
+  background: var(--red-50);
+}
+
+.mantine-Input-input[data-error]:focus,
+.mantine-Input-input[data-error]:focus-within,
+.mantine-Input-input[aria-invalid="true"]:focus,
+.mantine-Input-input[aria-invalid="true"]:focus-within {
+  border-color: var(--red-500);
+  box-shadow: 0 0 0 3px var(--red-100);
 }
 
 .mantine-Input-input::placeholder {
@@ -405,5 +457,38 @@ textarea.mantine-Input-input {
     scroll-behavior: auto !important;
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+// ── Finger-sized controls on a phone ─────────────────────────────────────
+// A cursor is a few pixels wide, so 36px is a comfortable dense target for it.
+// A fingertip is about 44px across, which is why DESIGN_PROCESS.md asks for
+// 44x44 on mobile — and every control here was 36. The Lumen tokens raise
+// --control-h-* under the same breakpoint; this is the Mantine half.
+//
+// The height is set directly rather than through --button-height / --ai-size,
+// because Mantine writes those custom properties onto the element's own style
+// attribute from the `size` prop, and an inline custom property beats every
+// stylesheet rule. Overriding the resolved `height` instead only has to
+// outrank Mantine's own class rule, which the doubled selector does without
+// reaching for !important.
+@media (max-width: 640px) {
+  .mantine-Button-root.mantine-Button-root[data-size="xs"],
+  .mantine-Button-root.mantine-Button-root[data-size="sm"],
+  .mantine-Button-root.mantine-Button-root[data-size="md"],
+  .mantine-Button-root.mantine-Button-root:not([data-size]) {
+    height: 44px;
+    min-height: 44px;
+  }
+
+  // Icon-only controls are square, so width comes up with height — a 44x36
+  // target still misses under a fingertip.
+  .mantine-ActionIcon-root.mantine-ActionIcon-root[data-size="xs"],
+  .mantine-ActionIcon-root.mantine-ActionIcon-root[data-size="sm"],
+  .mantine-ActionIcon-root.mantine-ActionIcon-root[data-size="md"],
+  .mantine-ActionIcon-root.mantine-ActionIcon-root:not([data-size]) {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 }

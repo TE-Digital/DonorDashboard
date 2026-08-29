@@ -28,8 +28,10 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
 
-  &:hover .track {
-    box-shadow: 0 0 0 3px var(--surface-hover);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover .track {
+      box-shadow: 0 0 0 3px var(--surface-hover);
+    }
   }
 
   &:focus-visible {
@@ -51,7 +53,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  transition: width var(--dur-normal, 200ms) var(--ease-standard, ease);
+  transition: width var(--dur-base) var(--ease-standard);
 }
 
 // Colour repeats what the number already says; it never carries it alone.

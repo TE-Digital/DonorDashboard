@@ -75,8 +75,11 @@ $breakpoints: (
 ///   @include transition(background-color, border-color);
 @mixin transition($properties...) {
   transition-property: #{$properties};
-  transition-duration: var(--dd-duration-normal);
-  transition-timing-function: ease;
+  // --dd-duration-normal was never defined in any token file, so this resolved
+  // to an invalid value and every transition in the app ran at 0s. The tokens
+  // are --dur-*; use them.
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-standard);
 
   // Respect the OS "reduce motion" setting. Required, not optional.
   @media (prefers-reduced-motion: reduce) {
@@ -87,9 +90,28 @@ $breakpoints: (
 /// Hover state that does not fire on touch devices, where "hover" sticks after
 /// a tap and leaves the element visually stuck.
 @mixin hover {
-  @media (hover: hover) {
+  // `pointer: fine` as well as `hover: hover`: a stylus and some hybrid laptops
+  // report hover support while still being touched, and the state sticks.
+  @media (hover: hover) and (pointer: fine) {
     &:hover {
       @content;
+    }
+  }
+}
+
+/// Press feedback. The interface confirming it heard the click, before any
+/// network call has had time to answer. Subtle scale, fast, and never on
+/// something being dragged.
+@mixin press($scale: var(--press-scale)) {
+  &:active:not(:disabled):not([aria-disabled="true"]) {
+    transform: scale(#{$scale});
+  }
+
+  // Movement is the part that causes motion sickness; the colour change beside
+  // it is not, and it carries the same information. So only the scale goes.
+  @media (prefers-reduced-motion: reduce) {
+    &:active {
+      transform: none;
     }
   }
 }
@@ -106,8 +128,9 @@ $breakpoints: (
 /// disabled state that actually looks disabled.
 @mixin interactive {
   cursor: pointer;
-  @include transition(background-color, border-color, box-shadow, opacity);
+  @include transition(background-color, border-color, box-shadow, opacity, transform);
   @include focus-ring;
+  @include press;
 
   &:disabled,
   &[aria-disabled="true"] {
@@ -169,12 +192,46 @@ $breakpoints: (
   }
 }
 
+/// Entry for anything that appears in place rather than arriving from a
+/// direction: a card, a popover, a tile. Never from scale(0) -- nothing in the
+/// real world appears out of nothing, and the eye reads it as a glitch.
+@keyframes dd-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /// Entry animation, skipped entirely under reduced-motion.
 ///   @include animate-in(dd-rise-in);
-@mixin animate-in($name: dd-fade-in, $duration: var(--dd-duration-normal)) {
-  animation: $name $duration ease both;
+@mixin animate-in($name: dd-fade-in, $duration: var(--dur-base)) {
+  animation: $name $duration var(--ease-standard) both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
+  }
+}
+
+/// Staggers the direct children of the element so a group settles in sequence
+/// rather than flashing in at once. Delays stay short -- past roughly 80ms a
+/// step the cascade stops reading as one group and starts reading as lag.
+///
+///   .row { @include stagger-children(dd-rise-in, 6, 40ms); }
+///
+/// Decorative only. Nothing here gates interaction: the children are clickable
+/// from the first frame, because `both` holds the end state, not the start.
+@mixin stagger-children($name: dd-rise-in, $count: 6, $step: 40ms) {
+  > * {
+    @include animate-in($name);
+
+    @for $i from 1 through $count {
+      &:nth-child(#{$i}) {
+        animation-delay: $step * ($i - 1);
+      }
+    }
   }
 }

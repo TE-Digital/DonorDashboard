@@ -29,6 +29,12 @@ import {
   LoadingState,
   parseDateInput,
   toDateInputValue,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
 } from "../../design-system";
 import { Button, Icon } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
@@ -49,10 +55,15 @@ import {
   loadReport,
   saveReport,
   validateReportDetails,
+  REPORT_FIELD_ORDER,
+  type ReportField,
   type ReportDetailsInput,
 } from "./reportRecord";
 import { REPORT_STATE_META, REPORT_STATUS_OPTIONS } from "./reportStatus";
 import styles from "./ReportForm.module.scss";
+
+/** Namespaces this form's field ids — a report is written from three screens. */
+const FORM_ID = "report-form";
 
 export interface SavedReport {
   id: string;
@@ -101,12 +112,17 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
     const [loading, setLoading] = useState(Boolean(reportId));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** Which fields are wrong, so each one says so on itself. */
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors<ReportField>>({});
 
     const fileInput = useRef<HTMLInputElement>(null);
     const errorRef = useRef<HTMLDivElement>(null);
 
     const set = <K extends keyof ReportDetailsInput>(key: K, value: ReportDetailsInput[K]) =>
       setDetails((current) => ({ ...current, [key]: value }));
+
+    /** id + error together, so no field can be marked without being reachable. */
+    const field = (key: ReportField) => ({ id: fieldId(FORM_ID, key), error: fieldErrors[key] });
 
     const reportError = (message: string | null) => {
       setError(message);
@@ -210,9 +226,14 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
     const save = async () => {
       reportError(null);
 
-      const problem = validateReportDetails(details);
-      if (problem) {
-        reportError(problem);
+      const problems = validateReportDetails(details);
+      setFieldErrors(problems);
+
+      if (hasErrors(problems)) {
+        // The count at the top, the sentences on the fields, and the cursor in
+        // the first one.
+        reportError(errorSummary(problems));
+        focusField(FORM_ID, firstError(problems, REPORT_FIELD_ORDER));
         return;
       }
 
@@ -284,6 +305,7 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <Select
                 label="Student"
+                {...field("studentId")}
                 required
                 placeholder="Select student"
                 searchable
@@ -299,20 +321,23 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg" mt={lockStudent ? "lg" : "lg"}>
             <DateInput
               label="Report date"
+              {...field("reportDate")}
               required
               value={parseDateInput(details.reportDate)}
               onChange={(value) => set("reportDate", toDateInputValue(value))}
             />
             <DateInput
               label="Covers from"
-              placeholder="Optional"
+              {...field("coversStart")}
+              placeholder="DD/MM/YYYY"
               clearable
               value={parseDateInput(details.coversStart)}
               onChange={(value) => set("coversStart", toDateInputValue(value))}
             />
             <DateInput
               label="Covers until"
-              placeholder="Optional"
+              {...field("coversEnd")}
+              placeholder="DD/MM/YYYY"
               clearable
               value={parseDateInput(details.coversEnd)}
               onChange={(value) => set("coversEnd", toDateInputValue(value))}
@@ -333,7 +358,8 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
             />
             <DateInput
               label="Due date"
-              placeholder="Optional"
+              {...field("dueDate")}
+              placeholder="DD/MM/YYYY"
               clearable
               value={parseDateInput(details.dueDate)}
               onChange={(value) => set("dueDate", toDateInputValue(value))}
@@ -351,7 +377,8 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
             />
             <TextInput
               label="Grade as a number"
-              placeholder="Optional, e.g. 78"
+              {...field("gradeNumeric")}
+              placeholder="e.g. 78"
               inputMode="decimal"
               value={details.gradeNumeric}
               onChange={(event) => set("gradeNumeric", event.currentTarget.value)}
@@ -365,9 +392,10 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="For the donor">
+        <FormSection title="For the donor" hint="The one part of this report a donor reads. Everything above is ours.">
           <Textarea
             label="Comment for donor"
+            {...field("donorComment")}
             minRows={5}
             autosize
             placeholder="What changed for this student this term?"
@@ -381,7 +409,7 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
             label="Internal note"
             minRows={3}
             autosize
-            placeholder="Optional"
+            placeholder="Anything the office should know that the donor should not read."
             value={details.internalNote}
             onChange={(event) => set("internalNote", event.currentTarget.value)}
           />

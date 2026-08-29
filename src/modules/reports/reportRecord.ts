@@ -18,12 +18,13 @@
 import { supabase } from "../../lib/supabaseClient";
 import { parseAttachments, type ReportAttachment } from "./reportAttachments";
 import type { ReportStatus } from "./reportStatus";
+import type { FieldErrors } from "../../design-system/fieldValidation";
 
 export type { ReportAttachment };
 
 /** The columns every screen reads for a report. */
 export const REPORT_COLUMNS =
-  "id, student_id, report_date, covers_start, covers_end, grade, grade_text, grade_numeric, donor_comment, internal_note, info, attachments, status, due_date, created_at";
+  "id, student_id, report_date, covers_start, covers_end, grade, grade_text, grade_numeric, donor_comment, internal_note, info, attachments, status, due_date, created_at, flagged_at, flag_reason, flag_resolved_at";
 
 export interface ReportRecord {
   id: string;
@@ -42,6 +43,10 @@ export interface ReportRecord {
   status: ReportStatus | null;
   due_date: string | null;
   created_at: string | null;
+  /** A donor asked a question on this report. See donorReports.ts. */
+  flagged_at: string | null;
+  flag_reason: string | null;
+  flag_resolved_at: string | null;
 }
 
 /** The form's shape — every value a string, as the inputs hold them. */
@@ -129,23 +134,59 @@ export const toReportRow = (
  * actually has to hand — refusing to save a report because the numeric grade
  * is missing is how a term's observations get lost.
  */
-export const validateReportDetails = (values: ReportDetailsInput): string | null => {
-  if (!values.studentId) return "Choose the student this report is about.";
-  if (!values.reportDate) return "Choose the date of this report.";
-  if (Number.isNaN(new Date(values.reportDate).getTime())) {
-    return "Enter the report date as a date.";
+/** The fields a report can be wrong about, in the order the form asks. */
+export type ReportField =
+  | "studentId"
+  | "reportDate"
+  | "coversStart"
+  | "coversEnd"
+  | "dueDate"
+  | "gradeNumeric"
+  | "donorComment";
+
+export const REPORT_FIELD_ORDER: readonly ReportField[] = [
+  "studentId",
+  "reportDate",
+  "coversStart",
+  "coversEnd",
+  "dueDate",
+  "gradeNumeric",
+  "donorComment",
+];
+
+/**
+ * Everything wrong with these values, by field.
+ *
+ * A report has thirteen inputs. Answering a failed save with one sentence in a
+ * banner made the person hunt for which of the thirteen it was about.
+ */
+export const validateReportDetails = (values: ReportDetailsInput): FieldErrors<ReportField> => {
+  const errors: FieldErrors<ReportField> = {};
+
+  if (!values.studentId) errors.studentId = "Choose the student this report is about.";
+
+  if (!values.reportDate) {
+    errors.reportDate = "Choose the date of this report.";
+  } else if (Number.isNaN(new Date(values.reportDate).getTime())) {
+    errors.reportDate = "Enter the report date as a date.";
   }
+
   if (values.coversStart && values.coversEnd && values.coversStart > values.coversEnd) {
-    return "The period this report covers ends before it starts.";
+    errors.coversEnd = "The period this report covers ends before it starts.";
   }
+
   const numeric = values.gradeNumeric.trim();
   if (numeric && !Number.isFinite(Number(numeric))) {
-    return "The numeric grade must be a number, or empty.";
+    errors.gradeNumeric = "The numeric grade must be a number, or empty.";
   }
+
+  // A draft is allowed to be unfinished. Anything past draft is on its way to a
+  // donor, and the donor's sentence is the point of the whole record.
   if (values.status !== "draft" && !values.donorComment.trim()) {
-    return "Write the comment for the donor before submitting this report.";
+    errors.donorComment = "Write the comment for the donor before submitting this report.";
   }
-  return null;
+
+  return errors;
 };
 
 /* ----------------------------------------------------------------- Reads */

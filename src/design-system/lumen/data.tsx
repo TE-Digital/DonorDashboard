@@ -35,6 +35,15 @@ export interface DataColumn<R extends { id: React.Key } = any> {
    */
   pad?: string;
   filterValue?: (row: R) => unknown;
+  /**
+   * What this column sorts on, when that is not what it filters on.
+   *
+   * An account state filters by its label, because that is the word in the
+   * filter menu — but sorting alphabetically would bury "Invite not used"
+   * under "Active". A column whose order is an urgency, not an alphabet,
+   * supplies the rank here.
+   */
+  sortValue?: (row: R) => unknown;
   render?: (row: R) => React.ReactNode;
 }
 
@@ -234,6 +243,15 @@ export interface DataTableProps<R extends { id: React.Key } = any> {
   filters?: Record<string, string[]>;
   onFiltersChange?: (next: Record<string, string[]>) => void;
   onRowClick?: (row: R) => void;
+  /**
+   * A row to point at, briefly, without selecting it.
+   *
+   * A record that was just created lands in a table of a hundred others sorted
+   * by something other than recency. Saying "created" in a toast and leaving
+   * the admin to find the row is not an answer; this tints it so the eye lands
+   * on it, and it fades on the next interaction.
+   */
+  highlightRowId?: React.Key | null;
   maxHeight?: number | string;
   bare?: boolean;
 }
@@ -253,6 +271,7 @@ export function DataTable<R extends { id: React.Key }>({
   filters = {},
   onFiltersChange,
   onRowClick,
+  highlightRowId = null,
   maxHeight = 460,
   bare,
 }: DataTableProps<R>) {
@@ -528,13 +547,16 @@ export function DataTable<R extends { id: React.Key }>({
           {rows.map((r, ri) => {
             const on = selected.includes(r.id);
             const hov = hover === r.id;
+            const lit = highlightRowId != null && r.id === highlightRowId;
             const bg = on
               ? "var(--surface-selected)"
               : hov
                 ? "var(--n-25)"
-                : zebra && ri % 2
-                  ? "var(--n-25)"
-                  : "var(--n-0)";
+                : lit
+                  ? "var(--blue-25)"
+                  : zebra && ri % 2
+                    ? "var(--n-25)"
+                    : "var(--n-0)";
             return (
               <tr
                 key={r.id}
@@ -827,8 +849,15 @@ export const KpiCard: React.FC<KpiCardProps> = ({
   );
 
   // The product tile: one line. Mark, then value, label and footnote running on
-  // together — a KPI reads as a sentence, not a stacked block. The footnote is
-  // the only part allowed to truncate, so the number and its name always show.
+  // together — a KPI reads as a sentence, not a stacked block.
+  //
+  // What truncates, in order: the footnote first, then the value. The label is
+  // never cut, because "Full University Scholarship Schol…" tells you less than
+  // "Full University Sch… Scholarship" does — the name of the metric is what
+  // makes the number mean anything. A value is a count on most tiles and a
+  // whole scholarship name on one, so it cannot be assumed short; without a
+  // min-width of 0 it forces the card wider than its grid track and paints
+  // straight over the tile beside it.
   if (strip) {
     return (
       <div
@@ -837,6 +866,8 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           alignItems: "center",
           gap: 10,
           height: "100%",
+          minWidth: 0,
+          overflow: "hidden",
           background: "var(--surface-card)",
           border: "1px solid var(--border-subtle)",
           borderRadius: "var(--radius)",
@@ -871,8 +902,12 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           }}
         >
           <span
+            title={typeof value === "string" || typeof value === "number" ? String(value) : undefined}
             style={{
-              flex: "0 0 auto",
+              flex: "0 1 auto",
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
               fontSize: 18,
               lineHeight: "24px",
               fontWeight: "var(--fw-semibold)" as unknown as number,
@@ -901,6 +936,7 @@ export const KpiCard: React.FC<KpiCardProps> = ({
           {(delta || footnote) && (
             <span
               style={{
+                flex: "1 1 auto",
                 minWidth: 0,
                 overflow: "hidden",
                 textOverflow: "ellipsis",

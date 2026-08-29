@@ -10,10 +10,10 @@ import {
   Text,
 } from "@mantine/core";
 import { IconDotsVertical, IconPencil, IconTrash } from "@tabler/icons-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { SchoolFormDrawer } from "./SchoolFormDrawer";
-import { Button, type DataColumn } from "../../design-system/lumen";
+import { Button, Tag, type DataColumn } from "../../design-system/lumen";
 import { notifications } from "@mantine/notifications";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -22,6 +22,7 @@ import {
   deriveSchoolProfile,
   type SchoolRecord,
 } from "./schoolProfile";
+import { PROVINCE_UNRECORDED } from "./dashboardMetrics";
 import styles from "./AdminDirectory.module.scss";
 
 type SchoolRow = {
@@ -40,8 +41,30 @@ type SchoolRow = {
 };
 
 
+/**
+ * Schools, with province and district as real columns.
+ *
+ * Falls back to the older select when the school-location migration has not
+ * been applied, so a deploy that lands ahead of its migration shows schools
+ * without a province rather than an error.
+ */
+const loadSchoolRows = async () => {
+  const withLocation = await supabase
+    .from("schools")
+    .select("id, name, address, created_at, is_active, province, district")
+    .order("name");
+
+  if (!withLocation.error) return withLocation;
+
+  return supabase
+    .from("schools")
+    .select("id, name, address, created_at, is_active")
+    .order("name");
+};
+
 export const AdminSchoolsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
@@ -55,7 +78,7 @@ export const AdminSchoolsPage: React.FC = () => {
     setLoading(true);
     const [{ data: schoolData, error: schoolError }, { data: studentData, error: studentError }] =
       await Promise.all([
-        supabase.from("schools").select("id, name, address, created_at, is_active").order("name"),
+        loadSchoolRows(),
         supabase.from("students").select("id, school_id, responsible_teacher_id"),
       ]);
 
@@ -96,8 +119,12 @@ export const AdminSchoolsPage: React.FC = () => {
       return {
         ...school,
         displayId: profile.displayId,
-        province: profile.province,
-        district: profile.district,
+        // Province and district are columns now, not guesses. A school nobody
+        // has located reads as unrecorded rather than borrowing a value the
+        // address happened to end with -- see schoolProfile.ts, where these
+        // were never facts.
+        province: (school.province ?? "").trim() || PROVINCE_UNRECORDED,
+        district: (school.district ?? "").trim() || "—",
         system: profile.system,
         studentCount: linkedStudents.length,
         teacherCount: teacherIds.size,
@@ -116,15 +143,35 @@ export const AdminSchoolsPage: React.FC = () => {
     void load();
   }, []);
 
+  /**
+   * The province the dashboard sent us here to look at, if any.
+   *
+   * `?province=none` is the schools nobody has located -- a real group with a
+   * real count on the dashboard, so it needs a way to be opened like any other.
+   */
+  const provinceFilter = useMemo(() => {
+    const value = searchParams.get("province");
+    if (!value) return null;
+    return value === "none" ? PROVINCE_UNRECORDED : value;
+  }, [searchParams]);
+
+  const clearProvince = () => {
+    searchParams.delete("province");
+    setSearchParams(searchParams, { replace: true });
+  };
+
   const filteredSchools = useMemo(
     () => schools.filter((school) =>
       (!statusFilter || school.status === statusFilter) &&
-      (!systemFilter || school.system === systemFilter)),
-    [schools, statusFilter, systemFilter],
+      (!systemFilter || school.system === systemFilter) &&
+      (!provinceFilter || school.province === provinceFilter)),
+    [schools, statusFilter, systemFilter, provinceFilter],
   );
 
   const kpis: TableKpi[] = useMemo(() => {
-    const provinces = new Set(schools.map((school) => school.province).filter((value) => value !== "—")).size;
+    const provinces = new Set(
+      schools.map((school) => school.province).filter((value) => value !== PROVINCE_UNRECORDED),
+    ).size;
     const active = schools.filter((school) => school.status === "Active").length;
     const students = schools.reduce((sum, school) => sum + school.studentCount, 0);
     const teachers = schools.reduce((sum, school) => sum + school.teacherCount, 0);
@@ -320,6 +367,9 @@ export const AdminSchoolsPage: React.FC = () => {
         pageSize={14}
         controls={
           <>
+            {/* Named, and removable: the admin can see which province the
+                dashboard narrowed this list to, and widen back out. */}
+            {provinceFilter && <Tag onRemove={clearProvince}>{provinceFilter}</Tag>}
             <Select clearable placeholder="All statuses" value={statusFilter} onChange={setStatusFilter} data={[...SCHOOL_STATUSES]} w={160} />
             <Select clearable placeholder="All systems" value={systemFilter} onChange={setSystemFilter} data={[...SCHOOL_SYSTEMS]} w={170} />
           </>

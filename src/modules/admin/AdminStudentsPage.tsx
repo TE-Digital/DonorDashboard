@@ -19,11 +19,19 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { CoverageBar } from "../donor/CoverageBar";
+import {
+  COVERAGE_META,
+  coverageRank,
+  coverageState,
+  loadStudentCoverage,
+  type StudentCoverage,
+} from "../donor/donorMoney";
 import { ActionIcon, Avatar, Group, Menu, Select, Stack, Text } from "@mantine/core";
-import { IconDotsVertical, IconPencil, IconArchive, IconArrowBackUp } from "@tabler/icons-react";
-import { Link, useNavigate } from "react-router-dom";
+import { IconDotsVertical, IconPencil, IconArchive, IconArrowBackUp, IconUserCog, IconCoins } from "@tabler/icons-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { InlineMessage, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
-import { Badge, Button, type DataColumn } from "../../design-system/lumen";
+import { Badge, Button, Tag, type DataColumn } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import { StudentFormDrawer } from "./StudentFormDrawer";
 import { ProfileCompletionBar } from "./ProfileCompletionBar";
@@ -46,6 +54,8 @@ import {
 } from "./studentProfile";
 import { reportingPeriodMonths } from "./schoolProfile";
 import { setStudentStatus } from "./studentEvents";
+import { AssignTeacherModal, type AssignTeacherTarget } from "./AssignTeacherModal";
+import { loadTeacherOptions, type TeacherOption } from "./studentProfile";
 import styles from "./AdminDirectory.module.scss";
 
 /**
@@ -65,12 +75,39 @@ const loadSchoolCycleRows = async (schoolIds: string[]) => {
 };
 
 /** A KPI that the table can be narrowed to. */
-type Focus = "all" | "overdue" | "unassigned" | "unfunded";
+type Focus = "all" | "overdue" | "unassigned" | "unfunded" | "gap" | "need-unknown";
 
 const FOCUS_MATCH: Record<Exclude<Focus, "all">, (student: StudentRow) => boolean> = {
   overdue: (student) => student.cycle.state === "overdue",
   unassigned: (student) => !student.responsible_teacher_id,
   unfunded: (student) => !student.donated,
+  // The two the dashboard links to. Money focuses, so they read the coverage
+  // view rather than the older "has any donation been recorded" flag.
+  gap: (student) =>
+    !!student.coverage && !student.coverage.need_unknown && student.coverage.monthly_gap_thb > 0,
+  "need-unknown": (student) => !student.coverage || student.coverage.need_unknown,
+};
+
+/**
+ * The focuses a caller may arrive with in the URL.
+ *
+ * The dashboard counts these students and then sends the admin here to see
+ * them; if the parameter and the filter disagreed, the number on the front page
+ * and the rows on this one would be two different populations. So the contract
+ * is written once, here, and the dashboard links to these words.
+ */
+const URL_FOCUS: Focus[] = ["overdue", "unassigned", "unfunded", "gap", "need-unknown"];
+
+const focusFromParam = (value: string | null): Focus =>
+  URL_FOCUS.includes((value ?? "") as Focus) ? ((value as Focus) ?? "all") : "all";
+
+/** What a focus arrived at from elsewhere is called, on the chip that clears it. */
+const FOCUS_LABEL: Record<Exclude<Focus, "all">, string> = {
+  overdue: "Reports overdue",
+  unassigned: "Without a teacher",
+  unfunded: "No donation recorded",
+  gap: "Receiving less than their need",
+  "need-unknown": "Need not recorded",
 };
 
 type StudentRow = {
@@ -96,6 +133,8 @@ type StudentRow = {
   completion: ProfileCompletion;
   /** True once at least one donation is recorded against this student. */
   donated: boolean;
+  /** Need against received. Undefined until the funding migration lands. */
+  coverage?: StudentCoverage;
 };
 
 const asDate = (value: string | null) =>
@@ -110,6 +149,10 @@ export const AdminStudentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
+  /** The student whose teacher is being changed from the row menu. */
+  const [assigning, setAssigning] = useState<AssignTeacherTarget | null>(null);
+  /** Loaded once, lazily: the picker needs them, the table does not. */
+  const [teacherOptions, setTeacherOptions] = useState<TeacherOption[]>([]);
   /** Archived students are out of the way by default, never gone. */
   const [statusFilter, setStatusFilter] = useState<string>("enrolled");
   /** A real read failure. Shown, never rendered as an empty table. */
@@ -119,12 +162,37 @@ export const AdminStudentsPage: React.FC = () => {
    * table names four counts; clicking one shows exactly those rows, and
    * clicking it again puts them back.
    */
-  const [focus, setFocus] = useState<Focus>("all");
+  const [focus, setFocusState] = useState<Focus>(() =>
+    focusFromParam(new URLSearchParams(window.location.search).get("focus")),
+  );
+
+  /**
+   * A focus is part of the address, not just component state.
+   *
+   * The dashboard sends an admin here with ?focus=gap. If that only seeded
+   * state, the back button would return them to a dashboard tile they had
+   * already followed, and the link would not survive being shared or reloaded.
+   */
+  const setFocus = (next: Focus | ((current: Focus) => Focus)) => {
+    setFocusState((current) => {
+      const resolved = typeof next === "function" ? next(current) : next;
+      setSearchParams(
+        (params) => {
+          if (resolved === "all") params.delete("focus");
+          else params.set("focus", resolved);
+          return params;
+        },
+        { replace: true },
+      );
+      return resolved;
+    });
+  };
 
   /** False until the lifecycle migration is applied. */
   const [lifecycle, setLifecycle] = useState(true);
 
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
 
   const load = async () => {
     setLoading(true);
@@ -233,7 +301,15 @@ export const AdminStudentsPage: React.FC = () => {
       };
     });
 
-    setStudents(mapped);
+    // Coverage comes from the student_coverage view rather than being summed
+    // here, so this table and the allocation panel cannot rank the same student
+    // differently. A missing view leaves every row's coverage undefined, which
+    // the bar renders as "Need not recorded" rather than as zero.
+    const { data: coverageByStudent } = await loadStudentCoverage(mapped.map((row) => row.id));
+
+    setStudents(
+      mapped.map((row) => ({ ...row, coverage: coverageByStudent.get(row.id) })),
+    );
     setLoading(false);
   };
 
@@ -445,12 +521,19 @@ export const AdminStudentsPage: React.FC = () => {
       render: (s) => asDate(s.enrolled_on),
     },
     {
-      key: "monthly_support",
-      label: "Monthly support",
-      width: 150,
-      align: "right",
-      numeric: true,
-      render: (s) => (s.monthly_support != null ? s.monthly_support.toLocaleString() : "—"),
+      // `monthly_support_expected` has been on the student form since the
+      // beginning and nothing ever compared it to the scholarships attached to
+      // the student. The number alone answered nothing; need against received,
+      // sorted by the gap, is the question a supervisor actually has.
+      key: "coverage",
+      label: "Funding",
+      width: 190,
+      sortValue: (s) => -coverageRank(s.coverage),
+      // The cell is a bar, so without this the filter menu offered one option
+      // reading "[object Object]". Filtering funding means filtering the state
+      // it is in.
+      filterValue: (s) => COVERAGE_META[coverageState(s.coverage)].label,
+      render: (s) => <CoverageBar coverage={s.coverage} compact />,
     },
     {
       key: "last_report_date",
@@ -514,7 +597,7 @@ export const AdminStudentsPage: React.FC = () => {
       filterable: false,
       render: (s) => (
         <div className={styles.rowActions} onClick={(event) => event.stopPropagation()}>
-          <Menu position="bottom-end" withinPortal shadow="md" width={200}>
+          <Menu position="bottom-end" withinPortal shadow="md" width={230}>
             <Menu.Target>
               <ActionIcon variant="subtle" color="gray" aria-label={`Actions for ${s.name ?? "student"}`}>
                 <IconDotsVertical size={18} />
@@ -526,6 +609,28 @@ export const AdminStudentsPage: React.FC = () => {
                 onClick={() => navigate(`/admin/students/${s.id}/edit`)}
               >
                 Edit student details
+              </Menu.Item>
+
+              {/* The two things that actually happen to a student between
+                  reports: who looks after them, and who pays for them. Both
+                  used to mean opening the edit form and scrolling past nine
+                  fields that were not changing. */}
+              <Menu.Divider />
+              <Menu.Item
+                leftSection={<IconUserCog size={16} />}
+                onClick={() => setAssigning(s)}
+              >
+                {s.responsible_teacher_id ? "Change teacher" : "Assign teacher"}
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<IconCoins size={16} />}
+                onClick={() =>
+                  s.donated
+                    ? navigate(`/admin/students/${s.id}?tab=scholarships`)
+                    : navigate(`/admin/scholarships/new?studentId=${s.id}`)
+                }
+              >
+                {s.donated ? "Change funding" : "Add funding"}
               </Menu.Item>
               {lifecycle && (
                 <>
@@ -548,6 +653,13 @@ export const AdminStudentsPage: React.FC = () => {
     },
   ];
 
+  // The teacher list is only needed by the assign picker, so it is fetched the
+  // first time somebody opens it rather than on every load of the directory.
+  useEffect(() => {
+    if (!assigning || teacherOptions.length) return;
+    void loadTeacherOptions().then(setTeacherOptions);
+  }, [assigning, teacherOptions.length]);
+
   return (
     <>
       {loading && (
@@ -557,6 +669,13 @@ export const AdminStudentsPage: React.FC = () => {
       )}
 
       <Stack gap="md" className={styles.page}>
+        <AssignTeacherModal
+          student={assigning}
+          teachers={teacherOptions}
+          onClose={() => setAssigning(null)}
+          onAssigned={() => void load()}
+        />
+
         <StudentFormDrawer
           opened={studentDrawerOpen}
           onClose={() => setStudentDrawerOpen(false)}
@@ -593,7 +712,18 @@ export const AdminStudentsPage: React.FC = () => {
             density="compact"
             pageSize={25}
             controls={
-              lifecycle && (
+              <>
+              {/*
+                Where the admin came from, and the way back out.
+
+                A dashboard tile that silently narrows this table would leave an
+                admin looking at a subset with nothing on screen explaining why.
+                The chip names the filter and removes it.
+              */}
+              {focus !== "all" && (
+                <Tag onRemove={() => setFocus("all")}>{FOCUS_LABEL[focus]}</Tag>
+              )}
+              {lifecycle && (
               <Select
                 label={undefined}
                 aria-label="Which students to show"
@@ -607,7 +737,8 @@ export const AdminStudentsPage: React.FC = () => {
                 value={statusFilter}
                 onChange={(value) => value && setStatusFilter(value)}
               />
-              )
+              )}
+              </>
             }
             onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
             emptyTitle={statusFilter === "archived" ? "No archived students" : "No students yet"}

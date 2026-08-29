@@ -36,8 +36,10 @@ export {
   toReportDetails,
   toReportRow,
   validateReportDetails,
+  REPORT_FIELD_ORDER,
 } from "./reportRecord";
 export type {
+  ReportField,
   LoadedReport,
   ReportDetailsInput,
   ReportRecord,

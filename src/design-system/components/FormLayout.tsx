@@ -159,6 +159,26 @@ export const FieldLabel: React.FC<FieldLabelProps> = ({ required, htmlFor, child
   </label>
 );
 
+/* -------------------------------------------------------------- optional */
+
+/**
+ * Marks a field the form can be saved without.
+ *
+ * The rule, one way round only: **mark the minority**. On a form where most
+ * fields are required, the two that are not are the surprising ones and they
+ * carry this tag; on a form where most are optional, the required ones carry
+ * the asterisk and nothing else is marked. Marking both on the same form
+ * doubles the noise and tells a person nothing they could not already see.
+ *
+ * Usage: `<TextInput label={optional("LINE ID")} … />`
+ */
+export const optional = (label: React.ReactNode): React.ReactNode => (
+  <>
+    {label}
+    <span className={styles.optionalTag}> · optional</span>
+  </>
+);
+
 /* ---------------------------------------------------------- FormFeedback */
 
 export type FormTone = "error" | "success" | "info" | "warning";

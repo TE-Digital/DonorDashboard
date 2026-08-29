@@ -14,6 +14,7 @@ import { useMediaQuery } from "@mantine/hooks";
 import { useAuth } from "../modules/auth/AuthContext";
 import { useViewAs } from "../modules/viewAs/ViewAsContext";
 import { ViewAsSwitcher } from "../modules/viewAs/ViewAsSwitcher";
+import { LanguageSwitch } from "../i18n/LanguageSwitch";
 import { useBranding } from "../modules/theme/BrandingContext";
 import { Banner, Button, IconButton, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
 import { GlobalSearchDialog } from "../modules/search/GlobalSearchDialog";
@@ -131,7 +132,7 @@ export const AppShellLayout: React.FC = () => {
     const overviews: NavChild[] = [];
     if (isAdmin) overviews.push({ id: "/admin/dashboard", label: "Admin overview" });
     if (isTeacher) overviews.push({ id: "/teacher/dashboard", label: "Teaching overview" });
-    if (isDonor) overviews.push({ id: "/donor/dashboard", label: "Giving overview" });
+    if (isDonor) overviews.push({ id: "/donor/overview", label: "Giving overview" });
 
     if (overviews.length === 1) {
       out.push({ ...overviews[0], label: "Overview", icon: "house" });
@@ -277,6 +278,10 @@ export const AppShellLayout: React.FC = () => {
           </span>
         </span>
       </button>
+      {/* Full-width labelled rows here rather than the toolbar's two-letter
+          chips: in a menu there is room to write the language out, and a
+          teacher on a phone gets a 44px target. */}
+      <LanguageSwitch stacked />
       <Button variant="secondary" fullWidth size="sm" onClick={handleLogout}>
         Log out
       </Button>
@@ -360,7 +365,12 @@ export const AppShellLayout: React.FC = () => {
             title={title}
             notifications={0}
             user={initials(profile?.full_name)}
-            actions={<ViewAsSwitcher />}
+            actions={
+              <>
+                <LanguageSwitch />
+                <ViewAsSwitcher />
+              </>
+            }
             onSearch={() => setSearchOpen(true)}
           />
           <main className={classes.panel}>

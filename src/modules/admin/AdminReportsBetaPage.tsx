@@ -14,7 +14,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Group, Select, Stack, Text } from "@mantine/core";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { InlineMessage, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { Badge, Button, type DataColumn } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
@@ -40,6 +40,8 @@ type ReportRow = {
   covers: string;
   grade: string;
   status: ReportStatus;
+  /** Set while a donor's question on this report is unanswered. */
+  flagged: boolean;
   /** The donor-facing sentence, trimmed to a line so the row stays one line. */
   summary: string;
 };
@@ -58,7 +60,28 @@ export const AdminReportsBetaPage: React.FC = () => {
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  /**
+   * The status filter is part of the address.
+   *
+   * The dashboard counts reports awaiting verification and links here with
+   * ?status=submitted. Keeping the filter in the URL means that link survives a
+   * reload, and that the count on the front page and the rows on this one are
+   * demonstrably the same set.
+   */
+  const statusFilter = searchParams.get("status") ?? "all";
+
+  const setStatusFilter = (next: string) => {
+    setSearchParams(
+      (params) => {
+        if (next === "all") params.delete("status");
+        else params.set("status", next);
+        return params;
+      },
+      { replace: true },
+    );
+  };
 
   const navigate = useNavigate();
 
@@ -107,6 +130,24 @@ export const AdminReportsBetaPage: React.FC = () => {
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
+    // Flags live behind the funding migration, and REPORT_COLUMNS cannot name
+    // them: PostgREST rejects a select that mentions a column the database does
+    // not have, which would take the whole reports table down on a deploy where
+    // the code has landed and the migration has not. So they are read
+    // separately, and their absence simply means no report is flagged.
+    const flagRead = await supabase
+      .from("term_updates")
+      .select("id, flagged_at, flag_resolved_at")
+      .in("id", reports.map((report) => report.id));
+
+    const flaggedIds = new Set<string>(
+      flagRead.error
+        ? []
+        : (flagRead.data ?? [])
+            .filter((row: any) => row.flagged_at && !row.flag_resolved_at)
+            .map((row: any) => row.id),
+    );
+
     const studentById = new Map(students.map((s) => [s.id, s]));
     const schoolById = new Map(((schoolResult.data ?? []) as any[]).map((s) => [s.id, s.name]));
     const teacherById = new Map(((teacherResult.data ?? []) as any[]).map((t) => [t.id, t.full_name]));
@@ -132,6 +173,7 @@ export const AdminReportsBetaPage: React.FC = () => {
           covers: covers || "—",
           grade: report.grade || report.grade_text || (report.grade_numeric != null ? String(report.grade_numeric) : "") || "—",
           status: (report.status ?? "submitted") as ReportStatus,
+          flagged: flaggedIds.has(report.id),
           summary: (report.donor_comment || report.info || "").replace(/\s+/g, " ").trim(),
         };
       }),
@@ -143,10 +185,14 @@ export const AdminReportsBetaPage: React.FC = () => {
     void load();
   }, []);
 
-  const visible = useMemo(
-    () => (statusFilter === "all" ? rows : rows.filter((row) => row.status === statusFilter)),
-    [rows, statusFilter],
-  );
+  const visible = useMemo(() => {
+    if (statusFilter === "all") return rows;
+    // "Flagged" is not one of the stored statuses — it is a donor waiting on an
+    // answer, which can be true of a report in any state — so it filters on its
+    // own column rather than on status.
+    if (statusFilter === "flagged") return rows.filter((row) => row.flagged);
+    return rows.filter((row) => row.status === statusFilter);
+  }, [rows, statusFilter]);
 
   // What is waiting on somebody, not how many rows exist.
   const kpis: TableKpi[] = useMemo(() => {
@@ -227,7 +273,11 @@ export const AdminReportsBetaPage: React.FC = () => {
       align: "right",
       filterValue: (row) => REPORT_STATE_META[row.status as ReportCycleState].label,
       render: (row) => {
-        const meta = REPORT_STATE_META[row.status as ReportCycleState];
+        // A flag outranks the stored status in the cell as well as in the
+        // sort: the report may be approved and still have somebody waiting.
+        const meta = row.flagged
+          ? REPORT_STATE_META.flagged
+          : REPORT_STATE_META[row.status as ReportCycleState];
         return (
           <span title={meta.hint}>
             <Badge tone={meta.tone} dot>
@@ -275,6 +325,7 @@ export const AdminReportsBetaPage: React.FC = () => {
                 w={200}
                 data={[
                   { value: "all", label: "All statuses" },
+                  { value: "flagged", label: "Flagged by a donor" },
                   ...[...Object.keys(REPORT_STATE_META)]
                     .filter((state) =>
                       ["draft", "submitted", "under_review", "changes_requested", "approved"].includes(state),
@@ -292,7 +343,16 @@ export const AdminReportsBetaPage: React.FC = () => {
                 onChange={(value) => value && setStatusFilter(value)}
               />
             }
-            onRowClick={(row) => navigate(`/admin/reports/${row.id}/edit`)}
+            // A report that has been submitted goes to verification, not to
+            // the edit form: the next act on it is deciding whether it is fit
+            // to send, and that decision has its own screen.
+            onRowClick={(row) =>
+              navigate(
+                ["submitted", "under_review", "approved"].includes(row.status)
+                  ? `/admin/reports/${row.id}/verify`
+                  : `/admin/reports/${row.id}/edit`,
+              )
+            }
             emptyTitle="No reports yet"
             emptyDescription="Reports written by teachers appear here as soon as they are saved."
           />

@@ -25,6 +25,7 @@ import {
   FormSection,
   InlineMessage,
   LoadingState,
+  optional,
 } from "../../design-system";
 import { Button } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
@@ -44,8 +45,21 @@ import {
   syncTeacherStudents,
   teacherColumnsAvailable,
   validateTeacherDetails,
+  TEACHER_FIELD_ORDER,
   type TeacherDetailsInput,
+  type TeacherField,
 } from "./teacherProfile";
+import {
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
+
+/** Namespaces this form's field ids — it renders both as a route and a drawer step. */
+const FORM_ID = "teacher-form";
 
 export interface CreatedTeacher {
   id: string;
@@ -162,6 +176,8 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
     const [error, setError] = useState<string | null>(null);
 
     const errorRef = useRef<HTMLDivElement>(null);
+    /** What the last save attempt found wrong, per field. */
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors<TeacherField>>({});
 
     /** Sets the error, tells the container, and brings it into view. */
     const reportError = (message: string | null) => {
@@ -174,8 +190,20 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
       }
     };
 
-    const set = <K extends keyof TeacherDetailsInput>(key: K, value: TeacherDetailsInput[K]) =>
+    const set = <K extends keyof TeacherDetailsInput>(key: K, value: TeacherDetailsInput[K]) => {
+      // A field stops being wrong the moment it is edited. Leaving the message
+      // under a field somebody is fixing is nagging, and it makes the count lie.
+      setFieldErrors((current) => {
+        if (!current[key]) return current;
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
       setDetails((current) => ({ ...current, [key]: value }));
+    };
+
+    /** id + error together, so no field can be marked without being reachable. */
+    const field = (key: TeacherField) => ({ id: fieldId(FORM_ID, key), error: fieldErrors[key] });
 
     useEffect(() => {
       if (defaultSchoolId) setDetails((current) => ({ ...current, schoolId: defaultSchoolId }));
@@ -326,11 +354,16 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
     const save = async () => {
       reportError(null);
 
-      const validationError = validateTeacherDetails(details, {
+      const problems = validateTeacherDetails(details, {
         requireSchool: columnsReady !== false,
       });
-      if (validationError) {
-        reportError(validationError);
+      setFieldErrors(problems);
+
+      if (hasErrors(problems)) {
+        // The count at the top, the sentences on the fields, and the cursor in
+        // the first one — so fixing four empty fields is one pass, not four.
+        reportError(errorSummary(problems));
+        focusField(FORM_ID, firstError(problems, TEACHER_FIELD_ORDER));
         return;
       }
 
@@ -419,6 +452,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
               label="Full name (English)"
+              {...field("fullName")}
               placeholder="e.g. Araya Sukjai"
               required
               value={details.fullName}
@@ -426,6 +460,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             />
             <TextInput
               label="Full name (Thai)"
+              {...field("fullNameTh")}
               placeholder="เช่น อารยา สุขใจ"
               required
               value={details.fullNameTh}
@@ -440,6 +475,9 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput
               label="Email address"
+              inputMode="email"
+              autoComplete="email"
+              {...field("email")}
               placeholder="name@school.org"
               required
               type="email"
@@ -448,6 +486,10 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             />
             <TextInput
               label="Phone number"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              {...field("phone")}
               placeholder="08x xxx xxxx"
               required
               value={details.phone}
@@ -455,6 +497,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             />
             <TextInput
               label="LINE ID"
+              {...field("lineId")}
               placeholder="@teacher-line-id"
               required
               value={details.lineId}
@@ -482,6 +525,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <Select
                 label="School"
+                {...field("schoolId")}
                 placeholder={columnsReady === false ? "Not available yet" : "Select school"}
                 required={columnsReady !== false}
                 disabled={columnsReady === false}
@@ -514,7 +558,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
         >
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <MultiSelect
-              label="Assign students"
+              label={optional("Assign students")}
               placeholder={studentIds.length ? undefined : "Search students by name"}
               searchable
               clearable
@@ -551,19 +595,12 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
         <FormSection title="Notes">
           <Textarea
-            label="Notes"
+            label={optional("Notes")}
             placeholder="Languages spoken, travel constraints, preferred contact time…"
             minRows={4}
             value={details.notes}
             onChange={(event) => set("notes", event.currentTarget.value)}
           />
-        </FormSection>
-
-        <FormSection title="Account invitation">
-          <InlineMessage tone="info">
-            Saving creates a user account with the Teacher role and emails an invitation to the
-            address above. The teacher sets their own password from that message.
-          </InlineMessage>
         </FormSection>
 
         {showActions && (

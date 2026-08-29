@@ -17,6 +17,7 @@ import {
 import { useNavigate, useParams } from "react-router-dom";
 import { IconDownload, IconFile, IconPhoto } from "@tabler/icons-react";
 import { supabase } from "../../lib/supabaseClient";
+import { loadDonorReports } from "../reports/donorReports";
 import { asRow, asRows } from "../../lib/supabaseRelations";
 import { useAuth } from "../auth/AuthContext";
 import {
@@ -238,34 +239,19 @@ export const DonorStudentDetailPage: React.FC = () => {
           lastScholarshipDate,
         });
 
-        // 4) All progress reports for this student
-        const { data: reportRows, error: reportError } = await supabase
-          .from("term_updates")
-          .select(
-            `
-            id,
-            report_date,
-            covers_start,
-            covers_end,
-            grade,
-            grade_text,
-            grade_numeric,
-            donor_comment,
-            info,
-            attachments
-          `
-          )
-          .eq("student_id", studentId)
-          .order("report_date", { ascending: false });
-
-        if (reportError) {
-          console.error(
-            "Error loading term updates for donor student detail",
-            reportError
-          );
-        }
-
-        const rawReports = (reportRows ?? []) as ReportRow[];
+        // 4) The reports this donor is entitled to see.
+        //
+        // This read used to hit term_updates directly with no status filter, so
+        // a donor could open an unfinished draft about a child in their care —
+        // and it selected `info`, the legacy internal duplicate of the donor
+        // text, falling back to a 200-character clip of it. Both are gone.
+        // `donor_reports` is a view that exposes approved rows only and does not
+        // select internal_note at all, and the RLS on term_updates enforces the
+        // same rule for anything that goes around this query.
+        const rawReports = (await loadDonorReports(studentId)).map((report) => ({
+          ...report,
+          info: null,
+        })) as ReportRow[];
 
         // Build per-report image list (only public image files)
         const decorated: DecoratedReport[] = await Promise.all(
@@ -350,7 +336,7 @@ export const DonorStudentDetailPage: React.FC = () => {
           <Button
             size="xs"
             variant="subtle"
-            onClick={() => navigate("/donor/dashboard")}
+            onClick={() => navigate("/donor/overview")}
           >
             Back to dashboard
           </Button>
@@ -415,7 +401,7 @@ export const DonorStudentDetailPage: React.FC = () => {
           <Button
             size="xs"
             variant="subtle"
-            onClick={() => navigate("/donor/dashboard")}
+            onClick={() => navigate("/donor/overview")}
           >
             Back to dashboard
           </Button>

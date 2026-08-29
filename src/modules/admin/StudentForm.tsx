@@ -41,11 +41,23 @@ import {
   toStudentRow,
   uploadStudentPhoto,
   validateStudentDetails,
+  STUDENT_FIELD_ORDER,
   type Option,
   type SchoolOption,
   type StudentDetailsInput,
+  type StudentField,
   type TeacherOption,
 } from "./studentProfile";
+import {
+  errorSummary,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
+
+/** Namespaces this form's field ids — the student fields render in two forms. */
+const FORM_ID = "student-form";
 
 export interface CreatedStudent {
   id: string;
@@ -118,11 +130,27 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** What the last save attempt found wrong, per field. */
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors<StudentField>>({});
 
     const errorRef = useRef<HTMLDivElement>(null);
 
     const set = <K extends keyof StudentDetailsInput>(key: K, value: StudentDetailsInput[K]) =>
       setDetails((current) => ({ ...current, [key]: value }));
+
+    /**
+     * A field stops being wrong the moment it is edited.
+     *
+     * Leaving the message under a field somebody is actively fixing is nagging,
+     * and it makes the summary count lie.
+     */
+    const clearFieldError = (key: StudentField) =>
+      setFieldErrors((current) => {
+        if (!current[key]) return current;
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
 
     /** Sets the error, tells the container, and brings it into view. */
     const reportError = (message: string | null) => {
@@ -248,9 +276,14 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
     const save = async () => {
       reportError(null);
 
-      const problem = validateStudentDetails(details);
-      if (problem) {
-        reportError(problem);
+      const problems = validateStudentDetails(details);
+      setFieldErrors(problems);
+
+      if (hasErrors(problems)) {
+        // The count at the top, the sentences on the fields, and the cursor in
+        // the first one — so fixing four empty fields is one pass, not four.
+        reportError(errorSummary(problems));
+        focusField(FORM_ID, firstError(problems, STUDENT_FIELD_ORDER));
         return;
       }
 
@@ -316,7 +349,15 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
 
         <StudentFields
           details={details}
-          onChange={setDetails}
+          onChange={(next) => {
+            // Whatever changed stops being an error; the rest of the marks stay.
+            (Object.keys(next) as StudentField[])
+              .filter((key) => next[key] !== details[key])
+              .forEach(clearFieldError);
+            setDetails(next);
+          }}
+          errors={fieldErrors}
+          formId={FORM_ID}
           schools={schools}
           teachers={teachers}
           grantTypes={grantTypes}

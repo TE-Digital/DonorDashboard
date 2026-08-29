@@ -69,3 +69,6 @@ Thumbs.db
 .idea
 *.iml
 .env.local
+
+# Spartan AI config (contains API keys)
+.spartan/ai.env

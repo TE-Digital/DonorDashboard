@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, SimpleGrid, TextInput, Textarea } from "@mantine/core";
+import { Button, Select, SimpleGrid, TextInput, Textarea } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -11,6 +11,8 @@ import {
   InlineMessage,
   LoadingState,
 } from "../../design-system";
+import { PROVINCES } from "./schoolProfile";
+import { isMissingColumnError } from "./teacherProfile";
 
 export const AdminEditSchoolPage: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +20,11 @@ export const AdminEditSchoolPage: React.FC = () => {
 
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
+  // Province and district are the two fields the dashboard groups and ranks by.
+  // They were previously only ever flattened into the address string, which is
+  // why nothing could count them.
+  const [province, setProvince] = useState<string | null>(null);
+  const [district, setDistrict] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -34,11 +41,20 @@ export const AdminEditSchoolPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
+    let { data, error: fetchError } = await supabase
       .from("schools")
-      .select("id, name, address")
+      .select("id, name, address, province, district")
       .eq("id", schoolId)
       .maybeSingle();
+
+    // A deploy that lands ahead of its migration still edits a school.
+    if (fetchError && isMissingColumnError(fetchError)) {
+      ({ data, error: fetchError } = await supabase
+        .from("schools")
+        .select("id, name, address")
+        .eq("id", schoolId)
+        .maybeSingle());
+    }
 
     if (fetchError) {
       console.error("Error loading school", fetchError);
@@ -54,6 +70,8 @@ export const AdminEditSchoolPage: React.FC = () => {
 
     setName(data.name ?? "");
     setAddress(data.address ?? "");
+    setProvince(((data as { province?: string | null }).province ?? "") || null);
+    setDistrict((data as { district?: string | null }).district ?? "");
     setLoading(false);
   };
 
@@ -77,13 +95,23 @@ export const AdminEditSchoolPage: React.FC = () => {
       return;
     }
 
-    const { error: updateError } = await supabase
+    const base = { name: trimmedName, address: address.trim() || null };
+
+    let { error: updateError } = await supabase
       .from("schools")
       .update({
-        name: trimmedName,
-        address: address.trim() || null,
+        ...base,
+        province: province?.trim() || null,
+        district: district.trim() || null,
       })
       .eq("id", schoolId);
+
+    if (updateError && isMissingColumnError(updateError)) {
+      ({ error: updateError } = await supabase
+        .from("schools")
+        .update(base)
+        .eq("id", schoolId));
+    }
 
     if (updateError) {
       console.error("Error updating school", updateError);
@@ -123,6 +151,20 @@ export const AdminEditSchoolPage: React.FC = () => {
                 autosize
                 value={address}
                 onChange={(e) => setAddress(e.currentTarget.value)}
+              />
+              <Select
+                label="Province"
+                searchable
+                clearable
+                placeholder="Not recorded"
+                data={[...PROVINCES]}
+                value={province}
+                onChange={setProvince}
+              />
+              <TextInput
+                label="District"
+                value={district}
+                onChange={(e) => setDistrict(e.currentTarget.value)}
               />
             </SimpleGrid>
           </FormSection>

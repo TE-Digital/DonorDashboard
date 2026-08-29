@@ -46,6 +46,8 @@ export interface TableSectionProps<R extends { id: React.Key }> {
    */
   actions?: React.ReactNode;
   onRowClick?: (row: R) => void;
+  /** A row to tint briefly — the record that was just created. */
+  highlightRowId?: React.Key | null;
   selectable?: boolean;
   /** Rendered above the grid when rows are selected. */
   bulkActions?: (selected: React.Key[], clear: () => void) => React.ReactNode;
@@ -67,6 +69,7 @@ export function TableSection<R extends { id: React.Key }>({
   controls,
   actions,
   onRowClick,
+  highlightRowId = null,
   selectable = false,
   bulkActions,
   density = "compact",
@@ -90,7 +93,14 @@ export function TableSection<R extends { id: React.Key }>({
 
     Object.entries(filters).forEach(([key, values]) => {
       if (values && values.length) {
-        out = out.filter((r) => values.includes(String((r as any)[key] ?? "")));
+        // Read the same way the filter menu built its options. The menu offers
+        // column.filterValue(row) and the filter compared row[key], so ticking
+        // "Admin" on a column whose cell is rendered from something else
+        // matched nothing and emptied the table.
+        const column = columns.find((c) => c.key === key);
+        const read = (row: R) =>
+          column?.filterValue ? column.filterValue(row) : (row as any)[key];
+        out = out.filter((r) => values.includes(String(read(r) ?? "")));
       }
     });
 
@@ -98,8 +108,14 @@ export function TableSection<R extends { id: React.Key }>({
       const { key, dir } = sort;
       const column = columns.find((c) => c.key === key);
       out = [...out].sort((a, b) => {
-        const x = column?.filterValue ? column.filterValue(a) : (a as any)[key];
-        const y = column?.filterValue ? column.filterValue(b) : (b as any)[key];
+        const read = (row: R) =>
+          column?.sortValue
+            ? column.sortValue(row)
+            : column?.filterValue
+              ? column.filterValue(row)
+              : (row as any)[key];
+        const x = read(a);
+        const y = read(b);
         if (x == null && y == null) return 0;
         if (x == null) return 1;
         if (y == null) return -1;
@@ -243,6 +259,7 @@ export function TableSection<R extends { id: React.Key }>({
               resetToFirstPage();
             }}
             onRowClick={onRowClick}
+            highlightRowId={highlightRowId}
             maxHeight={maxHeight}
             bare
           />

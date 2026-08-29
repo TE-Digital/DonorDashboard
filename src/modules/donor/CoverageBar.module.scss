@@ -1,0 +1,83 @@
+// Need against received, as one bar.
+//
+// The bar is the smaller half of this component. The number beside it is the
+// half people read, which is why the bar never appears without it: a length is
+// a comparison, and "1,200 THB short each month" is an instruction.
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--n-100);
+  overflow: hidden;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-pill);
+  transition: width var(--dur-base) var(--ease-standard);
+}
+
+.funded .fill { background: var(--status-success); }
+.partial .fill { background: var(--status-warning); }
+.uncovered .fill { background: var(--status-danger); }
+.over .fill { background: var(--status-info); }
+.unknown .fill { background: var(--n-300); }
+
+// An uncovered student still needs a mark on the track, or the row reads as
+// "no data" rather than "nobody is paying for this child".
+.uncovered .track {
+  background: var(--red-50);
+  box-shadow: inset 0 0 0 1px var(--red-100);
+}
+
+.caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+}
+
+.amount {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-body);
+}
+
+.gap {
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+
+.partial .gap { color: var(--amber-700); }
+.uncovered .gap { color: var(--red-700); }
+.funded .gap { color: var(--green-700); }
+
+// The compact form used inside a data table cell: no caption line, the number
+// sits beside the bar so the row height does not change.
+.compact {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.compact .track {
+  flex: 1;
+  min-width: 48px;
+}
+
+.compact .caption {
+  display: block;
+  white-space: nowrap;
+}

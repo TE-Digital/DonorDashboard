@@ -45,7 +45,7 @@ const teacherNav: NavItem[] = [
 ];
 
 const donorNav: NavItem[] = [
-  { label: "Your impact", to: "/donor/dashboard" },
+  { label: "Your impact", to: "/donor/overview" },
   { label: "Renew your support", to: "/donor/renew" },
 ];
 

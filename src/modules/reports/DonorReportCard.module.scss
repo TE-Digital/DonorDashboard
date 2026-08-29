@@ -1,0 +1,208 @@
+// A term report, as the person who funds the child reads it.
+//
+// Mobile-first, because a donor opens this from an email on a phone. The photo
+// keeps its aspect ratio rather than cropping to a grid: it is a picture of a
+// specific child, not a thumbnail in a portfolio.
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--sp-6);
+    gap: var(--sp-5);
+  }
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.term {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.date {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.grade {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+.gradeValue {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-h3);
+  color: var(--text-heading);
+}
+
+// The paragraph is the report. Body size on mobile is 16px so iOS does not zoom
+// the page when the comment box below it takes focus.
+.comment {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-body);
+  white-space: pre-wrap;
+  max-width: 68ch;
+}
+
+@media (min-width: 768px) {
+  .comment {
+    font-size: var(--fs-body);
+    line-height: 1.75;
+  }
+}
+
+.photos {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 560px) {
+  .photos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.photo {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+}
+
+.fileLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-link);
+  text-decoration: none;
+  min-height: 44px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .fileLink:hover {
+    color: var(--text-link-hover);
+    text-decoration: underline;
+  }
+}
+
+/* --------------------------------------------------------------- thread */
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.threadTitle {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+}
+
+.mine {
+  background: var(--blue-25);
+}
+
+.internal {
+  background: var(--amber-50);
+  border: 1px dashed var(--amber-500);
+}
+
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.bubbleBody {
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text-body);
+  white-space: pre-wrap;
+}
+
+.bubbleActions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.composerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  justify-content: space-between;
+}
+
+// The flag banner. Amber and worded: an open question, not an alarm.
+.flagBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  color: var(--amber-700);
+}

@@ -125,6 +125,28 @@ const isValidRadius = (value: unknown): value is keyof typeof radius =>
   typeof value === "string" && value in radius;
 
 /**
+ * The radii an organisation may pick, as options.
+ *
+ * The branding form asked for this as free text, so a typo silently reverted
+ * every button in the product to the default — with nothing on screen saying
+ * the value had been rejected.
+ */
+export const BUTTON_RADIUS_OPTIONS = [
+  { value: "none", label: "Square (0px)" },
+  { value: "sm", label: "Rounded (8px)" },
+  { value: "md", label: "Rounded (8px) — default" },
+  { value: "lg", label: "Rounded (8px)" },
+  { value: "xl", label: "Pill" },
+];
+
+/** The faces an organisation may pick. Each is loaded by the platform. */
+export const FONT_FAMILY_OPTIONS = [
+  { value: brandDefaults.fontFamily, label: "Figtree — the platform default" },
+  { value: 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif', label: "System sans" },
+  { value: 'Georgia, "Times New Roman", serif', label: "Serif" },
+];
+
+/**
  * Pin the primary to the design system's warm blue (#072AC8) and ignore
  * `branding_settings.primary_color`.
  *

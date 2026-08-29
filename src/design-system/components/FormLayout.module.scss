@@ -140,6 +140,13 @@
   color: var(--red-500);
 }
 
+// The counterpart to the asterisk, for forms where being optional is the
+// exception. Quiet on purpose: it is a permission, not an instruction.
+.optionalTag {
+  color: var(--text-subtle);
+  font-weight: var(--fw-regular);
+}
+
 // ── Feedback ─────────────────────────────────────────────────────────────
 // What the form says back. One shape, four tones; the glyph and the stroke do
 // the work, so a success does not read as a second error.

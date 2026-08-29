@@ -11,17 +11,36 @@ import {
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "./AuthContext"; // adjust path if needed
-import { LoadingState } from "../../design-system";
+import { LoadingState,
+  useDocumentTitle,
+} from "../../design-system";
 import classes from "./AuthSurface.module.scss";
+import {
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "accept-invite";
+
+type PasswordField = "password" | "confirm";
+const PASSWORD_FIELD_ORDER: readonly PasswordField[] = ["password", "confirm"];
 
 export const AcceptInvitePage: React.FC = () => {
   const navigate = useNavigate();
   const { session, refreshProfile } = useAuth(); // or whatever your context exposes
 
   const [checking, setChecking] = useState(true);
+
+  useDocumentTitle("Accept your invitation");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<PasswordField>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -42,12 +61,18 @@ export const AcceptInvitePage: React.FC = () => {
     e.preventDefault();
     setError(null);
 
+    const problems: FieldErrors<PasswordField> = {};
     if (!password || password.length < 8) {
-      setError("Please choose a password with at least 8 characters.");
-      return;
+      problems.password = "Use at least 8 characters.";
     }
     if (password !== password2) {
-      setError("Passwords do not match.");
+      problems.confirm = "The two passwords do not match.";
+    }
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, PASSWORD_FIELD_ORDER));
       return;
     }
 
@@ -112,16 +137,22 @@ export const AcceptInvitePage: React.FC = () => {
           </Text>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <Stack gap="sm">
             <PasswordInput
               label="New password"
+              id={fieldId(FORM_ID, "password")}
+              error={fieldErrors.password}
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.currentTarget.value)}
               required
             />
             <PasswordInput
               label="Confirm password"
+              id={fieldId(FORM_ID, "confirm")}
+              error={fieldErrors.confirm}
+              autoComplete="new-password"
               value={password2}
               onChange={(e) => setPassword2(e.currentTarget.value)}
               required

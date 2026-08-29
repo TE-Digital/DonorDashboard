@@ -13,7 +13,21 @@ import {
   FormSection,
   InlineMessage,
   LoadingState,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  isPhone,
+  type FieldErrors,
 } from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "user-new";
+
+type UserField = "fullName" | "email" | "phone";
+const USER_FIELD_ORDER: readonly UserField[] = ["fullName", "email", "phone"];
 
 type UiRole = "admin" | "teacher" | "donor" | "agent";
 
@@ -36,6 +50,7 @@ export const AdminCreateUserPage: React.FC = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<UserField>>({});
   const [message, setMessage] = useState<string | null>(null);
 
   const handleToggleRole = (role: UiRole, checked: boolean) => {
@@ -50,9 +65,24 @@ export const AdminCreateUserPage: React.FC = () => {
 
     const selectedRoles = ALL_ROLES.filter((r) => roles[r]);
 
-    if (!fullName || !email) {
+    // Marked on the fields, not summarised in the banner: "Full name and email
+    // are required" told a person nothing about which of the two was empty.
+    const problems: FieldErrors<UserField> = {};
+    if (!fullName.trim()) problems.fullName = "A full name is required.";
+    if (!email.trim()) {
+      problems.email = "An email address is required — the invitation is sent to it.";
+    } else if (!isEmail(email)) {
+      problems.email = "Enter a complete email address, for example name@example.com.";
+    }
+    if (phone.trim() && !isPhone(phone)) {
+      problems.phone = "Enter a Thai phone number, for example 081 234 5678.";
+    }
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
       setSubmitting(false);
-      setError("Full name and email are required.");
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, USER_FIELD_ORDER));
       return;
     }
 
@@ -149,6 +179,8 @@ export const AdminCreateUserPage: React.FC = () => {
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput
               label="Full name"
+              id={fieldId(FORM_ID, "fullName")}
+              error={fieldErrors.fullName}
               placeholder="Jane Doe"
               required
               value={fullName}
@@ -156,6 +188,10 @@ export const AdminCreateUserPage: React.FC = () => {
             />
             <TextInput
               label="Email"
+              id={fieldId(FORM_ID, "email")}
+              error={fieldErrors.email}
+              inputMode="email"
+              autoComplete="email"
               placeholder="user@example.com"
               required
               type="email"
@@ -164,6 +200,11 @@ export const AdminCreateUserPage: React.FC = () => {
             />
             <TextInput
               label="Phone"
+              id={fieldId(FORM_ID, "phone")}
+              error={fieldErrors.phone}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               placeholder="+66 ..."
               value={phone}
               onChange={(e) => setPhone(e.currentTarget.value)}
