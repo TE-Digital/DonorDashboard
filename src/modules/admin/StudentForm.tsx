@@ -31,6 +31,7 @@ import { writeFailureMessage, type EntityFormHandle, type EntityFormOwnerProps }
 import { SchoolFormDrawer } from "./SchoolFormDrawer";
 import { StudentFields } from "./StudentFields";
 import { logEvent } from "./studentEvents";
+import styles from "./AdminDirectory.module.scss";
 import type { CreatedSchool } from "./SchoolForm";
 import {
   EMPTY_STUDENT_DETAILS,
@@ -372,6 +373,7 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
           />
         )}
       </FormBody>
+     </div>
     );
   },
 );
