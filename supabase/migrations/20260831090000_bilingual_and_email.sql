@@ -96,6 +96,10 @@ comment on column public.term_updates.send_error is 'The last failure. Present m
 -- donors and scholarships, so any signed-in account querying donor_balance
 -- would see every donor's money. `create or replace` does not inherit the
 -- setting, so it has to be stated every time the view is rewritten.
+drop view if exists public.student_donors cascade;
+drop view if exists public.student_coverage cascade;
+drop view if exists public.donor_balance cascade;
+
 create or replace view public.donor_balance
 with (security_invoker = true)
 as
