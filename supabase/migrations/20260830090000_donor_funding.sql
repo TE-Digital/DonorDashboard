@@ -76,11 +76,11 @@ update public.scholarships
 set monthly_amount_thb = case
   when coverage_end is null then amount_thb
   else round(
-    amount_thb / greatest(
+    (amount_thb / greatest(
       1,
       (date_part('year', age(coverage_end, coverage_start)) * 12
         + date_part('month', age(coverage_end, coverage_start)))
-    ),
+    ))::numeric,
     2
   )
 end
