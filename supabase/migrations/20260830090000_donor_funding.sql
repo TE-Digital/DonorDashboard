@@ -136,12 +136,11 @@ select
   d.id as donor_id,
   d.name as donor_name,
   coalesce(g.total_given, 0) as total_given_thb,
-  coalesce(p.total_committed, 0) as total_committed_thb,
-  coalesce(g.total_given, 0) - coalesce(p.total_committed, 0) as free_balance_thb,
+  coalesce(c.total_committed, 0) as total_committed_thb,
+  coalesce(g.total_given, 0) - coalesce(c.total_committed, 0) as free_balance_thb,
   coalesce(c.monthly_committed, 0) as monthly_committed_thb
 from public.donors d
   left join given g on g.donor_id = d.id
-  left join pledged p on p.donor_id = d.id
   left join committed c on c.donor_id = d.id
 -- A balance is an admin's figure and the donor's own. Written here as well as
 -- left to RLS because a view is a grant to `authenticated`, and a donor reading
