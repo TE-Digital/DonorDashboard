@@ -1,0 +1,129 @@
+// One student's term reports.
+//
+// Read as a history rather than a table: each entry is a paragraph somebody
+// wrote about a child, and a table row would cut it to a width that hides the
+// only part that matters.
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.count {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.date {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.summary {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.headActions {
+  margin-left: auto;
+}
+
+.body {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed, 1.7);
+  color: var(--text-body);
+  text-wrap: pretty;
+}
+
+// Marked, not hidden. Somebody reading a report on a shared screen should be
+// able to see at a glance which sentence is not for the donor.
+.internal {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border-default);
+  background: var(--n-25);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.file {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--n-25);
+  color: var(--text-muted);
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.private {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--n-900);
+  color: var(--n-0);
+}

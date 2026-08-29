@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { SchoolFormDrawer } from "./SchoolFormDrawer";
 import { Button, type DataColumn } from "../../design-system/lumen";
+import { notifications } from "@mantine/notifications";
 import { supabase } from "../../lib/supabaseClient";
 import {
   SCHOOL_STATUSES,
@@ -54,7 +55,7 @@ export const AdminSchoolsPage: React.FC = () => {
     setLoading(true);
     const [{ data: schoolData, error: schoolError }, { data: studentData, error: studentError }] =
       await Promise.all([
-        supabase.from("schools").select("id, name, address, created_at").order("name"),
+        supabase.from("schools").select("id, name, address, created_at, is_active").order("name"),
         supabase.from("students").select("id, school_id, responsible_teacher_id"),
       ]);
 
@@ -179,6 +180,39 @@ export const AdminSchoolsPage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  /**
+   * Closes or reopens a school.
+   *
+   * A closed school stops being offered when a student is placed, and stays
+   * exactly where it is on every student already at it. Deleting is the other
+   * menu item, and it is not the same thing.
+   */
+  const setSchoolActive = async (school: SchoolRow, active: boolean) => {
+    const { error } = await supabase.from("schools").update({ is_active: active }).eq("id", school.id);
+
+    if (error) {
+      console.error("Error changing school status", error);
+      notifications.show({
+        title: "Nothing changed",
+        message: "The school status did not save. Try again in a minute.",
+        color: "red",
+        withBorder: true,
+      });
+      return;
+    }
+
+    notifications.show({
+      title: active ? "School reopened" : "School closed",
+      message: active
+        ? `${school.name} is offered again when a student is placed.`
+        : `${school.name} is no longer offered for new students. The students already there are unchanged.`,
+      color: "green",
+      withBorder: true,
+    });
+
+    await load();
+  };
+
   const columns: DataColumn<SchoolRow>[] = [
     { key: "displayId", label: "School ID", width: 120, render: (school) => <span className={styles.recordLink}>{school.displayId}</span> },
     { key: "name", label: "School", width: 250 },
@@ -206,7 +240,8 @@ export const AdminSchoolsPage: React.FC = () => {
     {
       key: "actions",
       label: "",
-      width: 64,
+      width: 40,
+      pad: "0 var(--sp-2) 0 var(--sp-3)",
       sortable: false,
       filterable: false,
       render: (school) => (
@@ -220,6 +255,12 @@ export const AdminSchoolsPage: React.FC = () => {
             <Menu.Dropdown>
               <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => navigate(`/admin/schools/${school.id}/edit`)}>
                 Edit school details
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<IconPencil size={16} />}
+                onClick={() => void setSchoolActive(school, school.status === "Inactive")}
+              >
+                {school.status === "Inactive" ? "Reopen school" : "Close school"}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => setDeleteTarget(school)}>

@@ -273,6 +273,52 @@ Prefer the smallest change that satisfies the request.
 - **Contact details are icons, not columns.** An email column and a phone column cost ~370px to show values nobody reads off the screen. One `ContactCell` replaces both: hover reads the value, click copies it. Icons keep their position on every row, so a missing value reads as missing.
 - Anything copied confirms twice: the control itself changes for a moment, and a notification names what is now on the clipboard, because a clipboard is invisible. One notification at a time — a second copy replaces the first.
 
+### Status vocabulary
+
+A state that appears on two screens is defined once, in one file, with its label, its tone and its sentence of explanation. `reportStatus.ts` is the pattern: the students table and the student record both read `reportCycle()`, so the list and the record cannot disagree about whether something is late.
+
+| State | Colour | Means |
+| --- | --- | --- |
+| Not started · Draft | gray | Nothing is happening, and nothing is late |
+| Submitted · Under review | blue | In motion, with somebody else |
+| Changes requested · Due in X days | amber | Needs attention soon, or from us |
+| Overdue | red | Late |
+| Approved / Sent | green | Done and gone to the donor |
+
+Each row shows **one** pill, for the current open cycle only. History is on the record, not in the list.
+
+### Wide tables: pin the ends
+
+A table wider than a screen pins identity on the left and status on the right, and scrolls the reference data between them. Scrolling to read a village must never cost you the name of the child whose village it is.
+
+- **Left:** who is this — name, photo, and the identifier folded in as a subtext line rather than a column of its own.
+- **Middle:** everything you look up rather than scan — village, age, dates, amounts.
+- **Right:** what you must do about this row — status pills, completion, coverage.
+- Pinned columns carry `pin: "left" | "right"` on the column and need a numeric `width`. The edge column shows a shadow, so it is visible that more scrolls past. Pinning more than about a third of the width leaves nothing to scroll and is worse than not pinning.
+
+### Archive, never delete
+
+A record about a child is the programme's memory of them. Archiving takes a student out of the working lists and changes nothing else — no cascade, no nulled column, every report, scholarship and note kept — and it goes back the same way from the same menu. Deletion exists only where a record has no history worth keeping. Confirmations say what is kept, not only what changes.
+
+### Counting the record
+
+Profile completion is one list of fields in one file (`COMPLETION_FIELDS`), so the percentage on the record and the percentage in the directory are the same calculation. A number that means one thing in a list and another on a page is a number nobody checks twice.
+
+- A missing field reads "— missing" in amber, never a dash. A dash says "nothing here"; this says somebody still has to find it out.
+- The percentage is always beside the bar, and the tooltip names what is missing. Colour never carries the message alone.
+- Clicking the KPI takes you to the first gap and marks it for a few seconds. Telling somebody a record is 73% complete without showing them the other 27% is half an answer.
+
+### Reports and privacy
+
+A term report is written by a teacher and read by a donor, and the line between those two audiences runs through the middle of the form.
+
+- "Comment for donor" is sent to the sponsor as written. "Internal note" never leaves the organisation. The labels say which is which; neither is inferred.
+- An attachment is **private until somebody ticks it**. Sharing is per file, never per report, and never defaulted on — it is a decision about one photograph of one child.
+- A file marked for removal stays visible, struck through, until save. Removing something from a child's record should not happen invisibly.
+- Deleting a report states the consequence: a term's observations cannot be written again from memory.
+
+**The donor card** is its own record, not the student record with fields hidden. It holds a display name, a description and a photo, and has no route to anything else — a card assembled by filtering the student row is one careless edit away from putting a child's address in front of a stranger. Two independent gates guard it: **consent** (the family's decision) and **profile status** (our own readiness). Both are re-checked on the server, because the browser check is a courtesy to the admin, not a control. When sending is unavailable the screen names which gate is closed. The preview and the exported file are the same SVG string, not the same design.
+
 ### Account access
 
 Whether a person can sign in is a separate question from what their record says, and it is never stored on the record. It is read from `auth.users` through `admin_user_access_state()`; the actions run in the `admin-user-access` edge function, which is the only thing holding the service role.
@@ -290,9 +336,19 @@ Whether a person can sign in is a separate question from what their record says,
 - Removing access is reversible and deletes nothing. Say so in the confirmation.
 - Every access action is recorded in `user_access_events` with who did it, so "did anyone chase this teacher?" has an answer.
 
+### One record, one set of fields
+
+A record that can be created and edited is **one set of fields in one file**, rendered by both screens. `StudentFields` is the pattern: the add form and the edit screen import it, so a field cannot exist on one and not the other, and the order and grouping cannot drift.
+
+- Group by **how a person is described**, not by how the table is shaped. A student reads: personal details (including the guardian, because that is how the student is reached), then school, then teacher and support.
+- Required means required **to save**. A field that can be filled in later from the record's own page is optional on the create form — asking for it up front only stops the record being created at all.
+- Anything a record needs but does not have yet gets an **Add** button on the section rule. On a page it opens a drawer; inside a drawer it becomes a step of that same drawer, with a breadcrumb back and the half-typed record still mounted behind it.
+- A file keyed by the record's id (a photo) is held until the first save, then uploaded. Say so on the control. On the edit screen the same control uploads immediately, because the id exists.
+
 ### Forms
 
 - Visible labels always; placeholder is an example, not a label.
+- **Never `<input type="date">`.** The browser's own control is a different height from every other field, carries its own calendar glyph, and shows `28/08/2026` or `08/28/2026` depending on the reader's locale — the two are indistinguishable. Use Mantine `DateInput`, which the theme sets to `DD MMM YYYY` everywhere. Read and write the stored `yyyy-mm-dd` through `parseDateInput` / `toDateInputValue`, never `new Date(iso)` — that ISO-parses to UTC and moves a birthdate back a day west of Greenwich.
 - Group related fields in one `SectionCard`. Long forms are split into sections, not steps, unless the flow genuinely branches.
 - Validate on submit, and on blur only after a field has already failed once. Never validate while typing a first attempt.
 - Errors sit next to the field that caused them, plus one summary line if the failure is page-level.
@@ -415,6 +471,12 @@ This UI renders information about students and donors. Follow `DATA_POLICY.md` p
 | `src/design-system/theme.ts` | `buildTheme()` for `MantineProvider` |
 | `src/design-system/components/` | Shared page patterns |
 | `src/modules/admin/userAccess.ts` | Account state, access actions and their copy — the only definition |
+| `src/modules/admin/studentProfile.ts` | The student record: field shape, validation, lookups, photo |
+| `src/modules/admin/StudentFields.tsx` | The student fields themselves — add form and edit screen render this |
+| `src/modules/reports/` | The term report: record, attachments, form, drawer, list |
+| `src/modules/reports/reportStatus.ts` | The reporting-cycle vocabulary — labels, tones, and what counts as late |
+| `src/modules/admin/studentEvents.ts` | Notes and the activity timeline, and archiving |
+| `src/modules/admin/donorCard.ts` | The donor-facing card: three fields, one SVG, preview and export |
 | `src/design-system/index.ts` | The only import surface |
 | `design.md` | Product, architecture, role and workflow reference |
 | `.claude/Design-system.md` | This file |

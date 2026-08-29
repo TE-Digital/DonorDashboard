@@ -20,11 +20,21 @@
 .clickable {
   border-radius: var(--radius);
   cursor: pointer;
+  transition: box-shadow 120ms ease;
+
+  &:hover {
+    box-shadow: var(--shadow-raised);
+  }
 
   &:focus-visible {
     outline: 2px solid var(--action-primary);
     outline-offset: 2px;
   }
+}
+
+// The tile currently filtering the table beneath it.
+.active {
+  box-shadow: 0 0 0 2px var(--action-primary);
 }
 
 @media (max-width: 1080px) {

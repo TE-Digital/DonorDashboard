@@ -109,7 +109,7 @@ export const AdminEditSchoolPage: React.FC = () => {
 
       {!loading && (
         <FormBody onSubmit={handleSubmit}>
-          <FormSection title="School details" hint="Name and postal address on record">
+          <FormSection title="School details">
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
                 label="School name"

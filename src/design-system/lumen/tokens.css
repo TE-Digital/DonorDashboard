@@ -10,7 +10,7 @@
  * existing Mantine app.
  */
 
-@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap");
 
 :root {
   /* ---- Warm neutrals — a hint of clay keeps surfaces from reading cold ---- */
@@ -122,8 +122,14 @@
   --text-muted: var(--n-600);
   --text-subtle: var(--n-500);
   --text-inverse: var(--n-0);
-  --text-link: var(--blue-600);
-  --text-link-hover: var(--blue-700);
+  /* Links read as text, not as decoration.
+     A table where every name, school and code is blue is a page of blue: the
+     colour stops meaning "this goes somewhere" and starts meaning nothing.
+     So a link is ink, and it earns an underline on hover and on focus — the
+     affordance moves from colour to motion, and blue goes back to being
+     reserved for the one primary action on the screen. */
+  --text-link: var(--n-900);
+  --text-link-hover: var(--n-900);
 
   --border-subtle: var(--n-200);
   --border-default: var(--n-300);
@@ -148,8 +154,10 @@
 
   /* ---- Typography ---- */
   --font-core: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  /* One family, everywhere. The mono and display tokens are kept so existing
+     call sites keep working, but they now resolve to the core face. */
+  --font-mono: var(--font-core);
+  --font-display: var(--font-core);
   --font-numeric: var(--font-core);
 
   --fs-hero: 44px;
@@ -219,9 +227,9 @@
   /* The form-field height. Tall enough to sit comfortably under a 14px label
      and hold 16px text — the size a person types into, not a filter chip. */
   --control-h-xl: 52px;
-  --row-h-compact: 36px;
-  --row-h-default: 44px;
-  --row-h-relaxed: 56px;
+  --row-h-compact: 30px;
+  --row-h-default: 36px;
+  --row-h-relaxed: 46px;
   --nav-w: 236px;
   --nav-w-collapsed: 56px;
   --rail-w: 56px;
@@ -281,9 +289,11 @@
   text-decoration: none;
 }
 
-.lumen a:hover {
+.lumen a:hover,
+.lumen a:focus-visible {
   color: var(--text-link-hover);
   text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .lumen :focus-visible {

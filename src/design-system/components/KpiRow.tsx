@@ -64,6 +64,12 @@ export interface KpiItem {
   icon?: string;
   accent?: KpiAccent;
   onClick?: () => void;
+  /**
+   * For a clickable KPI that is currently filtering the view beneath it. The
+   * tile has to say it is switched on, or the table quietly shows a subset and
+   * nothing on screen explains why.
+   */
+  active?: boolean;
 }
 
 export interface KpiRowProps {
@@ -104,7 +110,8 @@ export const KpiRow: React.FC<KpiRowProps> = ({ items, columns }) => {
               <div
                 role="button"
                 tabIndex={0}
-                className={styles.clickable}
+                aria-pressed={k.active ?? undefined}
+                className={`${styles.clickable}${k.active ? ` ${styles.active}` : ""}`}
                 onClick={k.onClick}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {

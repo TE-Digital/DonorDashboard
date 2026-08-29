@@ -19,6 +19,7 @@ import { isMissingColumnError, teacherColumnsAvailable } from "./teacherProfile"
 import {
   deriveSchoolProfile,
   statusTone,
+  reportingPeriodLabel,
   type SchoolProfile,
   type SchoolRecord,
 } from "./schoolProfile";
@@ -104,11 +105,21 @@ export const AdminSchoolDetailPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const { data: schoolData, error: schoolError } = await supabase
+      // The reporting period is read alongside the rest, and its absence on a
+      // database without the migration is not a reason to fail the page.
+      let { data: schoolData, error: schoolError } = await supabase
         .from("schools")
-        .select("id, name, address, created_at")
+        .select("id, name, address, created_at, reporting_period_months")
         .eq("id", schoolId)
         .maybeSingle();
+
+      if (schoolError) {
+        ({ data: schoolData, error: schoolError } = await supabase
+          .from("schools")
+          .select("id, name, address, created_at")
+          .eq("id", schoolId)
+          .maybeSingle());
+      }
 
       if (schoolError || !schoolData) {
         console.error("Error loading school", schoolError);
@@ -327,6 +338,8 @@ export const AdminSchoolDetailPage: React.FC = () => {
         ["School system", profile.system, 4],
         ["Grade range", `${profile.gradeFrom} – ${profile.gradeTo}`, 4],
         ["Dormitory status", profile.dormitory, 4],
+        // A real, stored fact: every student here reports on this rhythm.
+        ["Reporting period", reportingPeriodLabel(school.reporting_period_months), 4],
         ["Students recorded", String(students.length), 4],
         ["Teachers recorded", String(teachers.length), 4],
         ["Date joined iCare", profile.joined, 4],

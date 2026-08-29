@@ -151,13 +151,11 @@ export const AdminBrandingPage: React.FC = () => {
           />
           <TextInput
             label="Main font family"
-            description="Example: Inter, system-ui, sans-serif"
             value={font}
             onChange={(e) => setFont(e.currentTarget.value)}
           />
           <TextInput
             label="Button radius"
-            description='Mantine values: "xs", "sm", "md", "lg", "xl"'
             value={buttonRadius}
             onChange={(e) => setButtonRadius(e.currentTarget.value)}
             placeholder="md"
@@ -206,7 +204,6 @@ export const AdminBrandingPage: React.FC = () => {
           <Text fw={500}>Donor Contact Email</Text>
           <TextInput
             label="Email for donor communication"
-            description="All messages from the donor forms will be sent here."
             placeholder="contact@your-organization.org"
             value={donorContactEmail}
             onChange={(e) => setDonorContactEmail(e.currentTarget.value)}

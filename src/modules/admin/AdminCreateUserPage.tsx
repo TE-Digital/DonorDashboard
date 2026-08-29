@@ -145,7 +145,7 @@ export const AdminCreateUserPage: React.FC = () => {
         {message && <InlineMessage tone="success">{message}</InlineMessage>}
         <FormError>{error}</FormError>
 
-        <FormSection title="Person" hint="How this user is identified and reached">
+        <FormSection title="Person">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput
               label="Full name"
@@ -171,7 +171,7 @@ export const AdminCreateUserPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Roles" hint="What this user may see and do">
+        <FormSection title="Roles">
           <FieldLabel>Roles</FieldLabel>
           <Group gap="lg" wrap="wrap">
             {ALL_ROLES.map((role) => (

@@ -592,7 +592,6 @@ export const AdminReportsPage: React.FC = () => {
               <>
                 <MultiSelect
                   label="Columns"
-                  description="Select which columns to include in the report."
                   data={tableDef.columns.map((c) => ({
                     value: c.name,
                     label: c.label,

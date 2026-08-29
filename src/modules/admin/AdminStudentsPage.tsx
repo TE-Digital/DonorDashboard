@@ -1,215 +1,235 @@
 // src/modules/admin/AdminStudentsPage.tsx
-import React, { useEffect, useState } from "react";
+//
+// Every student, as a table you can work from.
+//
+// The KPIs are counts somebody can act on. "Schools represented" and "average
+// age" were true and useless — nobody's morning changes because the average age
+// is 12. What changes a morning is: how many reports are late, how many
+// children have nobody responsible for them, and how many are still unfunded.
+//
+// The table is wider than a screen, so it pins the three things you steer by:
+// the student's name on the left, and on the right the reporting state and the
+// row menu. Everything else — school, village, age, enrolment, amounts, profile
+// completion, donation — scrolls between them. Scrolling to see a village
+// should never cost you the name of the child whose village it is.
+//
+// Reports use the shared vocabulary in reportStatus.ts, the same one the
+// student's own page reads, so the list and the record cannot disagree about
+// whether something is late.
+
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Anchor, Group, Stack, Text } from "@mantine/core";
+import { ActionIcon, Avatar, Group, Menu, Select, Stack, Text } from "@mantine/core";
+import { IconDotsVertical, IconPencil, IconArchive, IconArrowBackUp } from "@tabler/icons-react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ContactCell,
-  LoadingState,
-  PageHeader,
-  StatusBadge,
-  TableSection,
-  type TableKpi,
-} from "../../design-system";
-import { Button, type DataColumn } from "../../design-system/lumen";
+import { InlineMessage, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import { Badge, Button, type DataColumn } from "../../design-system/lumen";
+import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import { StudentFormDrawer } from "./StudentFormDrawer";
+import { ProfileCompletionBar } from "./ProfileCompletionBar";
+import {
+  CYCLE_MONTHS,
+  REPORT_STATE_META,
+  REPORT_STATE_RANK,
+  loadCycleReports,
+  reportCycle,
+  type CycleReport,
+  type ReportCycle,
+} from "../reports";
+import {
+  STUDENT_LIFECYCLE_PENDING_NOTE,
+  loadStudentRecords,
+  profileCompletion,
+  studentPhotoUrl,
+  type ProfileCompletion,
+  type StudentRecord,
+} from "./studentProfile";
+import { reportingPeriodMonths } from "./schoolProfile";
+import { setStudentStatus } from "./studentEvents";
 import styles from "./AdminDirectory.module.scss";
+
+/**
+ * School names, plus the reporting period each one keeps. Degrades to the name
+ * alone on a database without the reporting-period migration, so the directory
+ * still loads and simply falls back to the default cycle.
+ */
+const loadSchoolCycleRows = async (schoolIds: string[]) => {
+  const withPeriod = await supabase
+    .from("schools")
+    .select("id, name, reporting_period_months")
+    .in("id", schoolIds);
+
+  if (!withPeriod.error) return withPeriod;
+
+  return supabase.from("schools").select("id, name").in("id", schoolIds);
+};
+
+/** A KPI that the table can be narrowed to. */
+type Focus = "all" | "overdue" | "unassigned" | "unfunded";
+
+const FOCUS_MATCH: Record<Exclude<Focus, "all">, (student: StudentRow) => boolean> = {
+  overdue: (student) => student.cycle.state === "overdue",
+  unassigned: (student) => !student.responsible_teacher_id,
+  unfunded: (student) => !student.donated,
+};
 
 type StudentRow = {
   id: string;
   name: string | null;
   nickname: string | null;
+  photo_url: string | null;
   school_id: string | null;
   school_name: string | null;
-  responsible_teacher_id: string | null; // profile id
+  responsible_teacher_id: string | null;
   teacher_name: string | null;
   grade_level: string | null;
   village: string | null;
   scholarship: string | null;
-  /** Who to call about this student, and on which number. From students.contact. */
-  guardian_name: string | null;
-  guardian_phone: string | null;
   birthdate: string | null;
   age_years: number | null;
   last_report_date: string | null;
-  overdue: boolean;
   enrolled_on: string | null;
   monthly_support: number | null;
+  status: string;
+  /** The current open reporting cycle, from the shared vocabulary. */
+  cycle: ReportCycle;
+  completion: ProfileCompletion;
+  /** True once at least one donation is recorded against this student. */
+  donated: boolean;
 };
+
+const asDate = (value: string | null) =>
+  value
+    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
+        new Date(value),
+      )
+    : "—";
+
 export const AdminStudentsPage: React.FC = () => {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [studentDrawerOpen, setStudentDrawerOpen] = useState(false);
+  /** Archived students are out of the way by default, never gone. */
+  const [statusFilter, setStatusFilter] = useState<string>("enrolled");
+  /** A real read failure. Shown, never rendered as an empty table. */
+  const [loadError, setLoadError] = useState<string | null>(null);
+  /**
+   * Which KPI, if any, the table is currently narrowed to. The band above the
+   * table names four counts; clicking one shows exactly those rows, and
+   * clicking it again puts them back.
+   */
+  const [focus, setFocus] = useState<Focus>("all");
+
+  /** False until the lifecycle migration is applied. */
+  const [lifecycle, setLifecycle] = useState(true);
+
+  const navigate = useNavigate();
 
   const load = async () => {
     setLoading(true);
 
-    // 1) load students (including birthdate)
-    const { data: sData, error: sError } = await supabase
-      .from("students")
-      .select(
-        "id, name, nickname, school_id, responsible_teacher_id, grade_level, village, scholarship, created_at, birthdate, monthly_support_expected, contact"
-      )
-      .order("name", { ascending: true });
+    // Degrades to the columns that have always existed when the lifecycle
+    // migration is not applied, rather than showing an empty directory.
+    const read = await loadStudentRecords();
+    setLoadError(read.error);
+    setLifecycle(read.extended);
 
-    if (sError) {
-      console.error("Error loading students", sError);
+    if (read.error) {
+      setStudents([]);
       setLoading(false);
       return;
     }
 
-    const studentsRaw = (sData ?? []) as any[];
+    const records: StudentRecord[] = read.data;
 
-    // collect ids for joins
-    const schoolIds = Array.from(
-      new Set(studentsRaw.map((s) => s.school_id).filter(Boolean))
-    );
-    const teacherProfileIds = Array.from(
-      new Set(
-        studentsRaw.map((s) => s.responsible_teacher_id).filter(Boolean)
-      )
-    );
-    const studentIds = studentsRaw.map((s) => s.id);
+    const schoolIds = Array.from(new Set(records.map((s) => s.school_id).filter(Boolean))) as string[];
+    const teacherIds = Array.from(
+      new Set(records.map((s) => s.responsible_teacher_id).filter(Boolean)),
+    ) as string[];
+    const studentIds = records.map((s) => s.id);
 
-    // 2) load schools, profiles and latest reports + scholarships
-    const [
-      { data: schoolRows, error: schoolError },
-      { data: profileRows, error: profileError },
-      { data: scholarshipRows, error: scholarshipError },
-      { data: termUpdateRows, error: termUpdateError },
-    ] = await Promise.all([
-      schoolIds.length
-        ? supabase.from("schools").select("id, name").in("id", schoolIds)
-        : Promise.resolve({ data: [], error: null }),
-      teacherProfileIds.length
-        ? supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", teacherProfileIds)
-        : Promise.resolve({ data: [], error: null }),
+    const [schoolRows, profileRows, awardRows, cycleReports] = await Promise.all([
+      schoolIds.length ? loadSchoolCycleRows(schoolIds) : Promise.resolve({ data: [] }),
+      teacherIds.length
+        ? supabase.from("profiles").select("id, full_name").in("id", teacherIds)
+        : Promise.resolve({ data: [] }),
       studentIds.length
         ? supabase
             .from("scholarship_awards")
-            .select("student_id, status, period_start, period_end")
+            .select("student_id, is_paid, payment_date, donor_id, status")
             .in("student_id", studentIds)
-        : Promise.resolve({ data: [], error: null }),
-      studentIds.length
-        ? supabase
-            .from("term_updates")
-            .select("student_id, report_date")
-            .in("student_id", studentIds)
-            .order("report_date", { ascending: false })
-        : Promise.resolve({ data: [], error: null }),
+        : Promise.resolve({ data: [] }),
+      loadCycleReports(supabase, studentIds),
     ]);
 
-    if (schoolError) console.error("Error loading schools", schoolError);
-    if (profileError)
-      console.error("Error loading teacher profiles", profileError);
-    if (scholarshipError)
-      console.error("Error loading scholarships", scholarshipError);
-    if (termUpdateError)
-      console.error("Error loading latest reports", termUpdateError);
-
-    // 3) index schools and teachers
-    const schoolsById = new Map<string, string>();
-    (schoolRows ?? []).forEach((s: any) => {
-      schoolsById.set(s.id, s.name);
+    const schoolById = new Map<string, string>();
+    // A student reports on their school's rhythm, not on a global six months.
+    const periodBySchool = new Map<string, number>();
+    ((schoolRows.data ?? []) as any[]).forEach((row) => {
+      schoolById.set(row.id, row.name);
+      periodBySchool.set(row.id, reportingPeriodMonths(row));
     });
 
-    const profilesById = new Map<string, string>();
-    (profileRows ?? []).forEach((p: any) => {
-      profilesById.set(p.id, p.full_name);
+    const teacherById = new Map<string, string>();
+    ((profileRows.data ?? []) as any[]).forEach((row) => teacherById.set(row.id, row.full_name));
+
+    // A donation is money that actually arrived — a paid award, or one with a
+    // payment date on it. An award that exists but has never been paid is a
+    // promise, and a promise is not coverage.
+    const donatedStudents = new Set<string>();
+    ((awardRows.data ?? []) as any[]).forEach((award) => {
+      if (award.is_paid === true || award.payment_date) donatedStudents.add(award.student_id);
     });
 
-    // 4) compute "active now" scholarships per student
-    //    Align with dashboard logic: status = 'active'
-    //    and period_start/period_end include today.
-    const activeScholarshipStudents = new Set<string>();
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const reportsByStudent = cycleReports.byStudent;
 
-    (scholarshipRows ?? []).forEach((aw: any) => {
-      const periodStart: string | null = aw.period_start ?? null;
-      const periodEnd: string | null = aw.period_end ?? null;
+    const mapped: StudentRow[] = records.map((record) => {
+      const reports = reportsByStudent.get(record.id) ?? [];
+      const enrolledOn = record.enrolled_on ?? record.created_at ?? null;
 
-      const isActiveNow =
-        aw.status === "active" &&
-        (!periodStart || periodStart <= todayIso) &&
-        (!periodEnd || periodEnd >= todayIso);
-
-      if (isActiveNow) {
-        activeScholarshipStudents.add(aw.student_id);
-      }
-    });
-
-    // 5) latest report per student
-    const latestReportMap = new Map<string, string>();
-    (termUpdateRows ?? []).forEach((r: any) => {
-      const current = latestReportMap.get(r.student_id);
-      if (!current) {
-        latestReportMap.set(r.student_id, r.report_date);
-      }
-    });
-
-    // 6) now compute age and overdue flag
-    const now = new Date();
-    const sixMonthsAgo = new Date(
-      now.getFullYear(),
-      now.getMonth() - 6,
-      now.getDate()
-    );
-
-    const mapped: StudentRow[] = studentsRaw.map((s) => {
-      // age
-      let age_years: number | null = null;
-      if (s.birthdate) {
-        const dob = new Date(s.birthdate);
-        if (!isNaN(dob.getTime())) {
-          const diff =
-            (Date.now() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-          age_years = Math.floor(diff);
+      let ageYears: number | null = null;
+      if (record.birthdate) {
+        const born = new Date(record.birthdate);
+        if (!Number.isNaN(born.getTime())) {
+          ageYears = Math.floor((Date.now() - born.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
         }
       }
 
-      // last report date
-      const lastReportDate: string | null =
-        latestReportMap.get(s.id) ?? null;
-
-      // overdue?
-      let overdue = false;
-      if (activeScholarshipStudents.has(s.id)) {
-        if (!lastReportDate) {
-          overdue = true;
-        } else {
-          const last = new Date(lastReportDate);
-          if (last < sixMonthsAgo) {
-            overdue = true;
-          }
-        }
-      }
+      const approved = reports
+        .filter((report) => report.status === "approved" || !report.status)
+        .map((report) => report.report_date)
+        .filter(Boolean) as string[];
 
       return {
-        id: s.id,
-        name: s.name ?? null,
-        nickname: s.nickname ?? null,
-        school_id: s.school_id ?? null,
-        school_name: s.school_id ? schoolsById.get(s.school_id) ?? null : null,
-        responsible_teacher_id: s.responsible_teacher_id ?? null,
-        teacher_name: s.responsible_teacher_id
-          ? profilesById.get(s.responsible_teacher_id) ?? null
+        id: record.id,
+        name: record.name ?? null,
+        nickname: record.nickname ?? null,
+        photo_url: studentPhotoUrl(record.profile_photo_path),
+        school_id: record.school_id ?? null,
+        school_name: record.school_id ? schoolById.get(record.school_id) ?? null : null,
+        responsible_teacher_id: record.responsible_teacher_id ?? null,
+        teacher_name: record.responsible_teacher_id
+          ? teacherById.get(record.responsible_teacher_id) ?? null
           : null,
-        grade_level: s.grade_level ?? null,
-        village: s.village ?? null,
-        scholarship: s.scholarship ?? null,
-        guardian_name: s.contact?.guardian ?? null,
-        guardian_phone: s.contact?.phone ?? null,
-        birthdate: s.birthdate ?? null,
-        age_years,
-        last_report_date: lastReportDate,
-        overdue,
-        enrolled_on: s.created_at ?? null,
+        grade_level: record.grade_level ?? null,
+        village: record.village ?? null,
+        scholarship: record.scholarship ?? null,
+        birthdate: record.birthdate ?? null,
+        age_years: ageYears,
+        last_report_date: approved.sort().reverse()[0] ?? null,
+        enrolled_on: enrolledOn,
         monthly_support:
-          s.monthly_support_expected != null ? Number(s.monthly_support_expected) : null,
+          record.monthly_support_expected != null ? Number(record.monthly_support_expected) : null,
+        status: record.status ?? "enrolled",
+        cycle: reportCycle(
+          reports,
+          enrolledOn,
+          new Date(),
+          (record.school_id && periodBySchool.get(record.school_id)) || CYCLE_MONTHS,
+        ),
+        completion: profileCompletion(record),
+        donated: donatedStudents.has(record.id),
       };
     });
 
@@ -218,8 +238,38 @@ export const AdminStudentsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
+
+  /**
+   * What is in the table, and in what order.
+   *
+   * Overdue first, then everything else by how much it needs somebody, then by
+   * name. Database order tells you when a row was typed in, which is never the
+   * thing anybody opened this page to find out.
+   */
+  // What the KPIs count: everything the status filter admits, before any KPI
+  // narrows it. Counting the narrowed set instead would make every tile read
+  // "0" the moment you clicked another one.
+  const inScope = useMemo(
+    () =>
+      students
+        .filter(
+          (student) => !lifecycle || statusFilter === "all" || student.status === statusFilter,
+        )
+        .sort(
+          (a, b) =>
+            REPORT_STATE_RANK[a.cycle.state] - REPORT_STATE_RANK[b.cycle.state] ||
+            (a.name ?? "").localeCompare(b.name ?? ""),
+        ),
+    [students, statusFilter, lifecycle],
+  );
+
+  /** What the table shows: the scope, narrowed to the KPI in focus. */
+  const visible = useMemo(
+    () => (focus === "all" ? inScope : inScope.filter(FOCUS_MATCH[focus])),
+    [inScope, focus],
+  );
 
   const handleExport = async () => {
     setExporting(true);
@@ -227,183 +277,273 @@ export const AdminStudentsPage: React.FC = () => {
       const header = [
         "Name",
         "Nickname",
+        "Student ID",
         "School",
         "Teacher",
         "Grade level",
         "Village",
         "Scholarship",
-        "Birthdate",
         "Age (years)",
+        "Enrolled",
+        "Monthly support (THB)",
         "Last report",
-        "Overdue report?",
+        "Report status",
+        "Profile completion (%)",
+        "Donation",
       ];
-      const rows = students.map((s) => [
+
+      const rows = visible.map((s) => [
         s.name ?? "",
         s.nickname ?? "",
+        `ST-${s.id.slice(0, 6).toUpperCase()}`,
         s.school_name ?? "",
         s.teacher_name ?? "",
         s.grade_level ?? "",
         s.village ?? "",
         s.scholarship ?? "",
-        s.birthdate ?? "",
         s.age_years != null ? String(s.age_years) : "",
+        s.enrolled_on ?? "",
+        s.monthly_support != null ? String(s.monthly_support) : "",
         s.last_report_date ?? "",
-        s.overdue ? "Yes" : "No",
+        s.cycle.label,
+        String(s.completion.percent),
+        s.donated ? "Donation received" : "No donation yet",
       ]);
 
-      const csvContent =
-        [header, ...rows]
-          .map((r) =>
-            r
-              .map((field) => `"${String(field).replace(/"/g, '""')}"`)
-              .join(",")
-          )
-          .join("\n");
+      const csv = [header, ...rows]
+        .map((row) => row.map((field) => `"${String(field).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
 
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "students_export.csv";
-      a.click();
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "students_export.csv";
+      link.click();
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Export failed", err);
+    } catch (error) {
+      console.error("Export failed", error);
     }
     setExporting(false);
   };
 
-  const navigate = useNavigate();
+  /**
+   * Counts somebody can act on, derived from the rows already loaded.
+   *
+   * Every one of these answers "what should I do next?". A number that only
+   * describes the data — how many schools, what the average age is — takes up a
+   * card and gives nothing back.
+   */
+  const kpis: TableKpi[] = useMemo(() => {
+    const overdue = inScope.filter(FOCUS_MATCH.overdue).length;
+    const withoutTeacher = inScope.filter(FOCUS_MATCH.unassigned).length;
+    const supported = inScope.filter((s) => s.donated).length;
 
-  // Nothing here is stored as a metric; each one is derived from the rows the
-  // page already loads.
-  const kpis: TableKpi[] = React.useMemo(() => {
-    const overdue = students.filter((s) => s.overdue).length;
-    const schools = new Set(students.map((s) => s.school_id).filter(Boolean)).size;
-    const withAge = students.filter((s) => s.age_years != null);
-    const avgAge = withAge.length
-      ? Math.round(withAge.reduce((sum, s) => sum + (s.age_years ?? 0), 0) / withAge.length)
-      : null;
+    // Each tile is also the filter for the thing it counts, so the number and
+    // the rows behind it are never two separate journeys.
+    const toggle = (next: Exclude<Focus, "all">) => () =>
+      setFocus((current) => (current === next ? "all" : next));
 
     return [
-      { label: "Students", value: students.length, footnote: "on the register", mark: "students" },
+      {
+        label: "Total students",
+        value: inScope.length,
+        footnote: statusFilter === "enrolled" ? "enrolled" : "in this view",
+        mark: "students",
+        active: focus === "all",
+        onClick: () => setFocus("all"),
+      },
       {
         label: "Reports overdue",
         value: overdue,
-        footnote: overdue ? "need chasing" : "all up to date",
+        footnote: overdue ? "past their date" : "nothing is late",
         mark: overdue ? "overdue" : "ontrack",
+        active: focus === "overdue",
+        onClick: toggle("overdue"),
       },
-      { label: "Schools represented", value: schools, footnote: "with a student", mark: "schools" },
       {
-        label: "Average age",
-        value: avgAge ?? "—",
-        footnote: avgAge ? "years" : "no birthdates on file",
-        mark: "average",
+        label: "Without a teacher",
+        value: withoutTeacher,
+        footnote: withoutTeacher ? "nobody is responsible" : "everyone is covered",
+        mark: withoutTeacher ? "overdue" : "teachers",
+        active: focus === "unassigned",
+        onClick: toggle("unassigned"),
+      },
+      {
+        label: "Donation coverage",
+        value: `${supported} of ${inScope.length}`,
+        footnote: supported === inScope.length ? "all supported" : "supported so far",
+        mark: "money",
+        active: focus === "unfunded",
+        onClick: toggle("unfunded"),
       },
     ];
-  }, [students]);
+  }, [inScope, statusFilter, focus]);
 
-  const columns: DataColumn<StudentRow & { id: string }>[] = [
+  // Archive/restore from the row menu. Nothing cascades — only the word on the
+  // record changes — so the list just reloads afterwards.
+  const changeStatus = async (student: StudentRow) => {
+    const next = student.status === "archived" ? "enrolled" : "archived";
+    const failure = await setStudentStatus(student.id, next, student.name ?? "This student");
+    if (failure) {
+      setLoadError(failure);
+      return;
+    }
+    setStudents((rows) => rows.map((row) => (row.id === student.id ? { ...row, status: next } : row)));
+  };
+
+  const columns: DataColumn<StudentRow>[] = [
     {
-      key: "id",
-      label: "Student ID",
-      width: 120,
-      muted: true,
-      render: (s) => `ST-${s.id.slice(0, 6).toUpperCase()}`,
-    },
-    {
+      // Identity, pinned. The old separate ID column is folded in underneath
+      // the name: it was 120px spent on a string nobody reads across.
       key: "name",
       label: "Student",
-      width: 200,
+      width: 260,
+      pin: "left",
       render: (s) => (
-        <div>
-          <Anchor component={Link} to={`/admin/students/${s.id}`} size="sm">
-            {s.name || "(no name)"}
-          </Anchor>
-          {s.nickname && (
-            <Text size="xs" c="dimmed">
-              Nickname: {s.nickname}
-            </Text>
-          )}
+        <div className={styles.studentCell}>
+          <Avatar size={24} radius="xl" src={s.photo_url ?? undefined} style={profileAvatarStyle(s.id)}>
+            {profileInitials(s.name)}
+          </Avatar>
+          <span className={styles.studentCellText}>
+            <Link className={styles.recordLink} to={`/admin/students/${s.id}`}>
+              {s.name || "(no name)"}
+            </Link>
+            <span className={styles.studentCellMeta}>
+              ST-{s.id.slice(0, 6).toUpperCase()}
+              {s.nickname ? ` · ${s.nickname}` : ""}
+            </span>
+          </span>
         </div>
       ),
     },
     {
       key: "school_name",
       label: "School",
-      width: 170,
+      width: 190,
       render: (s) =>
         s.school_id ? (
-          <Anchor component={Link} to={`/admin/schools/${s.school_id}`} size="sm">
+          <Link className={styles.recordLink} to={`/admin/schools/${s.school_id}`}>
             {s.school_name || "School"}
-          </Anchor>
+          </Link>
         ) : (
-          "–"
+          <Text size="sm" c="dimmed">
+            Not assigned
+          </Text>
         ),
     },
-    {
-      key: "teacher_name",
-      label: "Teacher",
-      width: 160,
-      render: (s) =>
-        s.responsible_teacher_id ? (
-          <Anchor component={Link} to={`/admin/teachers/${s.responsible_teacher_id}`} size="sm">
-            {s.teacher_name || "Teacher"}
-          </Anchor>
-        ) : (
-          "–"
-        ),
-    },
-    {
-      // The guardian's number, one click from the clipboard. A teacher chasing
-      // a missing report needs to dial it, not read it.
-      key: "contact",
-      label: "Contact",
-      width: 90,
-      sortable: false,
-      filterable: false,
-      render: (s) => (
-        <ContactCell
-          phone={s.guardian_phone}
-          owner={s.guardian_name ? `${s.guardian_name} · ${s.name ?? ""}`.trim() : s.name}
-          channels={["phone"]}
-          labels={{ phone: "Copy guardian's phone number" }}
-        />
-      ),
-    },
-    { key: "grade_level", label: "Grade", width: 90 },
-    { key: "village", label: "Village", width: 130 },
-    { key: "scholarship", label: "Scholarship", width: 140 },
+
+    // ── Scrollable middle: reference data ──────────────────────────────────
+    { key: "village", label: "Village", width: 140 },
+    { key: "scholarship", label: "Scholarship", width: 160 },
     { key: "age_years", label: "Age", align: "right", numeric: true, width: 80 },
     {
       key: "enrolled_on",
       label: "Enrolled",
-      width: 120,
+      width: 130,
       muted: true,
-      render: (s) =>
-        s.enrolled_on ? new Date(s.enrolled_on).toLocaleDateString() : "—",
+      render: (s) => asDate(s.enrolled_on),
     },
     {
       key: "monthly_support",
       label: "Monthly support",
-      width: 140,
+      width: 150,
       align: "right",
       numeric: true,
-      render: (s) =>
-        s.monthly_support != null ? s.monthly_support.toLocaleString() : "—",
+      render: (s) => (s.monthly_support != null ? s.monthly_support.toLocaleString() : "—"),
     },
-    { key: "last_report_date", label: "Last report", width: 120, muted: true },
     {
-      key: "overdue",
-      label: "Reports",
-      width: 110,
-      filterValue: (s) => (s.overdue ? "Overdue" : "OK"),
+      key: "last_report_date",
+      label: "Last report",
+      width: 130,
+      muted: true,
+      render: (s) => asDate(s.last_report_date),
+    },
+
+    {
+      key: "completion",
+      label: "Profile",
+      width: 130,
+      filterValue: (s) => s.completion.percent,
+      render: (s) => <ProfileCompletionBar completion={s.completion} size="compact" />,
+    },
+    {
+      key: "donated",
+      label: "Donation",
+      width: 160,
+      filterValue: (s) => (s.donated ? "Donation received" : "No donation yet"),
       render: (s) => (
-        <StatusBadge
-          kind="report"
-          value={s.overdue ? "overdue" : "ok"}
-          label={s.overdue ? "Overdue" : "OK"}
-        />
+        <Badge tone={s.donated ? "success" : "neutral"} dot>
+          {s.donated ? "Donation received" : "No donation yet"}
+        </Badge>
+      ),
+    },
+
+    // ── Fixed right: what to do about this row ─────────────────────────────
+    // Reporting state and the row menu stay on screen; everything between them
+    // and the name scrolls.
+    {
+      key: "cycle",
+      label: "Reports",
+      // No declared width: a fixed 150px column left a band of empty white
+      // between the pill and the menu on every row whose status was short. The
+      // pinned offsets are measured, not declared, so the column can size to
+      // its widest pill and hug it. The menu column supplies the 12px gap.
+      pin: "right",
+      pad: "0 0 0 var(--sp-2)",
+      // Sorted and filtered by what the pill says, so "Overdue" groups together
+      // in the header menu the way it reads on screen.
+      filterValue: (s) => REPORT_STATE_META[s.cycle.state].label,
+      render: (s) => (
+        <span title={s.cycle.hint}>
+          <Badge tone={s.cycle.tone} dot>
+            {s.cycle.label}
+          </Badge>
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "",
+      // 12px of left padding + a 28px icon + 8px trailing. Declared honestly, so
+      // the first paint lands where the measured layout will keep it.
+      width: 48,
+      pin: "right",
+      pad: "0 var(--sp-2) 0 var(--sp-3)",
+      sortable: false,
+      filterable: false,
+      render: (s) => (
+        <div className={styles.rowActions} onClick={(event) => event.stopPropagation()}>
+          <Menu position="bottom-end" withinPortal shadow="md" width={200}>
+            <Menu.Target>
+              <ActionIcon variant="subtle" color="gray" aria-label={`Actions for ${s.name ?? "student"}`}>
+                <IconDotsVertical size={18} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item
+                leftSection={<IconPencil size={16} />}
+                onClick={() => navigate(`/admin/students/${s.id}/edit`)}
+              >
+                Edit student details
+              </Menu.Item>
+              {lifecycle && (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item
+                    color={s.status === "archived" ? undefined : "red"}
+                    leftSection={
+                      s.status === "archived" ? <IconArrowBackUp size={16} /> : <IconArchive size={16} />
+                    }
+                    onClick={() => void changeStatus(s)}
+                  >
+                    {s.status === "archived" ? "Restore student" : "Archive student"}
+                  </Menu.Item>
+                </>
+              )}
+            </Menu.Dropdown>
+          </Menu>
+        </div>
       ),
     },
   ];
@@ -428,7 +568,6 @@ export const AdminStudentsPage: React.FC = () => {
 
         <PageHeader
           title="Students"
-          subtitle="Overview of all registered students, their schools, teachers, and report status."
           actions={
             <>
               <Button variant="secondary" icon="download" onClick={handleExport} disabled={exporting}>
@@ -441,21 +580,49 @@ export const AdminStudentsPage: React.FC = () => {
           }
         />
 
+        {loadError && <InlineMessage tone="error">{loadError}</InlineMessage>}
+        {!loadError && !lifecycle && (
+          <InlineMessage tone="warning">{STUDENT_LIFECYCLE_PENDING_NOTE}</InlineMessage>
+        )}
+
         {!loading && (
           <TableSection
             kpis={kpis}
             columns={columns}
-            rows={students}
+            rows={visible}
             density="compact"
-            pageSize={14}
+            pageSize={25}
+            controls={
+              lifecycle && (
+              <Select
+                label={undefined}
+                aria-label="Which students to show"
+                allowDeselect={false}
+                w={180}
+                data={[
+                  { value: "enrolled", label: "Enrolled" },
+                  { value: "archived", label: "Archived" },
+                  { value: "all", label: "Everyone" },
+                ]}
+                value={statusFilter}
+                onChange={(value) => value && setStatusFilter(value)}
+              />
+              )
+            }
             onRowClick={(s) => navigate(`/admin/students/${s.id}`)}
-            emptyTitle="No students found"
-            emptyDescription="Start by adding a new student."
+            emptyTitle={statusFilter === "archived" ? "No archived students" : "No students yet"}
+            emptyDescription={
+              statusFilter === "archived"
+                ? "Students you archive are kept here, with all of their records."
+                : "Add a student to start tracking their school, teacher and reports."
+            }
             emptyIcon="users"
             emptyAction={
-              <Button variant="secondary" icon="plus" onClick={() => setStudentDrawerOpen(true)}>
-                Add student
-              </Button>
+              statusFilter === "archived" ? undefined : (
+                <Button variant="secondary" icon="plus" onClick={() => setStudentDrawerOpen(true)}>
+                  Add student
+                </Button>
+              )
             }
           />
         )}
@@ -463,3 +630,5 @@ export const AdminStudentsPage: React.FC = () => {
     </>
   );
 };
+
+export default AdminStudentsPage;

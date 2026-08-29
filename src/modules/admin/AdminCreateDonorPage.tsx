@@ -143,7 +143,7 @@ const { data: inserted, error: insertError } = await supabase
       <FormBody onSubmit={handleSubmit}>
         <FormError>{error}</FormError>
 
-        <FormSection title="Donor" hint="Who the gift is recorded against">
+        <FormSection title="Donor">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
               label="Name"
@@ -162,7 +162,7 @@ const { data: inserted, error: insertError } = await supabase
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Contact" hint="However this donor prefers to be reached">
+        <FormSection title="Contact">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <div>
               <TextInput
@@ -174,7 +174,6 @@ const { data: inserted, error: insertError } = await supabase
                 }}
                 onBlur={() => checkEmail(email)}
                 placeholder="name@example.com"
-                description={emailWarning ?? undefined}
               />
             </div>
             <TextInput
@@ -197,7 +196,7 @@ const { data: inserted, error: insertError } = await supabase
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Dashboard & communication" hint="What this donor receives from us">
+        <FormSection title="Dashboard & communication">
           <Stack gap="md">
             <Switch
               label="Wants email updates"
@@ -221,7 +220,7 @@ const { data: inserted, error: insertError } = await supabase
           </Stack>
         </FormSection>
 
-        <FormSection title="Internal notes" hint="Admins only — never shown to the donor">
+        <FormSection title="Internal notes">
           <Textarea
             label="Internal note"
             minRows={3}

@@ -46,6 +46,7 @@ const RESOURCE_LABELS: Record<string, string> = {
   scholarships: "Scholarships",
   "grant-types": "Grant types",
   reports: "Field reports",
+  "reports-beta": "Reports beta",
   "contact-requests": "Requests",
   users: "Accounts",
   branding: "Settings",
@@ -60,6 +61,7 @@ const RESOURCE_SECTIONS: Record<string, string> = {
   scholarships: "Programmes",
   "grant-types": "Programmes",
   reports: "Programmes",
+  "reports-beta": "Programmes",
   donors: "Giving",
   "contact-requests": "Giving",
   renew: "Giving",
@@ -168,6 +170,7 @@ export const AppShellLayout: React.FC = () => {
           ],
         },
         { id: "/admin/reports", label: "Field reports", icon: "clipboard-list" },
+        { id: "/admin/reports-beta", label: "Reports beta", icon: "clipboard-list" },
       );
     }
 
