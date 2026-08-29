@@ -46,12 +46,24 @@ import {
   toStudentRow,
   uploadStudentPhoto,
   validateStudentDetails,
+  STUDENT_FIELD_ORDER,
+  type StudentField,
   type Option,
   type SchoolOption,
   type StudentDetailsInput,
   type StudentRecord,
   type TeacherOption,
 } from "./studentProfile";
+import {
+  errorSummary,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
+
+/** Namespaces this page's field ids. */
+const FORM_ID = "student-edit";
 import styles from "./AdminDirectory.module.scss";
 
 interface ScholarshipRow {
@@ -95,6 +107,8 @@ export const AdminStudentDetailPage: React.FC = () => {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** What the last save attempt found wrong, per field. */
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<StudentField>>({});
   const [notFound, setNotFound] = useState(false);
 
   const load = useCallback(async () => {
@@ -185,9 +199,12 @@ export const AdminStudentDetailPage: React.FC = () => {
   const save = async () => {
     setError(null);
 
-    const problem = validateStudentDetails(details);
-    if (problem) {
-      setError(problem);
+    const problems = validateStudentDetails(details);
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, STUDENT_FIELD_ORDER));
       return;
     }
 
@@ -268,7 +285,21 @@ export const AdminStudentDetailPage: React.FC = () => {
 
         <StudentFields
           details={details}
-          onChange={setDetails}
+          onChange={(next) => {
+            (Object.keys(next) as StudentField[])
+              .filter((key) => next[key] !== details[key])
+              .forEach((key) =>
+                setFieldErrors((current) => {
+                  if (!current[key]) return current;
+                  const rest = { ...current };
+                  delete rest[key];
+                  return rest;
+                }),
+              );
+            setDetails(next);
+          }}
+          errors={fieldErrors}
+          formId={FORM_ID}
           schools={schools}
           teachers={teachers}
           grantTypes={grantTypes}

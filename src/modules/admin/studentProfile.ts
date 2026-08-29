@@ -19,6 +19,12 @@
 // student's id, which is why it can only be written after the first save.
 
 import { supabase } from "../../lib/supabaseClient";
+import {
+  EARLIEST_BIRTHDATE,
+  dateProblem,
+  isPhone,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
 import { isMissingColumnError } from "./teacherProfile";
 
 /* --------------------------------------------------------------- The shape */
@@ -26,6 +32,14 @@ import { isMissingColumnError } from "./teacherProfile";
 export interface StudentDetailsInput {
   // 1. Personal details
   name: string;
+  /**
+   * The student's name in Thai script. Required, because every artefact this
+   * organisation produces about a child — a Thai report, a Thai email, a form a
+   * guardian signs — reads wrong with a Latin name dropped into the middle of
+   * it. Nullable in the database only so existing records are a backlog rather
+   * than a wall; the forms do not accept a new student without it.
+   */
+  nameTh: string;
   nickname: string;
   birthdate: string;
   village: string;
@@ -46,8 +60,12 @@ export interface StudentDetailsInput {
   monthlySupport: string;
 }
 
+/** Every field the form can mark. */
+export type StudentField = keyof StudentDetailsInput;
+
 export const EMPTY_STUDENT_DETAILS: StudentDetailsInput = {
   name: "",
+  nameTh: "",
   nickname: "",
   birthdate: "",
   village: "",
@@ -92,7 +110,7 @@ export const GUARDIAN_RELATIONSHIPS = [
  * feature — it empties the directory.
  */
 export const STUDENT_BASE_COLUMNS =
-  "id, name, nickname, school_id, grade_level, village, scholarship, contact, birthdate, monthly_support_expected, responsible_teacher_id, grant_type_id, bio, profile_photo_path, created_at";
+  "id, name, name_th, nickname, school_id, grade_level, village, scholarship, contact, birthdate, monthly_support_expected, responsible_teacher_id, grant_type_id, bio, profile_photo_path, created_at";
 
 /** Base columns plus everything 20260828120000_student_record_lifecycle.sql adds. */
 export const STUDENT_COLUMNS = `${STUDENT_BASE_COLUMNS}, status, archived_at, enrolled_on, donor_display_name, donor_description, donor_photo_path, donor_profile_status, consent_status, consent_recorded_at, donor_card_sent_at`;
@@ -100,6 +118,7 @@ export const STUDENT_COLUMNS = `${STUDENT_BASE_COLUMNS}, status, archived_at, en
 export interface StudentRecord {
   id: string;
   name: string;
+  name_th?: string | null;
   nickname: string | null;
   school_id: string | null;
   grade_level: string | null;
@@ -136,6 +155,7 @@ export const toStudentDetails = (record: StudentRecord): StudentDetailsInput => 
   const contact = record.contact ?? {};
   return {
     name: record.name ?? "",
+    nameTh: record.name_th ?? "",
     nickname: record.nickname ?? "",
     birthdate: record.birthdate ?? "",
     village: record.village ?? "",
@@ -166,6 +186,7 @@ export const toStudentRow = (
   scholarshipLabel: string | null,
 ) => ({
   name: values.name.trim(),
+  name_th: values.nameTh.trim() || null,
   nickname: values.nickname.trim() || null,
   school_id: values.schoolId,
   grade_level: values.gradeLevel.trim() || null,
@@ -203,19 +224,46 @@ export const parseSupport = (value: string): number | null => {
  * from the student's own page, and asking for it up front only stops a record
  * being created at all.
  */
-export const validateStudentDetails = (values: StudentDetailsInput): string | null => {
-  if (!values.name.trim()) return "The student's name is required.";
-  if (!values.guardianName.trim()) return "A guardian name is required on every student.";
-  if (!values.phone.trim()) return "A contact phone number is required on every student.";
-  if (!values.schoolId) return "Select the school this student attends.";
+export const validateStudentDetails = (
+  values: StudentDetailsInput,
+): FieldErrors<StudentField> => {
+  const errors: FieldErrors<StudentField> = {};
+
+  if (!values.name.trim()) errors.name = "The student's name is required.";
+  if (!values.nameTh.trim()) errors.nameTh = "A Thai name is required on every student.";
+  if (!values.guardianName.trim()) errors.guardianName = "A guardian name is required on every student.";
+
+  if (!values.phone.trim()) {
+    errors.phone = "A contact phone number is required on every student.";
+  } else if (!isPhone(values.phone)) {
+    errors.phone = "Enter a Thai phone number, for example 081 234 5678.";
+  }
+
+  if (!values.schoolId) errors.schoolId = "Select the school this student attends.";
+
   if (values.monthlySupport.trim() && parseSupport(values.monthlySupport) == null) {
-    return "Monthly support must be a number, for example 800.";
+    errors.monthlySupport = "Monthly support must be a number, for example 800.";
   }
-  if (values.birthdate && Number.isNaN(new Date(values.birthdate).getTime())) {
-    return "Enter the birthdate as a date, or leave it empty.";
-  }
-  return null;
+
+  // A birthdate in the future makes every age on the platform negative, and one
+  // before the programme existed is a mistyped year.
+  const birthdate = dateProblem(values.birthdate, { earliest: EARLIEST_BIRTHDATE });
+  if (birthdate === "unparseable") errors.birthdate = "Enter the birthdate as a date, or leave it empty.";
+  if (birthdate === "future") errors.birthdate = "A birthdate cannot be in the future.";
+  if (birthdate === "too-early") errors.birthdate = "Check the year — that is too far back for a student.";
+
+  return errors;
 };
+
+/** The order the form asks for these, so focus lands where the eye already is. */
+export const STUDENT_FIELD_ORDER = [
+  "name",
+  "birthdate",
+  "guardianName",
+  "phone",
+  "schoolId",
+  "monthlySupport",
+] as const satisfies readonly StudentField[];
 
 /* ---------------------------------------------------------------- Lookups */
 
@@ -434,6 +482,7 @@ const text = (value: string | null | undefined) => Boolean(value && value.trim()
 
 export const COMPLETION_FIELDS: CompletionField[] = [
   { key: "name", label: "Student name", required: true, filled: (s) => text(s.name) },
+  { key: "name_th", label: "Student name (Thai)", required: true, filled: (s) => text(s.name_th) },
   { key: "nickname", label: "Nickname", required: false, filled: (s) => text(s.nickname) },
   { key: "photo", label: "Photo", required: false, filled: (s) => text(s.profile_photo_path) },
   { key: "birthdate", label: "Birthdate", required: false, filled: (s) => text(s.birthdate) },

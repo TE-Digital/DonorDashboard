@@ -22,7 +22,8 @@ export type ReportCycleState =
   | "changes_requested"
   | "due_soon"
   | "overdue"
-  | "approved";
+  | "approved"
+  | "flagged";
 
 /** The stored state of one report row. */
 export type ReportStatus = "draft" | "submitted" | "under_review" | "changes_requested" | "approved";
@@ -83,10 +84,20 @@ export const REPORT_STATE_META: Record<ReportCycleState, ReportStateMeta> = {
     tone: "success",
     hint: "The report is approved and has gone to the donor.",
   },
+  // A flag is not a complaint. It is a donor asking something about a report
+  // that has already been sent, and it stays amber until somebody answers.
+  flagged: {
+    label: "Flagged",
+    tone: "warning",
+    hint: "The donor has raised a question on this report and is waiting for an answer.",
+  },
 };
 
 /** Sort order for a status column: what needs somebody first. */
 export const REPORT_STATE_RANK: Record<ReportCycleState, number> = {
+  // Above overdue: a late report is somebody's task, a flagged one is somebody
+  // already waiting on an answer they asked for.
+  flagged: -1,
   overdue: 0,
   changes_requested: 1,
   due_soon: 2,
@@ -111,6 +122,9 @@ export interface CycleReport {
   report_date: string | null;
   status?: string | null;
   due_date?: string | null;
+  /** Set while a donor's question on this report is unanswered. */
+  flagged_at?: string | null;
+  flag_resolved_at?: string | null;
 }
 
 export interface ReportCycle {
@@ -169,6 +183,18 @@ export const reportCycle = (
   cycleMonths: number = CYCLE_MONTHS,
 ): ReportCycle => {
   const today = startOfDay(now);
+
+  // An open flag outranks every other state, including overdue. The report has
+  // already been sent; what is outstanding is a person waiting for a reply.
+  const flagged = reports.find((report) => report.flagged_at && !report.flag_resolved_at);
+  if (flagged) {
+    return {
+      ...REPORT_STATE_META.flagged,
+      state: "flagged",
+      dueOn: null,
+      daysUntilDue: null,
+    };
+  }
 
   const open = reports
     .filter((report) => OPEN_STATES.includes((report.status ?? "") as ReportStatus))
@@ -281,27 +307,43 @@ export const loadCycleReports = async (
         // Without the column, a report that exists is a report that was accepted.
         status: extended ? row.status ?? null : "approved",
         due_date: extended ? row.due_date ?? null : null,
+        // Absent on the older shapes, and absent reads as "no flag", which is
+        // the right answer for a database that cannot hold one yet.
+        flagged_at: row.flagged_at ?? null,
+        flag_resolved_at: row.flag_resolved_at ?? null,
       });
       byStudent.set(row.student_id, list);
     });
   };
 
-  const extendedRead = await client
-    .from("term_updates")
-    .select("student_id, report_date, status, due_date")
-    .in("student_id", studentIds)
-    .order("report_date", { ascending: false });
+  const read = (columns: string) =>
+    client
+      .from("term_updates")
+      .select(columns)
+      .in("student_id", studentIds)
+      .order("report_date", { ascending: false });
+
+  // Widest shape first, narrowing once per migration that has not run. The
+  // flag columns are their own step: falling straight back to the base shape
+  // when they are missing would drop status and due_date with them, and every
+  // student would read as "Not started".
+  const flagRead = await read(
+    "student_id, report_date, status, due_date, flagged_at, flag_resolved_at",
+  );
+
+  if (!flagRead.error) {
+    push(flagRead.data ?? [], true);
+    return { byStudent, extended: true };
+  }
+
+  const extendedRead = await read("student_id, report_date, status, due_date");
 
   if (!extendedRead.error) {
     push(extendedRead.data ?? [], true);
     return { byStudent, extended: true };
   }
 
-  const baseRead = await client
-    .from("term_updates")
-    .select("student_id, report_date")
-    .in("student_id", studentIds)
-    .order("report_date", { ascending: false });
+  const baseRead = await read("student_id, report_date");
 
   if (baseRead.error) {
     console.error("Error loading reports", baseRead.error);

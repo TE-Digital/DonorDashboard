@@ -21,6 +21,14 @@ import {
   FormPage,
   FormSection,
   LoadingState,
+  CURRENCY,
+  currencyOptionsFor,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
 } from "../../design-system";
 
 type Option = { value: string; label: string };
@@ -40,6 +48,59 @@ const addMonths = (date: Date, months: number) => {
   return d;
 };
 
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "scholarship-new";
+
+/** The fields an award can be wrong about, in the order the form asks. */
+type AwardField = "grantTypeId" | "periodStart" | "periodEnd" | "amount" | "paymentDate";
+
+const AWARD_FIELD_ORDER: readonly AwardField[] = [
+  "grantTypeId",
+  "periodStart",
+  "periodEnd",
+  "amount",
+  "paymentDate",
+];
+
+/**
+ * Everything wrong with an award, by field.
+ *
+ * Twelve inputs used to share one sentence in a banner — "Please choose both
+ * period start and end" left the person to work out which of the two dates it
+ * meant.
+ */
+const validateAward = (values: {
+  grantTypeId: string | null;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+  amount: number | undefined;
+  isPaid: boolean;
+  paymentDate: Date | null;
+}): FieldErrors<AwardField> => {
+  const errors: FieldErrors<AwardField> = {};
+
+  if (!values.grantTypeId) errors.grantTypeId = "Choose the grant type this award is under.";
+  if (!values.periodStart) errors.periodStart = "Choose the day this award starts.";
+  if (!values.periodEnd) errors.periodEnd = "Choose the day this award ends.";
+
+  if (values.periodStart && values.periodEnd && values.periodStart > values.periodEnd) {
+    errors.periodEnd = "The period ends before it starts.";
+  }
+
+  if (values.amount != null && values.amount < 0) {
+    errors.amount = "An amount cannot be negative.";
+  }
+
+  // Money that is marked as paid needs the day it was paid, or the payment
+  // cannot be reconciled against a bank statement later.
+  if (values.isPaid && !values.paymentDate) {
+    errors.paymentDate = "Add the date this was paid.";
+  }
+
+  return errors;
+};
+
 export const AdminCreateScholarshipPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,6 +111,10 @@ export const AdminCreateScholarshipPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<AwardField>>({});
+
+  /** id + error together, so no field can be marked without being reachable. */
+  const field = (key: AwardField) => ({ id: fieldId(FORM_ID, key), error: fieldErrors[key] });
 
   const [grantTypeOptions, setGrantTypeOptions] = useState<Option[]>([]);
   const [grantTypeMeta, setGrantTypeMeta] = useState<GrantTypeMeta[]>([]);
@@ -191,12 +256,19 @@ export const AdminCreateScholarshipPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!grantTypeId) {
-      setError("Please select a grant type.");
-      return;
-    }
-    if (!periodStart || !periodEnd) {
-      setError("Please choose both period start and end.");
+    const problems = validateAward({
+      grantTypeId,
+      periodStart,
+      periodEnd,
+      amount: typeof amountForPeriod === "number" ? amountForPeriod : undefined,
+      isPaid,
+      paymentDate,
+    });
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, AWARD_FIELD_ORDER));
       return;
     }
 
@@ -253,6 +325,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
             <div style={{ flex: 1, minWidth: 0 }}>
               <Select
                 label="Grant type"
+                {...field("grantTypeId")}
                 placeholder="Select grant type"
                 data={grantTypeOptions}
                 value={grantTypeId}
@@ -302,19 +375,22 @@ export const AdminCreateScholarshipPage: React.FC = () => {
 
         <FormSection title="Period & amount">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-            <DateInput label="Period start" value={periodStart} onChange={setPeriodStart} required />
-            <DateInput label="Period end" value={periodEnd} onChange={setPeriodEnd} required />
+            <DateInput label="Period start" {...field("periodStart")} value={periodStart} onChange={setPeriodStart} required />
+            <DateInput label="Period end" {...field("periodEnd")} value={periodEnd} onChange={setPeriodEnd} required />
             <NumberInput
               label="Amount for scholarship period"
+              {...field("amount")}
               value={amountForPeriod}
               onChange={(val) => setAmountForPeriod(typeof val === "number" ? val : undefined)}
               min={0}
               placeholder="e.g. 8400, 150000"
             />
-            <TextInput
+            <Select
               label="Currency"
+              data={currencyOptionsFor(currency)}
+              allowDeselect={false}
               value={currency}
-              onChange={(e) => setCurrency(e.currentTarget.value)}
+              onChange={(value: string | null) => setCurrency(value ?? CURRENCY)}
             />
           </SimpleGrid>
         </FormSection>
@@ -340,6 +416,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               />
               <DateInput
                 label="Payment date"
+                {...field("paymentDate")}
                 value={paymentDate}
                 onChange={setPaymentDate}
                 disabled={!isPaid}

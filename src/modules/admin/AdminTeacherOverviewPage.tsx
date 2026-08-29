@@ -24,7 +24,7 @@ import {
   Textarea,
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
-import { ContactCell, InlineMessage, KpiRow, LoadingState } from "../../design-system";
+import { ContactCell, InlineMessage, KpiRow, LoadingState, optional } from "../../design-system";
 import { AccessBadge, AccessMenu } from "./AccessActions";
 import {
   ACCESS_META,
@@ -48,9 +48,22 @@ import {
   saveTeacherProfile,
   syncTeacherStudents,
   validateTeacherDetails,
+  TEACHER_FIELD_ORDER,
   type TeacherDetailsInput,
+  type TeacherField,
   type TeacherProfile,
 } from "./teacherProfile";
+import {
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
+
+/** Namespaces this page's field ids. */
+const FORM_ID = "teacher-edit";
 import styles from "./AdminDirectory.module.scss";
 
 type TabValue = "overview" | "students" | "reports";
@@ -99,6 +112,8 @@ export const AdminTeacherOverviewPage: React.FC = () => {
   // ── Edit state ──────────────────────────────────────────────────────────
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<TeacherDetailsInput | null>(null);
+  /** What the last save attempt found wrong, per field. */
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<TeacherField>>({});
   const [draftStudentIds, setDraftStudentIds] = useState<string[]>([]);
   const [assignable, setAssignable] = useState<AssignableStudent[]>([]);
   const [allSchools, setAllSchools] = useState<School[]>([]);
@@ -222,8 +237,16 @@ export const AdminTeacherOverviewPage: React.FC = () => {
     setSaveError(null);
   };
 
-  const setField = <K extends keyof TeacherDetailsInput>(key: K, value: TeacherDetailsInput[K]) =>
+  const setField = <K extends keyof TeacherDetailsInput>(key: K, value: TeacherDetailsInput[K]) => {
+    // A field stops being wrong the moment it is edited.
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
     setDraft((current) => (current ? { ...current, [key]: value } : current));
+  };
 
   const handleSchoolCreated = (school: CreatedSchool) => {
     setAllSchools((current) =>
@@ -243,12 +266,18 @@ export const AdminTeacherOverviewPage: React.FC = () => {
     setStudentDrawerOpen(false);
   };
 
+  /** id + error together, so no field can be marked without being reachable. */
+  const field = (key: TeacherField) => ({ id: fieldId(FORM_ID, key), error: fieldErrors[key] });
+
   const save = async () => {
     if (!teacher || !draft) return;
 
-    const validationError = validateTeacherDetails(draft);
-    if (validationError) {
-      setSaveError(validationError);
+    const problems = validateTeacherDetails(draft);
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setSaveError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, TEACHER_FIELD_ORDER));
       return;
     }
 
@@ -485,12 +514,14 @@ export const AdminTeacherOverviewPage: React.FC = () => {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
                 label="Full name (English)"
+                {...field("fullName")}
                 required
                 value={draft.fullName}
                 onChange={(event) => setField("fullName", event.currentTarget.value)}
               />
               <TextInput
                 label="Full name (Thai)"
+                {...field("fullNameTh")}
                 required
                 placeholder="เช่น อารยา สุขใจ"
                 value={draft.fullNameTh}
@@ -504,6 +535,9 @@ export const AdminTeacherOverviewPage: React.FC = () => {
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
               <TextInput
                 label="Email address"
+                inputMode="email"
+                autoComplete="email"
+                {...field("email")}
                 required
                 type="email"
                 value={draft.email}
@@ -511,6 +545,10 @@ export const AdminTeacherOverviewPage: React.FC = () => {
               />
               <TextInput
                 label="Phone number"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                {...field("phone")}
                 required
                 placeholder="08x xxx xxxx"
                 value={draft.phone}
@@ -518,6 +556,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
               />
               <TextInput
                 label="LINE ID"
+                {...field("lineId")}
                 required
                 placeholder="@teacher-line-id"
                 value={draft.lineId}
@@ -531,6 +570,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <MantineSelect
                 label="School represented"
+                {...field("schoolId")}
                 placeholder="Select school"
                 required
                 searchable
@@ -552,7 +592,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
             <h2 className={styles.detailSectionTitle}>Students</h2>
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <MultiSelect
-                label="Assigned students"
+                label={optional("Assigned students")}
                 placeholder={draftStudentIds.length ? undefined : "Search students by name"}
                 searchable
                 clearable
@@ -583,7 +623,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
           <section>
             <h2 className={styles.detailSectionTitle}>Notes</h2>
             <Textarea
-              label="Admin notes"
+              label={optional("Admin notes")}
               minRows={4}
               placeholder="Languages spoken, travel constraints, preferred contact time…"
               value={draft.notes}

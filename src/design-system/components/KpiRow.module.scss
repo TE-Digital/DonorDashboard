@@ -10,6 +10,46 @@
 
 .cell {
   min-width: 0;
+
+  // The tiles settle in sequence rather than flashing in together. The purpose
+  // is not decoration: the row is a group of related numbers, and a cascade
+  // reads as one thing arriving where a simultaneous flash reads as four.
+  //
+  // Nothing is gated on this. The animation holds its END state via `both` and
+  // the delays are short, so a tile is clickable from the first frame and the
+  // whole row has settled inside 350ms.
+  opacity: 0;
+  animation: kpi-rise var(--dur-base) var(--ease-standard) both;
+}
+
+.cell:nth-child(1) { animation-delay: 0ms; }
+.cell:nth-child(2) { animation-delay: 40ms; }
+.cell:nth-child(3) { animation-delay: 80ms; }
+.cell:nth-child(4) { animation-delay: 120ms; }
+.cell:nth-child(5) { animation-delay: 160ms; }
+.cell:nth-child(6) { animation-delay: 200ms; }
+
+@keyframes kpi-rise {
+  from {
+    opacity: 0;
+    // 4px, not a scale. These are numbers in a row, and a scaling number is
+    // briefly a different number.
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+// Reduced motion keeps the fade -- it is what stops the tiles appearing
+// abruptly -- and drops the movement and the stagger, which are what cause
+// motion sickness.
+@media (prefers-reduced-motion: reduce) {
+  .cell {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .clickable,
@@ -20,15 +60,33 @@
 .clickable {
   border-radius: var(--radius);
   cursor: pointer;
-  transition: box-shadow 120ms ease;
+  // Named properties, project curve. `120ms ease` was a hardcoded duplicate of
+  // --dur-fast with a weaker curve than the one the rest of the app uses.
+  transition: box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-press) var(--ease-standard);
 
-  &:hover {
-    box-shadow: var(--shadow-raised);
+  // Ungated, this lift stuck to whichever tile a thumb last touched.
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      box-shadow: var(--shadow-raised);
+    }
+  }
+
+  // A KPI tile filters the table under it. Without press feedback the only
+  // confirmation is the table redrawing, which on a slow query is nothing.
+  &:active {
+    transform: scale(var(--press-scale));
   }
 
   &:focus-visible {
     outline: 2px solid var(--action-primary);
     outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:active {
+      transform: none;
+    }
   }
 }
 

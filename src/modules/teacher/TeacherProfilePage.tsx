@@ -12,18 +12,35 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Avatar, SimpleGrid, Stack, TextInput } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
-import { InlineMessage, LoadingState, PageHeader, SectionCard } from "../../design-system";
+import {
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  SectionCard,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  type FieldErrors,
+} from "../../design-system";
 import { Badge, Button } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import { useEffectiveTeacherId } from "../viewAs/ViewAsContext";
 import {
   TEACHER_FIELDS_PENDING_NOTE,
+  TEACHER_FIELD_ORDER,
   loadTeacherProfile,
   saveTeacherProfile,
+  validateTeacherDetails,
+  type TeacherField,
   type TeacherDetailsInput,
   type TeacherProfile,
 } from "../admin/teacherProfile";
 import styles from "./TeacherHome.module.scss";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "teacher-self";
 
 const toDetails = (profile: TeacherProfile): TeacherDetailsInput => ({
   fullName: profile.full_name ?? "",
@@ -49,6 +66,7 @@ export const TeacherProfilePage: React.FC = () => {
   const [draft, setDraft] = useState<TeacherDetailsInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<TeacherField>>({});
 
   const load = useCallback(async () => {
     if (!teacherId) return;
@@ -90,8 +108,17 @@ export const TeacherProfilePage: React.FC = () => {
   const save = async () => {
     if (!profile || !draft) return;
 
-    if (!draft.fullName.trim()) {
-      setError("Your name cannot be empty.");
+    // The same rules the admin form applies to the same row. A teacher's own
+    // screen used to require only the English name, so the record a teacher
+    // saved was allowed to be less complete than the one an admin saved.
+    // Email and school are read-only here, so they are not asked for again.
+    const problems = validateTeacherDetails(draft, { requireSchool: false });
+    delete problems.email;
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, TEACHER_FIELD_ORDER));
       return;
     }
 
@@ -200,24 +227,38 @@ export const TeacherProfilePage: React.FC = () => {
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
                 label="Full name (English)"
+                id={fieldId(FORM_ID, "fullName")}
+                error={fieldErrors.fullName}
                 required
                 value={draft.fullName}
                 onChange={(event) => setField("fullName", event.currentTarget.value)}
               />
               <TextInput
                 label="Full name (Thai)"
+                id={fieldId(FORM_ID, "fullNameTh")}
+                error={fieldErrors.fullNameTh}
+                required
                 placeholder="เช่น อารยา สุขใจ"
                 value={draft.fullNameTh}
                 onChange={(event) => setField("fullNameTh", event.currentTarget.value)}
               />
               <TextInput
                 label="Phone number"
+                id={fieldId(FORM_ID, "phone")}
+                error={fieldErrors.phone}
+                required
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
                 placeholder="08x xxx xxxx"
                 value={draft.phone}
                 onChange={(event) => setField("phone", event.currentTarget.value)}
               />
               <TextInput
                 label="LINE ID"
+                id={fieldId(FORM_ID, "lineId")}
+                error={fieldErrors.lineId}
+                required
                 placeholder="@your-line-id"
                 value={draft.lineId}
                 onChange={(event) => setField("lineId", event.currentTarget.value)}

@@ -3,7 +3,14 @@ import React, { useEffect, useState } from "react";
 import { Stack, Text } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
-import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  LoadingState,
+  PageHeader,
+  TableSection,
+  formatCurrency,
+  type TableKpi,
+} from "../../design-system";
+import { loadDonorBalances, shortfallSentence, type DonorBalance } from "../donor/donorMoney";
 import {
   Badge,
   Button as LumenButton,
@@ -43,6 +50,10 @@ export const AdminDonorsPage: React.FC = () => {
   const [statsByDonor, setStatsByDonor] = useState<Record<string, DonorStats>>(
     {}
   );
+  // Money comes from the donor_balance view rather than being summed here, so
+  // this table and the donor page cannot disagree about what a donor has given.
+  const [balances, setBalances] = useState<Map<string, DonorBalance>>(new Map());
+  const [moneyAvailable, setMoneyAvailable] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -78,6 +89,10 @@ export const AdminDonorsPage: React.FC = () => {
 
         // Compute stats: students supported + last scholarship date
         const donorIds = (donorRows ?? []).map((d: any) => d.id as string);
+
+        const balanceRead = await loadDonorBalances(donorIds);
+        setBalances(balanceRead.data);
+        setMoneyAvailable(balanceRead.available);
 
         if (donorIds.length > 0) {
           const { data: awardRows, error: awardError } = await supabase
@@ -159,8 +174,16 @@ export const AdminDonorsPage: React.FC = () => {
   const rows = donors.map((d) => {
     const c = (d.contact ?? {}) as DonorContact;
     const stats = statsByDonor[d.id];
+    const balance = balances.get(d.id);
     return {
       id: d.id,
+      given: balance?.total_given_thb ?? 0,
+      free: balance?.free_balance_thb ?? 0,
+      // A donor whose free balance will not cover next month's commitments.
+      // Fires before the shortfall bites rather than after a student's funding
+      // has already lapsed.
+      short: balance ? !balance.covers_next_month : false,
+      shortfall: balance?.shortfall_next_month_thb ?? 0,
       name: d.name,
       email: c.email ?? null,
       phone: c.phone ?? null,
@@ -173,12 +196,26 @@ export const AdminDonorsPage: React.FC = () => {
   const kpis: TableKpi[] = (() => {
     const supporting = rows.filter((r) => r.studentCount > 0).length;
     const students = rows.reduce((sum, r) => sum + r.studentCount, 0);
-    const withAgent = rows.filter((r) => r.agent !== "No agent").length;
+    const given = rows.reduce((sum, r) => sum + r.given, 0);
+    const unallocated = rows.reduce((sum, r) => sum + Math.max(0, r.free), 0);
     return [
       { label: "Donors", value: rows.length, footnote: "on record", mark: "donors" },
       { label: "Actively giving", value: supporting, footnote: "support a student", mark: "ontrack" },
       { label: "Students supported", value: students, footnote: "across all donors", mark: "students" },
-      { label: "With an agent", value: withAgent, footnote: "have a contact", mark: "accounts" },
+      // The number this page exists to surface: money that has arrived and is
+      // not yet doing anything.
+      {
+        label: "Unallocated",
+        value: moneyAvailable ? formatCurrency(unallocated) : "—",
+        footnote: moneyAvailable ? `of ${formatCurrency(given)} given` : "funding not set up",
+        mark: "accounts",
+      },
+      {
+        label: "Short next month",
+        value: moneyAvailable ? rows.filter((r) => r.short).length : "—",
+        footnote: "cannot cover their commitments",
+        mark: "overdue",
+      },
     ];
   })();
 
@@ -205,6 +242,44 @@ export const AdminDonorsPage: React.FC = () => {
     { key: "agent", label: "Agent", width: 160 },
     { key: "studentCount", label: "Students supported", align: "right", numeric: true, width: 160 },
     {
+      key: "given",
+      label: "Given",
+      align: "right",
+      numeric: true,
+      width: 120,
+      render: (d) => (moneyAvailable ? formatCurrency(d.given) : "—"),
+    },
+    {
+      // Sorted to the top by default when present: the point of an alert is
+      // that somebody does not have to go looking for it.
+      key: "short",
+      label: "Next month",
+      width: 170,
+      sortValue: (d) => (d.short ? 0 : 1),
+      render: (d) => {
+        if (!moneyAvailable) return "—";
+        if (!d.short) return <Text size="sm" c="dimmed">Covered</Text>;
+        // Amber and worded. "Short for next month" says what is wrong; an
+        // amber dot says only that something is.
+        return <Badge tone="warning">Short {formatCurrency(d.shortfall)}</Badge>;
+      },
+    },
+    {
+      key: "free",
+      label: "Unallocated",
+      align: "right",
+      numeric: true,
+      width: 140,
+      render: (d) => {
+        if (!moneyAvailable) return "—";
+        // Over-allocated is a state somebody has to act on, so it is a badge
+        // rather than a negative number in a column of positive ones.
+        if (d.free < 0) return <Badge tone="danger">Over by {formatCurrency(Math.abs(d.free))}</Badge>;
+        if (d.free === 0) return <Text size="sm" c="dimmed">Fully allocated</Text>;
+        return <Text size="sm" fw={500}>{formatCurrency(d.free)}</Text>;
+      },
+    },
+    {
       key: "lastAward",
       label: "Last scholarship",
       width: 150,
@@ -227,7 +302,7 @@ export const AdminDonorsPage: React.FC = () => {
         kpis={kpis}
         columns={columns}
         rows={rows}
-        onRowClick={(d) => navigate(`/admin/donors/${d.id}/edit`)}
+        onRowClick={(d) => navigate(`/admin/donors/${d.id}`)}
         emptyTitle="No donors found"
         emptyDescription="Add a donor to start recording scholarships."
         emptyIcon="users"

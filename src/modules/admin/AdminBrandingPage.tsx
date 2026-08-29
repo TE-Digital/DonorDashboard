@@ -10,11 +10,12 @@ import {
   Text,
   Image,
   Group,
+  Select,
 } from "@mantine/core";
+import { BUTTON_RADIUS_OPTIONS, FONT_FAMILY_OPTIONS } from "../../design-system";
 import { useBranding } from "../theme/BrandingContext";
 import { supabase } from "../../lib/supabaseClient";
 
-// const RADIUS_OPTIONS = ["xs", "sm", "md", "lg", "xl"]; // not used
 
 export const AdminBrandingPage: React.FC = () => {
   const branding = useBranding();
@@ -149,16 +150,22 @@ export const AdminBrandingPage: React.FC = () => {
             value={secondary}
             onChange={setSecondary}
           />
-          <TextInput
+          {/* Both of these were free text, and both change the whole product
+              for every user. A rejected value used to fail silently back to the
+              default with nothing on screen to say so. */}
+          <Select
             label="Main font family"
+            data={FONT_FAMILY_OPTIONS}
+            allowDeselect={false}
             value={font}
-            onChange={(e) => setFont(e.currentTarget.value)}
+            onChange={(value) => value && setFont(value)}
           />
-          <TextInput
+          <Select
             label="Button radius"
-            value={buttonRadius}
-            onChange={(e) => setButtonRadius(e.currentTarget.value)}
-            placeholder="md"
+            data={BUTTON_RADIUS_OPTIONS}
+            allowDeselect={false}
+            value={buttonRadius || "md"}
+            onChange={(value) => value && setButtonRadius(value)}
           />
         </Stack>
       </Card>
@@ -204,6 +211,9 @@ export const AdminBrandingPage: React.FC = () => {
           <Text fw={500}>Donor Contact Email</Text>
           <TextInput
             label="Email for donor communication"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
             placeholder="contact@your-organization.org"
             value={donorContactEmail}
             onChange={(e) => setDonorContactEmail(e.currentTarget.value)}

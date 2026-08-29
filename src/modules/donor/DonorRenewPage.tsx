@@ -20,6 +20,7 @@ import {
   IconHeartHandshake,
   IconCheck,
 } from "@tabler/icons-react";
+import { optional } from "../../design-system";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../auth/AuthContext";
 
@@ -303,28 +304,20 @@ export const DonorRenewPage: React.FC = () => {
 
           <TextInput
             label="Your email"
+            inputMode="email"
+            autoComplete="email"
             required
             type="email"
             value={email}
             onChange={(e) => setEmail(e.currentTarget.value)}
           />
 
-          <Group align="flex-end" gap="xs">
+          {/* The guidance used to live in a tooltip behind an icon. This is
+              the one donor-facing form in the product, and a tooltip does not
+              exist on a phone. */}
+          <Stack gap={4}>
             <Select
-              style={{ flex: 1 }}
-              label={
-                <Group gap={4}>
-                  <Text size="sm">Preferred grant type (optional)</Text>
-                  <Tooltip
-                    label="If you'd like to continue with a specific grant type, select it here."
-                    withArrow
-                  >
-                    <ActionIcon size="sm" variant="subtle">
-                      <IconInfoCircle size={14} />
-                    </ActionIcon>
-                  </Tooltip>
-                </Group>
-              }
+              label={optional("Preferred grant type")}
               placeholder="No preference"
               data={grantTypes}
               value={grantTypeId}
@@ -332,7 +325,10 @@ export const DonorRenewPage: React.FC = () => {
               clearable
               disabled={loadingGrantTypes}
             />
-          </Group>
+            <Text size="xs" c="dimmed">
+              If you would like to continue with a specific grant type, choose it here.
+            </Text>
+          </Stack>
 
           <Textarea
             label="Your message"

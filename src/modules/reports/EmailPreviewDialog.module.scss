@@ -1,0 +1,81 @@
+// The email, shown at the size it will be read.
+
+.recipients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.recipient {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.recipientActive {
+  background: var(--surface-selected);
+  border-color: var(--blue-200);
+  color: var(--text-heading);
+}
+
+.recipient:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.meta {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+
+.meta > div {
+  display: flex;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.meta dt {
+  flex: none;
+  width: 68px;
+  color: var(--text-muted);
+}
+
+.meta dd {
+  margin: 0;
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+// A phone-width frame, at every breakpoint. A preview at desktop width would
+// show a layout nobody receives.
+.phone {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-3);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+}
+
+.frame {
+  width: 375px;
+  max-width: 100%;
+  height: 520px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  background: #ffffff;
+}

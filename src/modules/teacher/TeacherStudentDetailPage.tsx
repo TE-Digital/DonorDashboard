@@ -26,7 +26,21 @@ import { ReportList } from "../reports";
 import { asRow } from "../../lib/supabaseRelations";
 import {
   LoadingState,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isPhone,
+  type FieldErrors,
 } from "../../design-system";
+import { gradeOptions } from "../admin/schoolProfile";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "teacher-student-edit";
+
+type StudentEditField = "name" | "schoolId" | "guardian" | "phone";
+const STUDENT_EDIT_ORDER: readonly StudentEditField[] = ["name", "schoolId", "guardian", "phone"];
 
 type StudentContact = {
   phone: string | null;
@@ -87,6 +101,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
   // 
   // editable fields
   const [name, setName] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors<StudentEditField>>({});
   const [nickname, setNickname] = useState("");
   const [gradeLevel, setGradeLevel] = useState<string | null>(null);
   const [village, setVillage] = useState<string | null>(null);
@@ -294,14 +309,24 @@ export const TeacherStudentDetailPage: React.FC = () => {
     setError(null);
     setMessage(null);
 
+    // The same rules the admin form applies to the same row — including the
+    // school, which this screen used to treat as optional, so a teacher could
+    // save a student the admin form would have refused.
     const trimmedName = name.trim();
-    if (!trimmedName) {
-      setError("Student name is required.");
-      setSaving(false);
-      return;
+    const problems: FieldErrors<StudentEditField> = {};
+    if (!trimmedName) problems.name = "The student's name is required.";
+    if (!contactGuardian.trim()) problems.guardian = "A guardian name is required on every student.";
+    if (!contactPhone.trim()) {
+      problems.phone = "A contact phone number is required on every student.";
+    } else if (!isPhone(contactPhone)) {
+      problems.phone = "Enter a Thai phone number, for example 081 234 5678.";
     }
-    if (!contactPhone.trim() || !contactGuardian.trim()) {
-      setError("Please provide a guardian name and phone number.");
+    if (!schoolId) problems.schoolId = "Select the school this student attends.";
+    setFieldErrors(problems);
+
+    if (hasErrors(problems)) {
+      setError(errorSummary(problems));
+      focusField(FORM_ID, firstError(problems, STUDENT_EDIT_ORDER));
       setSaving(false);
       return;
     }
@@ -456,6 +481,8 @@ export const TeacherStudentDetailPage: React.FC = () => {
               <Stack gap="sm">
                 <TextInput
                   label="Name"
+                  id={fieldId(FORM_ID, "name")}
+                  error={fieldErrors.name}
                   required
                   value={name}
                   onChange={(e) => setName(e.currentTarget.value)}
@@ -471,10 +498,11 @@ export const TeacherStudentDetailPage: React.FC = () => {
                     placeholder="Select grade"
                     value={gradeLevel}
                     onChange={setGradeLevel}
-                    data={Array.from({ length: 12 }, (_, i) => {
-                      const val = String(i + 1);
-                      return { value: val, label: `Grade ${val}` };
-                    })}
+                    // The same list the admin form writes. This picker used to
+                    // offer "Grade 1…12" while the admin form took free text,
+                    // so one column held four spellings of the same grade.
+                    data={gradeOptions(gradeLevel)}
+                    searchable
                     clearable
                   />
                   <TextInput
@@ -492,6 +520,9 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   />
                   <Select
                     label="School"
+                    id={fieldId(FORM_ID, "schoolId")}
+                    error={fieldErrors.schoolId}
+                    required
                     placeholder="Select school"
                     data={schools}
                     value={schoolId}
@@ -519,12 +550,19 @@ export const TeacherStudentDetailPage: React.FC = () => {
                 </Text>
                 <TextInput
                   label="Guardian name"
+                  id={fieldId(FORM_ID, "guardian")}
+                  error={fieldErrors.guardian}
                   required
                   value={contactGuardian}
                   onChange={(e) => setContactGuardian(e.currentTarget.value)}
                 />
                 <TextInput
                   label="Phone number"
+                  id={fieldId(FORM_ID, "phone")}
+                  error={fieldErrors.phone}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   required
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.currentTarget.value)}
@@ -550,6 +588,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   Background / notes
                 </Text>
                 <Textarea
+                  aria-label="Background / notes"
                   minRows={4}
                   autosize
                   value={bio ?? ""}

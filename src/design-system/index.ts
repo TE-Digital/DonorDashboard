@@ -7,6 +7,7 @@ export * from "./tokens";
 export * from "./typography";
 export * from "./semantic";
 export * from "./format";
+export * from "./useDocumentTitle";
 export * from "./branding";
 export * from "./theme";
 export * from "./cssVars";
@@ -41,6 +42,7 @@ export {
   FormBody,
   FormSection,
   FieldLabel,
+  optional,
   FormError,
   FormFeedback,
   FormFooter,
@@ -73,3 +75,20 @@ export type { ContactCellProps, ContactKind, CopyFeedback, CopyIconButtonProps }
 // grid, pagination. Every table in the product is built from this.
 export { TableSection } from "./components/TableSection";
 export type { TableKpi, TableSectionProps } from "./components/TableSection";
+
+// Field-level validation: a map of field name to message, the formats every
+// form agrees on, and focus-to-first-error. Any form that can fail should use
+// this rather than a single sentence in a banner.
+export {
+  EARLIEST_BIRTHDATE,
+  dateProblem,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  isPhone,
+  today,
+} from "./fieldValidation";
+export type { DateProblem, FieldErrors } from "./fieldValidation";

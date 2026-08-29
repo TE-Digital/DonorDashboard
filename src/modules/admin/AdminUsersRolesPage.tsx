@@ -1,14 +1,32 @@
 // src/modules/admin/AdminUsersRolesPage.tsx
+//
+// The access ledger: every account, what it may do, and whether it can get in.
+//
+// This page is not a second directory. People are created where their work is —
+// a teacher in Teachers, a donor in Donors — and land here afterwards. What
+// happens here is authority: granting a role, taking access away, giving it
+// back, and finding the account that has not been used in a year.
+//
+// Roles are edited in a panel rather than by ticking a grid, because a click
+// that silently grants admin is a click nobody meant to make. See
+// RoleEditorDrawer for why.
+
 import React, { useEffect, useState } from "react";
 import { supabase, Profile } from "../../lib/supabaseClient";
-import { Anchor, Checkbox, Stack, Text } from "@mantine/core";
-import { useNavigate } from "react-router-dom";
+import { Anchor, Stack, Text } from "@mantine/core";
 import { ContactCell, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { Badge, Button as LumenButton, type DataColumn } from "../../design-system/lumen";
 import { AccessBadge, AccessMenu } from "./AccessActions";
-import { ACCESS_META, accessStateOf, loadAccessMap, type AccessMap } from "./userAccess";
-
-type UiRole = "admin" | "teacher" | "donor" | "agent";
+import {
+  ACCESS_META,
+  ACCESS_RANK,
+  accessStateOf,
+  loadAccessMap,
+  type AccessMap,
+  type AccessState,
+} from "./userAccess";
+import { ALL_ROLES, ROLE_META, RoleEditorDrawer, type UiRole } from "./RoleEditorDrawer";
+import styles from "./AdminDirectory.module.scss";
 
 // `email` is already on Profile — redeclaring it here as optional made this
 // interface incompatible with the one it extends.
@@ -16,15 +34,33 @@ interface UserWithRoles extends Profile {
   roles: UiRole[];
 }
 
-const ALL_ROLES: UiRole[] = ["admin", "teacher", "donor", "agent"];
+/** The role the table is narrowed to, or everyone. */
+type RoleFilter = UiRole | "all" | "none";
+
+/** How long ago, in the words an admin would use. */
+const relativeDate = (iso: string | null | undefined): string => {
+  if (!iso) return "Never";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "Never";
+
+  const days = Math.floor((Date.now() - then) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return "Last week";
+  if (days < 60) return `${Math.floor(days / 7)} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months < 24) return `${months} months ago`;
+  return `${Math.floor(months / 12)} years ago`;
+};
 
 export const AdminUsersRolesPage: React.FC = () => {
-  const navigate = useNavigate();
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   /** Who can actually sign in. Roles say what a person may do; this says whether they can. */
   const [access, setAccess] = useState<AccessMap>({ byUser: {}, available: false, error: null });
-  const [saving, setSaving] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [editing, setEditing] = useState<UserWithRoles | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -62,37 +98,18 @@ export const AdminUsersRolesPage: React.FC = () => {
     load();
   }, []);
 
-  const toggleRole = async (userId: string, role: UiRole, checked: boolean) => {
-    setSaving(true);
+  const stateOf = React.useCallback(
+    (user: UserWithRoles): AccessState =>
+      access.available ? accessStateOf(access.byUser[user.id]) : "unknown",
+    [access],
+  );
 
-    if (checked) {
-      // add role
-      const { error } = await supabase
-        .from("person_roles")
-        .upsert(
-          { user_id: userId, role },
-          { onConflict: "user_id,role", ignoreDuplicates: true }
-        );
-
-      if (error) {
-        console.error("Error adding role", error);
-      }
-    } else {
-      // remove role
-      const { error } = await supabase
-        .from("person_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", role);
-
-      if (error) {
-        console.error("Error removing role", error);
-      }
-    }
-
-    await load();
-    setSaving(false);
-  };
+  /** What the table shows: everyone, narrowed to the role in focus. */
+  const visible = React.useMemo(() => {
+    if (roleFilter === "all") return users;
+    if (roleFilter === "none") return users.filter((u) => u.roles.length === 0);
+    return users.filter((u) => u.roles.includes(roleFilter));
+  }, [users, roleFilter]);
 
   if (loading) {
     return <LoadingState />;
@@ -100,16 +117,31 @@ export const AdminUsersRolesPage: React.FC = () => {
 
   const kpis: TableKpi[] = (() => {
     const counts = (role: UiRole) => users.filter((u) => u.roles.includes(role)).length;
-    const noRole = users.filter((u) => u.roles.length === 0).length;
+    const state = (want: AccessState) =>
+      access.available ? users.filter((u) => accessStateOf(access.byUser[u.id]) === want).length : 0;
+
+    const neverIn = access.available
+      ? users.filter((u) => {
+          const s = accessStateOf(access.byUser[u.id]);
+          return s === "none" || s === "invited" || s === "stale";
+        }).length
+      : 0;
+    const revoked = state("revoked");
+
     return [
       { label: "Accounts", value: users.length, footnote: "with a profile", mark: "accounts" },
       { label: "Admins", value: counts("admin"), footnote: "full access", mark: "admins" },
-      { label: "Teachers", value: counts("teacher"), footnote: "submit reports", mark: "teachers" },
       {
-        label: "Without a role",
-        value: noRole,
-        footnote: noRole ? "cannot sign in anywhere" : "everyone assigned",
-        mark: noRole ? "overdue" : "ontrack",
+        label: "Never signed in",
+        value: access.available ? neverIn : "—",
+        footnote: access.available ? "invited or without an account" : "account state unavailable",
+        mark: neverIn ? "overdue" : "ontrack",
+      },
+      {
+        label: "Access removed",
+        value: access.available ? revoked : "—",
+        footnote: revoked ? "cannot sign in" : "nobody blocked",
+        mark: "accounts",
       },
     ];
   })();
@@ -147,18 +179,67 @@ export const AdminUsersRolesPage: React.FC = () => {
       ),
     },
     {
+      // One cell, not four columns of checkboxes. It says what this person may
+      // do; changing it opens the editor, where the change is read back before
+      // it is written.
+      key: "roles",
+      label: "Roles",
+      width: 260,
+      filterValue: (u) =>
+        u.roles.length ? u.roles.map((r) => ROLE_META[r].label).sort().join(", ") : "No role",
+      render: (u) => (
+        <span className={styles.roleChips}>
+          {u.roles.length ? (
+            u.roles.map((role) => (
+              <Badge key={role} tone={role === "admin" ? "info" : "neutral"}>
+                {ROLE_META[role].label}
+              </Badge>
+            ))
+          ) : (
+            <Badge tone="warning" dot>
+              No role
+            </Badge>
+          )}
+        </span>
+      ),
+    },
+    {
       // Roles answer "what may this person do?". This column answers the
       // question that comes first: can they get in at all?
       key: "access",
       label: "Sign-in",
       width: 150,
-      filterValue: (u) => ACCESS_META[accessStateOf(access.byUser[u.id])].label,
+      filterValue: (u) => ACCESS_META[stateOf(u)].label,
+      sortValue: (u) => ACCESS_RANK[stateOf(u)],
       render: (u) => (
         <AccessBadge
-          state={access.available ? accessStateOf(access.byUser[u.id]) : "unknown"}
+          state={stateOf(u)}
           inviteCount={access.byUser[u.id]?.invite_count}
         />
       ),
+    },
+    {
+      // Already loaded with the access map and, until now, thrown away. It is
+      // the one fact that ages an account: a year of silence is a question.
+      key: "last_sign_in",
+      label: "Last sign-in",
+      width: 140,
+      filterValue: (u) => access.byUser[u.id]?.last_sign_in_at ?? "",
+      render: (u) => {
+        const at = access.byUser[u.id]?.last_sign_in_at ?? null;
+        if (!access.available) return <Text size="sm" c="dimmed">—</Text>;
+        return (
+          <span title={at ? new Date(at).toLocaleString() : "This account has never been used"}>
+            {at ? (
+              <Text size="sm">{relativeDate(at)}</Text>
+            ) : (
+              <Text size="sm" c="dimmed">
+                Never
+              </Text>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: "created_at",
@@ -167,25 +248,6 @@ export const AdminUsersRolesPage: React.FC = () => {
       muted: true,
       render: (u) => (u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"),
     },
-    // One column per role, each filterable on Yes/No so you can pull up
-    // "everyone who is a teacher" from the header.
-    ...ALL_ROLES.map<DataColumn<UserWithRoles>>((role) => ({
-      key: `role_${role}`,
-      label: role.charAt(0).toUpperCase() + role.slice(1),
-      width: 96,
-      align: "center",
-      sortable: false,
-      filterValue: (u) => (u.roles.includes(role) ? "Yes" : "No"),
-      render: (u) => (
-        <Checkbox
-          size="xs"
-          checked={u.roles.includes(role)}
-          onChange={(e) => toggleRole(u.id, role, e.currentTarget.checked)}
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`${role} role for ${u.full_name ?? "user"}`}
-        />
-      ),
-    })),
     {
       key: "actions",
       label: "",
@@ -206,26 +268,54 @@ export const AdminUsersRolesPage: React.FC = () => {
     },
   ];
 
+  const FILTERS: Array<{ value: RoleFilter; label: string }> = [
+    { value: "all", label: "Everyone" },
+    ...ALL_ROLES.map((role) => ({ value: role as RoleFilter, label: ROLE_META[role].label })),
+    { value: "none", label: "No role" },
+  ];
+
   return (
-    <Stack>
+    <Stack className={styles.page}>
       <PageHeader
         title="Users & roles"
         subtitle="Who can sign in, and what each account is allowed to do."
-        actions={
-          <>
-            {saving && <Badge tone="info">Saving…</Badge>}
-            <LumenButton variant="primary" icon="plus" onClick={() => navigate("/admin/users/new")}>Add user</LumenButton>
-          </>
-        }
       />
 
       <TableSection
         kpis={kpis}
         columns={columns}
-        rows={users}
-        emptyTitle="No users found"
-        emptyDescription="Accounts appear here once someone is invited."
+        rows={visible}
+        controls={
+          <span className={styles.roleChips}>
+            {FILTERS.map((filter) => (
+              <LumenButton
+                key={filter.value}
+                variant={roleFilter === filter.value ? "secondary" : "ghost"}
+                onClick={() => setRoleFilter(filter.value)}
+              >
+                {filter.label}
+              </LumenButton>
+            ))}
+          </span>
+        }
+        onRowClick={(u) => setEditing(u)}
+        emptyTitle={roleFilter === "all" ? "No users found" : "Nobody with that role"}
+        emptyDescription={
+          roleFilter === "all"
+            ? "Accounts appear here once somebody is invited from Teachers or Donors."
+            : "Choose another role, or Everyone, to see the rest of the directory."
+        }
         emptyIcon="users"
+      />
+
+      <RoleEditorDrawer
+        opened={editing !== null}
+        onClose={() => setEditing(null)}
+        userId={editing?.id ?? null}
+        name={editing?.full_name || "this user"}
+        email={editing?.email ?? null}
+        roles={editing?.roles ?? []}
+        onSaved={() => void load()}
       />
     </Stack>
   );

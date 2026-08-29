@@ -25,10 +25,12 @@
   cursor: pointer;
   transition: var(--motion-hover);
 
-  &:hover {
-    background: var(--surface-hover);
-    border-color: var(--border-default);
-    color: var(--text-heading);
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-default);
+      color: var(--text-heading);
+    }
   }
 
   &:focus-visible {

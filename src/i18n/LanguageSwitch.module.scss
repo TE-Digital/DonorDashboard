@@ -1,0 +1,68 @@
+// A segmented pair, sized to be pressed with a thumb.
+//
+// Quiet by default: it is a preference, not an action, and should not compete
+// with the one blue button a screen is allowed.
+
+.root {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+}
+
+.option {
+  min-width: 44px;
+  // 44px is the touch target floor, and this control lives in a toolbar a
+  // teacher uses on a phone.
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .option:hover {
+    color: var(--text-body);
+  }
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.active {
+  background: var(--surface-card);
+  color: var(--text-heading);
+  box-shadow: var(--shadow-hairline);
+}
+
+// Inside the mobile menu: full-width rows with the language written out, and a
+// real 44px target rather than a shrunken toolbar chip.
+.stacked {
+  display: flex;
+  width: 100%;
+  border-radius: var(--radius);
+}
+
+.stacked .option {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
+}

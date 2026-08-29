@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, NumberInput, SimpleGrid, Textarea, TextInput } from "@mantine/core";
+import { Button, NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -8,7 +8,14 @@ import {
   FormFooter,
   FormPage,
   FormSection,
+  CURRENCY,
+  currencyOptionsFor,
+  fieldId,
+  focusField,
 } from "../../design-system";
+
+/** Namespaces this form's field ids. */
+const FORM_ID = "grant-type-new";
 
 export const AdminCreateGrantTypePage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,15 +32,21 @@ export const AdminCreateGrantTypePage: React.FC = () => {
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | undefined>();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError("Please provide a name for the grant type.");
+      // On the field, not only in the banner: one input, but the same rule as
+      // every other form in the product.
+      setNameError("Give this grant type a name.");
+      setError("One field needs attention before this can be saved.");
+      focusField(FORM_ID, "name");
       return;
     }
+    setNameError(undefined);
 
     setSaving(true);
     setError(null);
@@ -83,6 +96,8 @@ export const AdminCreateGrantTypePage: React.FC = () => {
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <TextInput
               label="Name"
+              id={fieldId(FORM_ID, "name")}
+              error={nameError}
               placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
@@ -107,10 +122,12 @@ export const AdminCreateGrantTypePage: React.FC = () => {
               onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}
               min={0}
             />
-            <TextInput
+            <Select
               label="Currency"
+              data={currencyOptionsFor(currency)}
+              allowDeselect={false}
               value={currency}
-              onChange={(e) => setCurrency(e.currentTarget.value)}
+              onChange={(value: string | null) => setCurrency(value ?? CURRENCY)}
             />
             <NumberInput
               label="Default duration (months)"

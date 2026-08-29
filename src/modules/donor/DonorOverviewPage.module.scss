@@ -1,0 +1,159 @@
+// The donor's home.
+//
+// Mobile-first without apology: a donor arrives here from an email link on a
+// phone, usually once a term. The desktop layout is the enhancement, not the
+// design.
+//
+// Warmer than the admin side — larger photographs, fewer tables — but the same
+// tokens. Not a second visual language, and specifically not a finance
+// dashboard: no sparklines on generosity, no portfolio framing of children.
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.greeting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.hello {
+  font-size: var(--fs-h1);
+  line-height: var(--lh-h1);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--ls-tight);
+  color: var(--text-heading);
+}
+
+.sub {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 60ch;
+}
+
+@media (min-width: 768px) {
+  .sub {
+    font-size: var(--fs-body);
+  }
+}
+
+.top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+}
+
+@media (min-width: 900px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+    align-items: start;
+  }
+}
+
+.sectionTitle {
+  font-size: var(--fs-h3);
+  line-height: var(--lh-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+  margin-bottom: var(--sp-3);
+}
+
+.students {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+
+@media (min-width: 640px) {
+  .students {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.student {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  text-align: left;
+  cursor: pointer;
+  // A card a thumb has to hit.
+  min-height: 72px;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .student:hover {
+    background: var(--surface-hover);
+  }
+}
+
+.student:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+  background: var(--surface-sunken);
+}
+
+.studentText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.studentName {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studentMeta {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.flags {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+  border-radius: var(--radius);
+}
+
+.flagsTitle {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--amber-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student {
+    transition: none;
+  }
+}

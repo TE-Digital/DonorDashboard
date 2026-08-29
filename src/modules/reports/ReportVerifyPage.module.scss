@@ -1,0 +1,292 @@
+// Verifying a report before it reaches a donor.
+//
+// Two panes, because the whole point is the comparison: what the teacher wrote,
+// and what the donor will read. Side by side is the only arrangement in which a
+// person can check one against the other, so this is the one screen in the
+// product that changes behaviour rather than size when the viewport cannot hold
+// it — below 1024px the panes become tabs rather than stacking, since a stacked
+// pair is a comparison you have to scroll to make, which is no comparison.
+
+.panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .panes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-5);
+  }
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+
+// The teacher's side is read-only and reads as read-only: sunken, not white.
+.source {
+  background: var(--surface-sunken);
+}
+
+.paneTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--text-subtle);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.fieldLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.fieldValue {
+  font-size: var(--fs-body);
+  line-height: 1.7;
+  color: var(--text-body);
+  white-space: pre-wrap;
+}
+
+// The internal note. Marked, dashed, and captioned, so nobody has to remember
+// which pane they are in before deciding whether a sentence may be copied.
+.internal {
+  padding: var(--sp-3);
+  background: var(--amber-50);
+  border: 1px dashed var(--amber-500);
+  border-radius: var(--radius);
+}
+
+.internalLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--amber-700);
+  margin-bottom: var(--sp-2);
+}
+
+.attachments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  min-height: 44px;
+}
+
+.attachmentName {
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.attachmentLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------ tab form */
+
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  margin-bottom: var(--sp-3);
+}
+
+@media (min-width: 1024px) {
+  .tabs {
+    display: none;
+  }
+}
+
+.tab {
+  flex: 1;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tabActive {
+  background: var(--surface-card);
+  color: var(--text-heading);
+  box-shadow: var(--shadow-hairline);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+// Below 1024px only the selected pane is rendered.
+@media (max-width: 1023px) {
+  .hiddenPane {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------- footer */
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-top: var(--sp-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sticky);
+}
+
+// Who receives this, named before the button that sends it.
+.recipients {
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+.recipientsNone {
+  color: var(--amber-700);
+  font-weight: var(--fw-medium);
+}
+
+.footerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.narrowNotice {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+@media (min-width: 1024px) {
+  .narrowNotice {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------- language of the copy */
+
+// Which language is being written. Two tabs rather than two visible field
+// pairs: shown together they compete for the same attention, and the question
+// at this moment is only ever "which one am I writing now".
+.langTabs {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+}
+
+.langTab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.langTabActive {
+  background: var(--surface-card);
+  color: var(--text-heading);
+  box-shadow: var(--shadow-hairline);
+}
+
+.langTab:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.langNote {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-regular);
+  color: var(--text-subtle);
+}
+
+// Amber and worded. A colour alone would leave the one state that must be
+// noticed before sending relying on somebody's colour vision at six in the
+// evening.
+.langMissing {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  color: var(--amber-700);
+}
+
+.translationNeeded {
+  padding: var(--sp-3);
+  background: var(--amber-50);
+  border: 1px solid var(--amber-100);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-sm);
+  color: var(--amber-700);
+}

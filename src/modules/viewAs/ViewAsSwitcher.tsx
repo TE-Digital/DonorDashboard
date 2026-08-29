@@ -22,7 +22,7 @@ const ROLE_LABEL: Record<ViewRole, string> = {
 const HOME: Record<ViewRole, string> = {
   admin: "/admin/dashboard",
   teacher: "/teacher/dashboard",
-  donor: "/donor/dashboard",
+  donor: "/donor/overview",
 };
 
 export const ViewAsSwitcher: React.FC = () => {

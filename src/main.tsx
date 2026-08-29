@@ -7,6 +7,9 @@ import "./styles/global.scss";
 // properties on :root; element styling is scoped to `.lumen`, so this cannot
 // restyle the existing Mantine surfaces.
 import "./design-system/lumen/tokens.css";
+// Initialises i18next and applies the stored language to <html lang> before the
+// first paint, so a Thai session never flashes English on load.
+import "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "lint": "echo \"No linter configured\""
   },
@@ -18,12 +18,15 @@
     "@supabase/supabase-js": "^2.48.0",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-table": "^8.20.5",
+    "i18next": "^26.4.0",
     "lucide-react": "^1.31.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^17.0.12",
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.7.1",

@@ -11,6 +11,11 @@
  */
 
 @import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap");
+/* Figtree carries no Thai glyphs, so a Thai word inside an English sentence
+   fell through to whatever the operating system offered and changed texture
+   mid-line. Noto Sans Thai sits behind Figtree in the stack: Latin still
+   renders in Figtree, Thai renders in a face chosen to match its weight. */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300..800&display=swap");
 
 :root {
   /* ---- Warm neutrals — a hint of clay keeps surfaces from reading cold ---- */
@@ -153,7 +158,7 @@
   --focus-ring: 0 0 0 3px rgba(7, 42, 200, 0.2);
 
   /* ---- Typography ---- */
-  --font-core: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-core: "Figtree", "Noto Sans Thai", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   /* One family, everywhere. The mono and display tokens are kept so existing
      call sites keep working, but they now resolve to the core face. */
   --font-mono: var(--font-core);
@@ -246,14 +251,52 @@
   --shadow-sticky-left: -6px 0 12px -10px rgba(60, 50, 30, 0.28);
 
   /* ---- Motion ---- */
+  /* Enter and hover. Starts fast, so the interface answers before the user has
+     finished looking at it. Everything the user initiates uses this. */
   --ease-standard: cubic-bezier(0.2, 0.6, 0.25, 1);
+  /* Exit only, and always paired with --dur-fast. Leaving is the system
+     responding, not the user deciding, so it gets out of the way. */
   --ease-exit: cubic-bezier(0.4, 0, 0.7, 0.3);
+  /* Something crossing the screen rather than appearing on it: a drawer, a
+     sliding panel. Long tail, no bounce. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   --dur-instant: 80ms;
   --dur-fast: 130ms;
   --dur-base: 190ms;
   --dur-slow: 280ms;
+  /* Press feedback is the one thing that must never lag the finger. */
+  --dur-press: 110ms;
+
+  /* The scale a pressable element takes while held. Subtle on purpose: enough
+     to feel, not enough to notice. */
+  --press-scale: 0.97;
+
   --motion-hover: background-color var(--dur-fast) var(--ease-standard),
     border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+  /* Hover plus the press transform, for anything clickable. Listed explicitly
+     rather than `all` so a width or height change never rides along. */
+  --motion-pressable: background-color var(--dur-fast) var(--ease-standard),
+    border-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-press) var(--ease-standard);
+}
+
+/* Finger-sized controls on a phone.
+ *
+ * A cursor is a few pixels wide and 36px is a comfortable, dense target for it.
+ * A fingertip is about 44px across, which is why DESIGN_PROCESS.md asks for
+ * 44x44 on mobile — and every button on this platform was 36. Raising only the
+ * two small steps, and only on a narrow screen, keeps admin tables and
+ * toolbars at their desktop density where a mouse is doing the pointing.
+ *
+ * Row heights are deliberately left alone: a table row is not a tap target,
+ * the controls inside it are.
+ */
+@media (max-width: 640px) {
+  :root {
+    --control-h-sm: 44px;
+    --control-h-md: 44px;
+  }
 }
 
 /* base.css, scoped. Apply `.lumen` to any subtree that should adopt the system. */

@@ -40,8 +40,44 @@ import {
   SCHOOL_SYSTEMS,
 } from "./schoolProfile";
 import { isMissingColumnError } from "./teacherProfile";
+import {
+  dateProblem,
+  errorSummary,
+  fieldId,
+  firstError,
+  focusField,
+  hasErrors,
+  isEmail,
+  isPhone,
+  today,
+  type FieldErrors,
+} from "../../design-system/fieldValidation";
 import { writeFailureMessage, type EntityFormHandle, type EntityFormOwnerProps } from "./entityForm";
 import styles from "./AdminDirectory.module.scss";
+
+/** Namespaces this form's field ids — it renders as a route and a drawer step. */
+const CONTACT_CHANNEL_REQUIRED =
+  "Give at least one way to reach this person: a phone number, an email address or a LINE ID.";
+
+const FORM_ID = "school-form";
+
+/** Every field this form can mark, in the order it asks for them. */
+const SCHOOL_FIELD_ORDER = [
+  "gradeTo",
+  "thaiName",
+  "englishName",
+  "province",
+  "district",
+  "subdistrict",
+  "dateJoined",
+  "principalPhone",
+  "principalEmail",
+  "contactName",
+  "contactPhone",
+  "contactEmail",
+] as const;
+
+type SchoolField = (typeof SCHOOL_FIELD_ORDER)[number];
 
 export interface CreatedSchool {
   id: string;
@@ -90,6 +126,42 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
 
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    /** What the last save attempt found wrong, per field. */
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors<SchoolField>>({});
+
+    /** id + error together, so no field can be marked without being reachable. */
+    const field = (key: SchoolField) => ({ id: fieldId(FORM_ID, key), error: fieldErrors[key] });
+
+    /**
+     * Dropped when any of the three channels is filled, not only the phone.
+     *
+     * The message is anchored to contactPhone because a form error has to sit
+     * on a field, but it is about all three — so typing an email has to clear
+     * it, while leaving a genuine "that is not a phone number" alone.
+     */
+    const clearChannelError = () =>
+      setFieldErrors((current) =>
+        current.contactPhone === CONTACT_CHANNEL_REQUIRED
+          ? (({ contactPhone: _drop, ...rest }) => rest)(current)
+          : current,
+      );
+
+    /** A field stops being wrong the moment it is edited. */
+    const clear = (key: SchoolField) =>
+      setFieldErrors((current) => {
+        if (!current[key]) return current;
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+
+    /** Set a text field and drop its error in one call. */
+    const edit =
+      (key: SchoolField, setValue: (value: string) => void) =>
+      (event: React.ChangeEvent<HTMLInputElement>) => {
+        clear(key);
+        setValue(event.currentTarget.value);
+      };
 
     const errorRef = useRef<HTMLDivElement>(null);
 
@@ -147,16 +219,56 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
     const save = async () => {
       reportError(null);
 
-      if (!thaiName.trim() || !englishName.trim()) {
-        reportError("Both the Thai and the English school name are required.");
-        return;
+      const problems: FieldErrors<SchoolField> = {};
+
+      if (!thaiName.trim()) problems.thaiName = "The Thai school name is required.";
+      if (!englishName.trim()) problems.englishName = "The English school name is required.";
+
+      if (!province) problems.province = "Select a province.";
+      if (!district.trim()) problems.district = "The district is required.";
+      if (!subdistrict.trim()) problems.subdistrict = "The subdistrict is required.";
+
+      // "P6 to K1" is not a range. The two selects cannot know about each
+      // other, so the pair is checked here.
+      if (gradeFrom && gradeTo && GRADES.indexOf(gradeTo) < GRADES.indexOf(gradeFrom)) {
+        problems.gradeTo = `The last grade cannot come before ${gradeFrom}.`;
       }
-      if (!province || !district.trim() || !subdistrict.trim()) {
-        reportError("Province, district and subdistrict are required.");
-        return;
+
+      if (dateProblem(dateJoined ? dateJoined.toISOString() : null) === "future") {
+        problems.dateJoined = "A school cannot have joined on a date that has not happened.";
       }
+
       if (!contactName.trim()) {
-        reportError("A contact person is required for school coordination.");
+        problems.contactName = "A contact person is required for school coordination.";
+      }
+
+      // A name with no channel is not a contact. Which channel is theirs to
+      // choose — LINE, a phone, an address — but there has to be one, or the
+      // field officer arriving in the province has nobody to ring.
+      if (!contactPhone.trim() && !contactEmail.trim() && !contactLine.trim()) {
+        problems.contactPhone = CONTACT_CHANNEL_REQUIRED;
+      }
+
+      if (contactPhone.trim() && !isPhone(contactPhone)) {
+        problems.contactPhone = "Enter a Thai phone number, for example 081 234 5678.";
+      }
+      if (contactEmail.trim() && !isEmail(contactEmail)) {
+        problems.contactEmail = "Enter a valid email address, or leave it empty.";
+      }
+      if (principalPhone.trim() && !isPhone(principalPhone)) {
+        problems.principalPhone = "Enter a Thai phone number, or leave it empty.";
+      }
+      if (principalEmail.trim() && !isEmail(principalEmail)) {
+        problems.principalEmail = "Enter a valid email address, or leave it empty.";
+      }
+
+      setFieldErrors(problems);
+
+      if (hasErrors(problems)) {
+        // The count at the top, the sentences on the fields, and the cursor in
+        // the first one — so fixing four empty fields is one pass, not four.
+        reportError(errorSummary(problems));
+        focusField(FORM_ID, firstError(problems, SCHOOL_FIELD_ORDER));
         return;
       }
 
@@ -169,21 +281,58 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         .filter(Boolean)
         .join(", ");
 
-      const base = { name: englishName.trim(), address: composedAddress || null };
+      // The Thai name was already required by this form and then dropped on
+      // save — collected from a person and discarded, which is the surest way
+      // to teach staff that filling forms in carefully does not matter. It has
+      // a column now, and this is where it lands.
+      const base = {
+        name: englishName.trim(),
+        name_th: thaiName.trim() || null,
+        address: composedAddress || null,
+      };
 
-      // The reporting period is a real column, but a database without the
-      // migration should still be able to create a school rather than fail on
-      // a field it has never heard of.
+      // Province and district are columns of their own now, as well as part of
+      // the composed address. The dashboard ranks provinces by funding gap, and
+      // a ranking cannot be built by splitting a free-text address on commas.
+      const located = {
+        ...base,
+        province: province?.trim() || null,
+        district: district.trim() || null,
+      };
+
+      // Both of the above are real columns, but a database without the
+      // migrations should still be able to create a school rather than fail on
+      // a field it has never heard of. Widest insert first, narrowing on each
+      // missing-column error.
       let { data, error: insertError } = await supabase
         .from("schools")
-        .insert({ ...base, reporting_period_months: Number(reportingPeriod) })
+        .insert({ ...located, reporting_period_months: Number(reportingPeriod) })
         .select("id, name")
         .maybeSingle();
 
       if (insertError && isMissingColumnError(insertError)) {
         ({ data, error: insertError } = await supabase
           .from("schools")
+          .insert(located)
+          .select("id, name")
+          .maybeSingle());
+      }
+
+      if (insertError && isMissingColumnError(insertError)) {
+        ({ data, error: insertError } = await supabase
+          .from("schools")
           .insert(base)
+          .select("id, name")
+          .maybeSingle());
+      }
+
+      // Last resort: a database without even name_th. Creating the school still
+      // has to work, so the Thai name is the thing that gives way rather than
+      // the school.
+      if (insertError && isMissingColumnError(insertError)) {
+        ({ data, error: insertError } = await supabase
+          .from("schools")
+          .insert({ name: base.name, address: base.address })
           .select("id, name")
           .maybeSingle());
       }
@@ -239,35 +388,37 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
               />
             </div>
             <Select label="Grade from" value={gradeFrom} onChange={setGradeFrom} data={GRADES} allowDeselect={false} />
-            <Select label="Grade to" value={gradeTo} onChange={setGradeTo} data={GRADES} allowDeselect={false} />
+            <Select label="Grade to" {...field("gradeTo")} value={gradeTo} onChange={(value) => { clear("gradeTo"); setGradeTo(value); }} data={GRADES} allowDeselect={false} />
             <Select label="Dormitory status" value={dormitoryStatus} onChange={setDormitoryStatus} data={DORMITORY_OPTIONS} allowDeselect={false} />
           </div>
           <div className={styles.reportingRow}>
             <Select
               label="Reporting period"
-              description="How often this school reports on a student. Everyone assigned here inherits it."
               value={reportingPeriod}
               onChange={(value) => value && setReportingPeriod(value)}
               data={REPORTING_PERIODS}
               allowDeselect={false}
             />
+            <p className={styles.fieldHint}>
+              How often this school reports on a student. Everyone assigned here inherits it.
+            </p>
           </div>
         </FormSection>
 
         <FormSection title="School names">
           <div className={styles.namesGrid}>
-            <TextInput label="Thai school name" required value={thaiName} onChange={(e) => setThaiName(e.currentTarget.value)} placeholder="โรงเรียน..." />
-            <TextInput label="English school name" required value={englishName} onChange={(e) => setEnglishName(e.currentTarget.value)} placeholder="Ban ... School" />
+            <TextInput label="Thai school name" required {...field("thaiName")} value={thaiName} onChange={edit("thaiName", setThaiName)} placeholder="โรงเรียน..." />
+            <TextInput label="English school name" required {...field("englishName")} value={englishName} onChange={edit("englishName", setEnglishName)} placeholder="Ban ... School" />
             <TextInput label="School code" value={schoolCode} onChange={(e) => setSchoolCode(e.currentTarget.value)} placeholder="50100123" />
           </div>
         </FormSection>
 
         <FormSection title="Address">
           <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
-            <Select label="Province" required searchable value={province} onChange={setProvince} data={PROVINCES} />
-            <TextInput label="District" required value={district} onChange={(e) => setDistrict(e.currentTarget.value)} placeholder="Search districts" />
-            <TextInput label="Subdistrict" required value={subdistrict} onChange={(e) => setSubdistrict(e.currentTarget.value)} placeholder="Search subdistricts" />
-            <DateInput label="Date joined iCare" value={dateJoined} onChange={setDateJoined} clearable />
+            <Select label="Province" required searchable {...field("province")} value={province} onChange={(value) => { clear("province"); setProvince(value); }} data={PROVINCES} />
+            <TextInput label="District" required {...field("district")} value={district} onChange={edit("district", setDistrict)} placeholder="Search districts" />
+            <TextInput label="Subdistrict" required {...field("subdistrict")} value={subdistrict} onChange={edit("subdistrict", setSubdistrict)} placeholder="Search subdistricts" />
+            <DateInput label="Date joined iCare" {...field("dateJoined")} maxDate={today()} value={dateJoined} onChange={(value) => { clear("dateJoined"); setDateJoined(value); }} clearable />
           </SimpleGrid>
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
             <Textarea label="Thai address" minRows={3} value={thaiAddress} onChange={(e) => setThaiAddress(e.currentTarget.value)} placeholder="บ้านเลขที่ หมู่ ตำบล อำเภอ จังหวัด" />
@@ -278,17 +429,17 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         <FormSection title="Principal">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput label="Principal name" value={principalName} onChange={(e) => setPrincipalName(e.currentTarget.value)} placeholder="Name (ชื่อ-สกุล)" />
-            <TextInput label="Principal phone" value={principalPhone} onChange={(e) => setPrincipalPhone(e.currentTarget.value)} placeholder="08x xxx xxxx" />
-            <TextInput label="Principal email" type="email" value={principalEmail} onChange={(e) => setPrincipalEmail(e.currentTarget.value)} placeholder="name@icare.or.th" />
+            <TextInput label="Principal phone" type="tel" inputMode="tel" autoComplete="tel" {...field("principalPhone")} value={principalPhone} onChange={edit("principalPhone", setPrincipalPhone)} placeholder="08x xxx xxxx" />
+            <TextInput label="Principal email" inputMode="email" autoComplete="email" type="email" {...field("principalEmail")} value={principalEmail} onChange={edit("principalEmail", setPrincipalEmail)} placeholder="name@icare.or.th" />
           </SimpleGrid>
         </FormSection>
 
         <FormSection title="Contact person">
           <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
-            <TextInput label="Contact person" required value={contactName} onChange={(e) => setContactName(e.currentTarget.value)} placeholder="Name (ชื่อ-สกุล)" />
-            <TextInput label="Contact phone" value={contactPhone} onChange={(e) => setContactPhone(e.currentTarget.value)} placeholder="08x xxx xxxx" />
-            <TextInput label="Contact email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.currentTarget.value)} placeholder="name@icare.or.th" />
-            <TextInput label="LINE ID" value={contactLine} onChange={(e) => setContactLine(e.currentTarget.value)} placeholder="LINE ID" />
+            <TextInput label="Contact person" required {...field("contactName")} value={contactName} onChange={edit("contactName", setContactName)} placeholder="Name (ชื่อ-สกุล)" />
+            <TextInput label="Contact phone" type="tel" inputMode="tel" autoComplete="tel" {...field("contactPhone")} value={contactPhone} onChange={edit("contactPhone", setContactPhone)} placeholder="08x xxx xxxx" />
+            <TextInput label="Contact email" inputMode="email" autoComplete="email" type="email" {...field("contactEmail")} value={contactEmail} onChange={(e) => { clearChannelError(); edit("contactEmail", setContactEmail)(e); }} placeholder="name@icare.or.th" />
+            <TextInput label="LINE ID" value={contactLine} onChange={(e) => { clearChannelError(); setContactLine(e.currentTarget.value); }} placeholder="LINE ID" />
           </SimpleGrid>
         </FormSection>
 

@@ -9,6 +9,42 @@
 
 /** Display currency for the organization. */
 export const CURRENCY = "THB" as const;
+
+/**
+ * The currencies a record may be written in.
+ *
+ * Four money forms asked for this as free text — three characters typed by
+ * hand, next to the amount they qualify. "thb", "Bhat" and an empty string all
+ * used to be acceptable answers.
+ */
+export const CURRENCY_OPTIONS = [
+  { value: "THB", label: "THB — Thai baht" },
+  { value: "USD", label: "USD — US dollar" },
+  { value: "EUR", label: "EUR — Euro" },
+  { value: "GBP", label: "GBP — Pound sterling" },
+  { value: "AUD", label: "AUD — Australian dollar" },
+  { value: "SGD", label: "SGD — Singapore dollar" },
+] as const;
+
+/**
+ * The options for one record, including whatever it is already stored as.
+ *
+ * A row written before this was a list can hold "Bhat" or "thb". A Select whose
+ * value is not among its options renders blank, and blank is then written back
+ * on the next save — the record silently loses its currency because somebody
+ * opened it. The stored value is carried as its own option instead, marked, so
+ * an admin can see it and choose the real one.
+ */
+export const currencyOptionsFor = (
+  stored: string | null | undefined,
+): Array<{ value: string; label: string }> => {
+  const options = CURRENCY_OPTIONS.map((option) => ({ ...option }));
+  const value = (stored ?? "").trim();
+  if (!value) return options;
+  if (options.some((option) => option.value === value)) return options;
+  return [...options, { value, label: `${value} — as recorded, not a known currency` }];
+};
+
 const CURRENCY_SYMBOL = "฿";
 
 type DateLike = string | number | Date | null | undefined;

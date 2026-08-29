@@ -21,7 +21,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Avatar, Menu, Modal, Stack, Text, Textarea } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ContactCell, KpiRow, LoadingState } from "../../design-system";
 import { Badge, Button, Icon, IconButton, Tabs } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
@@ -67,6 +67,12 @@ const loadSchoolWithPeriod = async (schoolId: string) => {
 };
 
 type TabValue = "overview" | "scholarships" | "reports" | "donor";
+
+const TAB_VALUES: TabValue[] = ["overview", "scholarships", "reports", "donor"];
+
+/** A ?tab= that names a real tab, so a link can point at one. Anything else opens the record as normal. */
+const tabFromUrl = (value: string | null): TabValue =>
+  TAB_VALUES.includes(value as TabValue) ? (value as TabValue) : "overview";
 
 type School = { id: string; name: string; reporting_period_months?: number | null };
 type Teacher = { id: string; full_name: string | null };
@@ -118,7 +124,27 @@ export const AdminStudentOverviewPage: React.FC = () => {
   const [notes, setNotes] = useState<StudentNote[]>([]);
   const [events, setEvents] = useState<StudentEvent[]>([]);
 
-  const [tab, setTab] = useState<TabValue>("overview");
+  // A row menu elsewhere ("Change funding") links straight to a tab on this
+  // record, so the tab is addressable rather than always opening on Overview.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTabState] = useState<TabValue>(() => tabFromUrl(searchParams.get("tab")));
+
+  /** Keeps the URL and the open tab saying the same thing, without a history entry per click. */
+  const setTab = React.useCallback(
+    (next: TabValue) => {
+      setTabState(next);
+      setSearchParams(
+        (current) => {
+          const params = new URLSearchParams(current);
+          if (next === "overview") params.delete("tab");
+          else params.set("tab", next);
+          return params;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -584,7 +610,10 @@ export const AdminStudentOverviewPage: React.FC = () => {
           {
             label: "Profile completion",
             mark: "accounts",
-            value: <ProfileCompletionBar completion={completion} />,
+            // Compact, not full: the full bar carries a 120px minimum track,
+            // which inside a KPI strip pushes the tile's own label out of the
+            // card ("60% Profile comple…").
+            value: <ProfileCompletionBar completion={completion} size="compact" />,
             footnote:
               completion.missing.length === 0
                 ? "Nothing missing"
@@ -691,6 +720,7 @@ export const AdminStudentOverviewPage: React.FC = () => {
               </p>
 
               <Textarea
+                aria-label="Write a note about this student"
                 placeholder="Write a note about this student…"
                 minRows={3}
                 autosize
@@ -742,6 +772,7 @@ export const AdminStudentOverviewPage: React.FC = () => {
                       {editingNote === note.id ? (
                         <>
                           <Textarea
+                            aria-label="Edit this note"
                             minRows={3}
                             autosize
                             value={editDraft}
