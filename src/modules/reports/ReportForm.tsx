@@ -101,7 +101,22 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
     },
     ref,
   ) => {
-    const [details, setDetails] = useState<ReportDetailsInput>(emptyReportDetails(studentId));
+    const REPORT_DRAFT_KEY = "report_form_draft";
+
+    const [details, setDetails] = useState<ReportDetailsInput>(() => {
+      const empty = emptyReportDetails(studentId);
+      if (reportId) return empty;
+      try {
+        const saved = localStorage.getItem(REPORT_DRAFT_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return { ...empty, ...parsed, studentId: studentId ?? parsed.studentId };
+        }
+      } catch (e) {
+        console.warn("Failed to restore report form draft", e);
+      }
+      return empty;
+    });
     const [attachments, setAttachments] = useState<ReportAttachment[]>([]);
     /** Files chosen but not uploaded. Uploaded only when the form saves. */
     const [drafts, setDrafts] = useState<AttachmentDraft[]>([]);
@@ -185,7 +200,14 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
 
     useEffect(() => {
       onDirtyChange?.(dirty);
-    }, [dirty]);
+      if (!reportId && dirty) {
+        try {
+          localStorage.setItem(REPORT_DRAFT_KEY, JSON.stringify(details));
+        } catch (e) {
+          console.warn("Failed to save report form draft", e);
+        }
+      }
+    }, [dirty, details, reportId]);
 
     const setBusy = (next: boolean) => {
       setSaving(next);
@@ -267,6 +289,12 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
         `${reportId ? "Report updated" : "Report added"} · ${REPORT_STATE_META[details.status].label}`,
         { report_id: result.id, status: details.status },
       );
+
+      try {
+        localStorage.removeItem(REPORT_DRAFT_KEY);
+      } catch (e) {
+        console.warn("Failed to clear report form draft", e);
+      }
 
       setBusy(false);
       onSaved({ id: result.id, studentId: details.studentId });

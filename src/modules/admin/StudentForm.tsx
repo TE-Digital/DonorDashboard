@@ -112,10 +112,28 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
     },
     ref,
   ) => {
-    const [details, setDetails] = useState<StudentDetailsInput>({
-      ...EMPTY_STUDENT_DETAILS,
-      schoolId: defaultSchoolId,
-      teacherProfileId: defaultTeacherId,
+    const DRAFT_KEY = "student_form_draft";
+
+    const [details, setDetails] = useState<StudentDetailsInput>(() => {
+      try {
+        const saved = localStorage.getItem(DRAFT_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            ...EMPTY_STUDENT_DETAILS,
+            schoolId: defaultSchoolId,
+            teacherProfileId: defaultTeacherId,
+            ...parsed,
+          };
+        }
+      } catch (e) {
+        console.warn("Failed to restore student form draft:", e);
+      }
+      return {
+        ...EMPTY_STUDENT_DETAILS,
+        schoolId: defaultSchoolId,
+        teacherProfileId: defaultTeacherId,
+      };
     });
 
     // Held, not uploaded: the storage path needs the id the insert has not
@@ -257,7 +275,14 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
 
     useEffect(() => {
       onDirtyChange?.(dirty);
-    }, [dirty]);
+      if (dirty) {
+        try {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(details));
+        } catch (e) {
+          console.warn("Failed to save student form draft", e);
+        }
+      }
+    }, [dirty, details]);
 
     const setBusy = (next: boolean) => {
       setSaving(next);
@@ -305,6 +330,13 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
         console.error("Error creating student", insertError);
         reportError(writeFailureMessage(insertError, "student"));
         return;
+      }
+
+      // Clear the draft after successful creation
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch (e) {
+        console.warn("Failed to clear student draft", e);
       }
 
       // The student exists from here on. A photo that fails to upload is

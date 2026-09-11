@@ -146,17 +146,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // subscribe to auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (newSession) {
-        // on login / refresh
-        setLoading(true);
-        loadUser(newSession).finally(() => setLoading(false));
+        // Background update on token refresh or focus - do NOT set loading to true
+        // so the UI remains mounted and state is preserved.
+        void loadUser(newSession);
       } else {
         // on logout
         setProfile(null);
         setRole(null);
-        setRoles([]);     }
+        setRoles([]);
+        setLoading(false);
+      }
     });
 
     return () => {

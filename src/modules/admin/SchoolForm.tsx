@@ -31,6 +31,7 @@ import {
 } from "../../design-system";
 import { Button } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
+import { ThailandAddressAutocomplete } from "../../components/ThailandAddressAutocomplete";
 import {
   DEFAULT_REPORTING_PERIOD_MONTHS,
   DORMITORY_OPTIONS,
@@ -219,14 +220,30 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
     const save = async () => {
       reportError(null);
 
+      // Extract current DOM values as fallback in case Browser Autofill populated inputs without triggering React's onChange
+      const getVal = (key: SchoolField, stateVal: string) => {
+        const domVal = (document.getElementById(fieldId(FORM_ID, key)) as HTMLInputElement)?.value;
+        return (stateVal || domVal || "").trim();
+      };
+
+      const cPhone = getVal("contactPhone", contactPhone);
+      const cEmail = getVal("contactEmail", contactEmail);
+      const lineDom = (document.getElementById(fieldId(FORM_ID, "contactLine")) as HTMLInputElement)?.value;
+      const cLine = (contactLine || lineDom || "").trim();
+
+      // Sync state back if DOM had autofilled values
+      if (!contactPhone && cPhone) setContactPhone(cPhone);
+      if (!contactEmail && cEmail) setContactEmail(cEmail);
+      if (!contactLine && cLine) setContactLine(cLine);
+
       const problems: FieldErrors<SchoolField> = {};
 
-      if (!thaiName.trim()) problems.thaiName = "The Thai school name is required.";
-      if (!englishName.trim()) problems.englishName = "The English school name is required.";
+      if (!getVal("thaiName", thaiName)) problems.thaiName = "The Thai school name is required.";
+      if (!getVal("englishName", englishName)) problems.englishName = "The English school name is required.";
 
       if (!province) problems.province = "Select a province.";
-      if (!district.trim()) problems.district = "The district is required.";
-      if (!subdistrict.trim()) problems.subdistrict = "The subdistrict is required.";
+      if (!getVal("district", district)) problems.district = "The district is required.";
+      if (!getVal("subdistrict", subdistrict)) problems.subdistrict = "The subdistrict is required.";
 
       // "P6 to K1" is not a range. The two selects cannot know about each
       // other, so the pair is checked here.
@@ -238,27 +255,29 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         problems.dateJoined = "A school cannot have joined on a date that has not happened.";
       }
 
-      if (!contactName.trim()) {
+      if (!getVal("contactName", contactName)) {
         problems.contactName = "A contact person is required for school coordination.";
       }
 
       // A name with no channel is not a contact. Which channel is theirs to
       // choose — LINE, a phone, an address — but there has to be one, or the
       // field officer arriving in the province has nobody to ring.
-      if (!contactPhone.trim() && !contactEmail.trim() && !contactLine.trim()) {
+      if (!cPhone && !cEmail && !cLine) {
         problems.contactPhone = CONTACT_CHANNEL_REQUIRED;
       }
 
-      if (contactPhone.trim() && !isPhone(contactPhone)) {
+      if (cPhone && !isPhone(cPhone)) {
         problems.contactPhone = "Enter a Thai phone number, for example 081 234 5678.";
       }
-      if (contactEmail.trim() && !isEmail(contactEmail)) {
+      if (cEmail && !isEmail(cEmail)) {
         problems.contactEmail = "Enter a valid email address, or leave it empty.";
       }
-      if (principalPhone.trim() && !isPhone(principalPhone)) {
+      const pPhone = getVal("principalPhone", principalPhone);
+      if (pPhone && !isPhone(pPhone)) {
         problems.principalPhone = "Enter a Thai phone number, or leave it empty.";
       }
-      if (principalEmail.trim() && !isEmail(principalEmail)) {
+      const pEmail = getVal("principalEmail", principalEmail);
+      if (pEmail && !isEmail(pEmail)) {
         problems.principalEmail = "Enter a valid email address, or leave it empty.";
       }
 
@@ -414,6 +433,18 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         </FormSection>
 
         <FormSection title="Address">
+          <ThailandAddressAutocomplete
+            onSelectAddress={(item) => {
+              clear("province");
+              clear("district");
+              clear("subdistrict");
+              setProvince(item.provinceEng);
+              setDistrict(item.district);
+              setSubdistrict(item.subdistrict);
+              setThaiAddress(`ตำบล${item.subdistrict} อำเภอ${item.district} จังหวัด${item.provinceThai} ${item.zipcode}`);
+              setEnglishAddress(`${item.subdistrict} subdistrict, ${item.district} district, ${item.provinceEng} ${item.zipcode}`);
+            }}
+          />
           <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
             <Select label="Province" required searchable {...field("province")} value={province} onChange={(value) => { clear("province"); setProvince(value); }} data={PROVINCES} />
             <TextInput label="District" required {...field("district")} value={district} onChange={edit("district", setDistrict)} placeholder="Search districts" />
@@ -437,9 +468,9 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
         <FormSection title="Contact person">
           <SimpleGrid cols={{ base: 1, md: 2, lg: 4 }} spacing="lg">
             <TextInput label="Contact person" required {...field("contactName")} value={contactName} onChange={edit("contactName", setContactName)} placeholder="Name (ชื่อ-สกุล)" />
-            <TextInput label="Contact phone" type="tel" inputMode="tel" autoComplete="tel" {...field("contactPhone")} value={contactPhone} onChange={edit("contactPhone", setContactPhone)} placeholder="08x xxx xxxx" />
+            <TextInput label="Contact phone" type="tel" inputMode="tel" autoComplete="tel" {...field("contactPhone")} value={contactPhone} onChange={(e) => { clearChannelError(); edit("contactPhone", setContactPhone)(e); }} placeholder="08x xxx xxxx" />
             <TextInput label="Contact email" inputMode="email" autoComplete="email" type="email" {...field("contactEmail")} value={contactEmail} onChange={(e) => { clearChannelError(); edit("contactEmail", setContactEmail)(e); }} placeholder="name@icare.or.th" />
-            <TextInput label="LINE ID" value={contactLine} onChange={(e) => { clearChannelError(); setContactLine(e.currentTarget.value); }} placeholder="LINE ID" />
+            <TextInput label="LINE ID" id={fieldId(FORM_ID, "contactLine")} value={contactLine} onChange={(e) => { clearChannelError(); setContactLine(e.currentTarget.value); }} placeholder="LINE ID" />
           </SimpleGrid>
         </FormSection>
 

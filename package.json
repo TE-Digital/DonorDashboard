@@ -23,7 +23,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^17.0.12",
-    "react-router-dom": "^6.28.0"
+    "react-router-dom": "^6.28.0",
+    "thai-data": "^3.0.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

@@ -355,7 +355,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
       reportError(null);
 
       const problems = validateTeacherDetails(details, {
-        requireSchool: columnsReady !== false,
+        requireSchool: false,
       });
       setFieldErrors(problems);
 
@@ -507,16 +507,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
         </FormSection>
 
         <FormSection title="School">
-          {columnsReady === false && (
-            <div className={styles.sectionNoteLead}>
-              <InlineMessage tone="warning">
-                A teacher cannot be linked to a school yet: the profiles table has no school column.
-                Apply supabase/migrations/20260820090000_teacher_profile_fields.sql, then set the
-                school from the teacher's page. Until then the teacher will appear under a school
-                once they supervise one of its students.
-              </InlineMessage>
-            </div>
-          )}
           {lockSchool ? (
             <InlineMessage tone="info">
               This teacher will represent {schoolName ?? "this school"}.
@@ -526,9 +516,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
               <Select
                 label="School"
                 {...field("schoolId")}
-                placeholder={columnsReady === false ? "Not available yet" : "Select school"}
-                required={columnsReady !== false}
-                disabled={columnsReady === false}
+                placeholder="Select school"
                 searchable
                 clearable
                 nothingFoundMessage="No school matches — create it instead"
@@ -541,7 +529,6 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
                   variant="secondary"
                   icon="plus"
                   type="button"
-                  disabled={columnsReady === false}
                   onClick={() =>
                     onRequestCreateSchool ? onRequestCreateSchool() : setSchoolDrawerOpen(true)
                   }

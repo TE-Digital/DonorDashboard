@@ -18,6 +18,7 @@ import { LanguageSwitch } from "../i18n/LanguageSwitch";
 import { useBranding } from "../modules/theme/BrandingContext";
 import { Banner, Button, IconButton, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
 import { GlobalSearchDialog } from "../modules/search/GlobalSearchDialog";
+import { useIdleTimeout } from "../hooks/useIdleTimeout";
 import classes from "./AppShellLayout.module.scss";
 
 type AppRole = "admin" | "teacher" | "donor";
@@ -88,6 +89,9 @@ export const AppShellLayout: React.FC = () => {
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Automatically reload page after 10 minutes of inactivity
+  useIdleTimeout({ timeoutInMinutes: 10 });
 
   const effectiveRoles: AppRole[] = useMemo(() => {
     const result: AppRole[] = [];

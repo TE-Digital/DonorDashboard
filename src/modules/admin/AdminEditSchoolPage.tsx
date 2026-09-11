@@ -13,6 +13,7 @@ import {
 } from "../../design-system";
 import { PROVINCES } from "./schoolProfile";
 import { isMissingColumnError } from "./teacherProfile";
+import { ThailandAddressAutocomplete } from "../../components/ThailandAddressAutocomplete";
 
 export const AdminEditSchoolPage: React.FC = () => {
   const navigate = useNavigate();
@@ -138,6 +139,13 @@ export const AdminEditSchoolPage: React.FC = () => {
       {!loading && (
         <FormBody onSubmit={handleSubmit}>
           <FormSection title="School details">
+            <ThailandAddressAutocomplete
+              onSelectAddress={(item) => {
+                setProvince(item.provinceEng);
+                setDistrict(item.district);
+                setAddress(`ตำบล${item.subdistrict} อำเภอ${item.district} จังหวัด${item.provinceThai} ${item.zipcode}`);
+              }}
+            />
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
                 label="School name"
