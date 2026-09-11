@@ -21,10 +21,13 @@ export {
   localName,
   formatEmailDate,
   escapeHtml,
+  fillFrame,
+  frameComplete,
 } from "../../../supabase/functions/report-email/template";
 
 export type {
   EmailLanguage,
   ReportEmailData,
   ReportEmailRecipient,
+  ReportFrame,
 } from "../../../supabase/functions/report-email/template";

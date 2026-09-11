@@ -250,7 +250,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
 
   const columns: DataColumn<TeacherStudent>[] = [
     { key: "name", label: "Name", width: 240 },
-    { key: "school_name", label: "School", width: 220, render: (s) => s.school_name || "—" },
+    { key: "school_name", label: "School", width: 220, render: (s) => s.school_name || "No school recorded" },
     {
       key: "isOverdue",
       label: "Overdue report",
@@ -302,7 +302,7 @@ export const AdminTeacherStudentsPage: React.FC = () => {
             value={selectedStudentId}
             onChange={setSelectedStudentId}
             searchable
-            nothingFoundMessage="No unassigned students found"
+            nothingFoundMessage="No student without a teacher matches that name"
           />
           <Group justify="flex-end" mt="md">
             <LumenButton variant="ghost" onClick={() => setAddModalOpen(false)}>
@@ -327,7 +327,6 @@ export const AdminTeacherStudentsPage: React.FC = () => {
               <span>Students of {teacherName}</span>
             </span>
           }
-          subtitle="View and manage all students assigned to this teacher."
           onBack={() => navigate("/admin/teachers")}
           backLabel="Back to teachers"
           actions={

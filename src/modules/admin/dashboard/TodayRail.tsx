@@ -32,9 +32,15 @@ export interface TodayRailProps {
 const KIND: Record<TodayKind, { icon: string; tone: string }> = {
   flagged: { icon: "message-circle", tone: "var(--status-danger)" },
   verify: { icon: "clipboard-list", tone: "var(--amber-600)" },
+  decision: { icon: "triangle-alert", tone: "var(--status-warning)" },
   allocate: { icon: "hand-coins", tone: "var(--plum-500)" },
+  welcome: { icon: "send", tone: "var(--action-primary)" },
+  renewal: { icon: "refresh-cw", tone: "var(--n-500)" },
   request: { icon: "inbox", tone: "var(--n-500)" },
 };
+
+/** An item left too long says so in its detail line; the icon turns the danger tone as well. */
+const URGENT_TONE = "var(--status-danger)";
 
 export const TodayRail: React.FC<TodayRailProps> = ({ items }) => (
   <nav aria-label="Today" className={styles.rail}>
@@ -54,7 +60,11 @@ export const TodayRail: React.FC<TodayRailProps> = ({ items }) => (
           return (
             <li key={item.id}>
               <Link to={item.href} className={styles.railItem}>
-                <span className={styles.railIcon} style={{ color: kind.tone }} aria-hidden="true">
+                <span
+                  className={styles.railIcon}
+                  style={{ color: item.urgent ? URGENT_TONE : kind.tone }}
+                  aria-hidden="true"
+                >
                   <Icon name={kind.icon} size={16} />
                 </span>
                 <span className={styles.railText}>

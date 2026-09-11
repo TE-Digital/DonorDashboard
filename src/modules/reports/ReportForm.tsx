@@ -253,7 +253,7 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
 
       if (result.error || !result.id) {
         setBusy(false);
-        reportError(result.error ?? "The report did not save.");
+        reportError(result.error ?? "We couldn't save the report. Try again.");
         return;
       }
 
@@ -371,21 +371,21 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <TextInput
               label="Grade"
-              placeholder="e.g. A, Pass, 3.5"
+              placeholder="A, Pass or 3.5"
               value={details.grade}
               onChange={(event) => set("grade", event.currentTarget.value)}
             />
             <TextInput
               label="Grade as a number"
               {...field("gradeNumeric")}
-              placeholder="e.g. 78"
+              placeholder="78"
               inputMode="decimal"
               value={details.gradeNumeric}
               onChange={(event) => set("gradeNumeric", event.currentTarget.value)}
             />
             <TextInput
               label="Progress summary"
-              placeholder="e.g. Very good progress"
+              placeholder="Very good progress"
               value={details.gradeText}
               onChange={(event) => set("gradeText", event.currentTarget.value)}
             />
@@ -406,10 +406,10 @@ export const ReportForm = forwardRef<EntityFormHandle, ReportFormProps>(
 
         <FormSection title="Internal note">
           <Textarea
-            label="Internal note"
+            aria-label="Internal note"
             minRows={3}
             autosize
-            placeholder="Anything the office should know that the donor should not read."
+            placeholder="Anything the office should know that the donor shouldn't read."
             value={details.internalNote}
             onChange={(event) => set("internalNote", event.currentTarget.value)}
           />

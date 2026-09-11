@@ -68,7 +68,7 @@ export const ReportFormDrawer: React.FC<ReportFormDrawerProps> = ({
 
     if (error) {
       notifications.show({
-        title: "The report was not deleted",
+        title: "We couldn't delete the report",
         message: error,
         color: "red",
         icon: <Icon name="circle-alert" size={16} />,

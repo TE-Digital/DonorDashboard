@@ -15,7 +15,9 @@
 // until it was spent.
 
 import React, { useEffect, useState } from "react";
-import { NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
+import { Anchor, NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { formatCurrency } from "../../design-system";
 import { DateInput } from "@mantine/dates";
 import {
   FormBody,
@@ -47,6 +49,13 @@ export interface ContributionDrawerProps {
   contribution?: Contribution | null;
   /** Fired after a successful save, so the page can reload balance and ledger. */
   onSaved: () => void;
+  /** Offered in the confirmation when the ledger isn't on screen. */
+  onViewPayments?: () => void;
+  /**
+   * A next step offered in the same confirmation after new money is recorded,
+   * such as assigning it to students. One message, not two stacked toasts.
+   */
+  followUp?: { label: string; onClick: () => void };
 }
 
 export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
@@ -56,6 +65,8 @@ export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
   donorName,
   contribution,
   onSaved,
+  onViewPayments,
+  followUp,
 }) => {
   const editing = Boolean(contribution);
 
@@ -106,11 +117,36 @@ export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
     setSaving(false);
 
     if (!result.ok) {
-      setFormError(result.message ?? "Could not save the contribution.");
+      setFormError(result.message ?? "We couldn't save this payment. Check your connection and try again.");
       return;
     }
 
     setDirty(false);
+    // One confirmation for every place a payment is recorded from: it says
+    // what was added, so an admin working through a bank statement can check
+    // each line without opening the ledger.
+    const amount = Number(values.amount);
+    notifications.show({
+      color: "green",
+      title: contribution ? `${formatCurrency(Number.isFinite(amount) ? amount : 0)} updated` : `${formatCurrency(Number.isFinite(amount) ? amount : 0)} recorded`,
+      message:
+        onViewPayments || (followUp && !contribution) ? (
+          <span style={{ display: "inline-flex", flexWrap: "wrap", gap: 12 }}>
+            {followUp && !contribution && (
+              <Anchor component="button" type="button" size="sm" onClick={followUp.onClick}>
+                {followUp.label}
+              </Anchor>
+            )}
+            {onViewPayments && (
+              <Anchor component="button" type="button" size="sm" onClick={onViewPayments}>
+                View payments
+              </Anchor>
+            )}
+          </span>
+        ) : donorName ? (
+          `For ${donorName}.`
+        ) : undefined,
+    });
     onSaved();
     onClose();
   };
@@ -122,10 +158,10 @@ export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
       busy={saving}
       dirty={dirty}
       size={560}
-      title={editing ? "Edit contribution" : "Record contribution"}
+      title={editing ? "Edit payment" : "Record payment"}
       subtitle={
         editing
-          ? "Correcting a recorded gift. The balance recalculates on save."
+          ? "Correcting a recorded payment. The balance updates when you save."
           : `Money received from ${donorName || "this donor"}, before it is assigned to a student.`
       }
       status={saving ? "Saving…" : undefined}
@@ -135,7 +171,7 @@ export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
             Cancel
           </Button>
           <Button variant="primary" onClick={() => submit()} disabled={saving}>
-            {saving ? "Saving…" : editing ? "Save changes" : "Record contribution"}
+            {saving ? "Saving…" : editing ? "Save changes" : "Record payment"}
           </Button>
         </>
       }
@@ -143,7 +179,7 @@ export const ContributionDrawer: React.FC<ContributionDrawerProps> = ({
       <FormBody onSubmit={submit}>
         {formError && <FormFeedback tone="error">{formError}</FormFeedback>}
 
-        <FormSection title="The gift" hint="What arrived, and when.">
+        <FormSection title="The payment" hint="What arrived, and when.">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             {/* Money is a NumberInput everywhere in the product, with the
                 separator the amount is read with. */}

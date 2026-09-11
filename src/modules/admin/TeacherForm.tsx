@@ -121,18 +121,18 @@ const inviteFailureMessage = (status: number, detail: string, email: string): st
   const text = (detail || "").toLowerCase();
 
   if (text.includes("already been registered") || text.includes("already exists") || text.includes("duplicate")) {
-    return `An account already exists for ${email}. Open it from Users & roles to add the teacher role, rather than inviting again.`;
+    return `An account already exists for ${email}. Open it from Users and roles to add the teacher role, rather than inviting again.`;
   }
   if (status === 403) {
-    return "Only an admin can invite a teacher, and this account is not one.";
+    return "Only an admin can invite a teacher, and this account isn't one.";
   }
   if (status === 401) {
     return "Your session has expired. Sign in again and retry the invitation.";
   }
   if (text.includes("rate") && text.includes("limit")) {
-    return "The invitation service is rate limited right now. Wait a minute and try again.";
+    return "The invitation service is busy right now. Wait a minute and try again.";
   }
-  return "The teacher account could not be created. Please review the details and try again.";
+  return "We couldn't create the teacher account. Check the details above and try again.";
 };
 
 export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
@@ -369,7 +369,8 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl) {
-        reportError("VITE_SUPABASE_URL is not configured.");
+        console.error("VITE_SUPABASE_URL is not configured.");
+        reportError("We couldn't reach the invitation service. Try again in a minute.");
         return;
       }
 
@@ -400,7 +401,10 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
         const payload = await response.json();
         const user = payload?.user as { id?: string; email?: string } | undefined;
         if (!user?.id) {
-          reportError("The account was created, but the server did not return a teacher ID.");
+          console.error("admin-create-user returned no user id", payload);
+          reportError(
+            "The account was created, but we couldn't finish setting it up. Check the teacher list, or try again.",
+          );
           return;
         }
 
@@ -411,6 +415,9 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           ? await syncTeacherStudents(user.id, studentIds, [])
           : null;
 
+        if (profileResult.error) console.error("Teacher profile save failed", profileResult.error);
+        if (assignError) console.error("Teacher student assignment failed", assignError);
+
         onCreated({
           id: user.id,
           fullName: details.fullName.trim(),
@@ -419,14 +426,14 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           extended: profileResult.extended,
           studentCount: studentIds.length,
           warning: profileResult.error
-            ? `The teacher's details could not be saved to the profile: ${profileResult.error}`
+            ? "The teacher was created, but we couldn't save all of their details. Add them from the teacher's page."
             : assignError
-              ? `The teacher was created, but the students could not be assigned: ${assignError}`
+              ? "The teacher was created, but we couldn't assign their students. Assign them from the teacher's page."
               : null,
         });
-      } catch (requestError: any) {
+      } catch (requestError: unknown) {
         console.error("Unexpected error creating teacher", requestError);
-        reportError(requestError?.message ?? "Could not reach the invitation service.");
+        reportError("We couldn't reach the invitation service. Check your connection and try again.");
       } finally {
         setBusy(false);
       }
@@ -453,7 +460,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             <TextInput
               label="Full name (English)"
               {...field("fullName")}
-              placeholder="e.g. Araya Sukjai"
+              placeholder="Araya Sukjai"
               required
               value={details.fullName}
               onChange={(event) => set("fullName", event.currentTarget.value)}
@@ -461,7 +468,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
             <TextInput
               label="Full name (Thai)"
               {...field("fullNameTh")}
-              placeholder="เช่น อารยา สุขใจ"
+              placeholder="อารยา สุขใจ"
               required
               value={details.fullNameTh}
               onChange={(event) => set("fullNameTh", event.currentTarget.value)}
@@ -510,10 +517,8 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
           {columnsReady === false && (
             <div className={styles.sectionNoteLead}>
               <InlineMessage tone="warning">
-                A teacher cannot be linked to a school yet: the profiles table has no school column.
-                Apply supabase/migrations/20260820090000_teacher_profile_fields.sql, then set the
-                school from the teacher's page. Until then the teacher will appear under a school
-                once they supervise one of its students.
+                We can't link a teacher to a school yet. That part is still being set up. Set the
+                school from the teacher's page for now.
               </InlineMessage>
             </div>
           )}
@@ -531,7 +536,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
                 disabled={columnsReady === false}
                 searchable
                 clearable
-                nothingFoundMessage="No school matches — create it instead"
+                nothingFoundMessage="No school matches. Create it instead."
                 data={schools.map((school) => ({ value: school.id, label: school.name }))}
                 value={details.schoolId}
                 onChange={(value) => set("schoolId", value)}
@@ -563,7 +568,7 @@ export const TeacherForm = forwardRef<EntityFormHandle, TeacherFormProps>(
               searchable
               clearable
               hidePickedOptions
-              nothingFoundMessage="No student matches — create them instead"
+              nothingFoundMessage="No student matches. Create them instead."
               data={studentOptions}
               value={studentIds}
               onChange={setStudentIds}

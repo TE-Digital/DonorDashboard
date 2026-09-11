@@ -52,7 +52,10 @@ export const writeFailureMessage = (
     message.toLowerCase().includes("violates row-level security policy");
 
   if (denied) {
-    return `Your account is not allowed to create a ${noun}. Ask an administrator to add it.`;
+    return `Your account isn't allowed to create a ${noun}. Ask an admin to give you access.`;
   }
-  return message || `Could not create the ${noun}.`;
+  // The raw message names tables and constraints; it goes to the console, and
+  // the screen says what to do next (VOICE.md R11).
+  console.error(`Creating a ${noun} failed`, error);
+  return `We couldn't create this ${noun}. Check the details above and try again.`;
 };

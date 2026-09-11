@@ -27,7 +27,8 @@
 export type EmailLanguage = "en" | "th";
 
 export interface ReportEmailRecipient {
-  donor_id: string;
+  /** Null for an address typed in at send, which belongs to no donor. */
+  donor_id: string | null;
   name: string | null;
   email: string | null;
   language: EmailLanguage;
@@ -61,16 +62,16 @@ export interface ReportEmailData {
 // in Deno with no i18next available.
 const COPY = {
   en: {
-    subject: (name: string) => `A term update about ${name}`,
+    subject: (name: string) => `${name}'s term report`,
     greeting: (donor: string | null) => (donor ? `Dear ${donor},` : "Dear friend,"),
     intro: (name: string) =>
-      `Here is how ${name} got on this term, in her teacher's own words.`,
+      `Here is how ${name} got on this term, in ${name}'s teacher's own words.`,
     gradeLabel: "Grade this term",
     schoolLabel: "School",
     termLabel: "Term",
     signOff: "With thanks from all of us,",
     replyNote: (email: string) =>
-      `If you would like to ask anything about this report, simply reply to this email or write to ${email}.`,
+      `If you'd like to ask anything about this report, reply to this email or write to ${email}.`,
     photoAlt: (name: string) => `A photograph of ${name} taken this term`,
   },
   th: {
@@ -82,7 +83,7 @@ const COPY = {
     termLabel: "ภาคเรียน",
     signOff: "ด้วยความขอบคุณจากพวกเราทุกคน",
     replyNote: (email: string) =>
-      `หากมีคำถามเกี่ยวกับรายงานฉบับนี้ กรุณาตอบกลับอีเมลนี้ หรือติดต่อ ${email}`,
+      `มีคำถามเกี่ยวกับรายงานฉบับนี้ไหมคะ ตอบกลับอีเมลนี้ หรือติดต่อ ${email} ได้เลยค่ะ`,
     photoAlt: (name: string) => `ภาพถ่ายของ${name}ในภาคเรียนนี้`,
   },
 } as const;
@@ -109,12 +110,12 @@ const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"
 const MONTHS_TH = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 
 /**
- * A date a person can read, in their own calendar.
+ * A date a person can read, in their own language.
  *
- * Thai dates conventionally carry the Buddhist Era year, which is 543 ahead of
- * the Gregorian one. A Thai donor reading "2026" would read a year that has not
- * happened; getting this wrong is the kind of small wrongness that tells
- * somebody the letter was not really written for them.
+ * Thai dates use Thai month names with the Western year ("11 ก.ย. 2026"), the
+ * same as every other screen for now (docs/VOICE.md §7). The Buddhist Era year
+ * (2569) comes in a later release, across the product at once; switching only
+ * the email would show one donor two different years for the same report.
  */
 export const formatEmailDate = (value: string | null, language: EmailLanguage): string => {
   if (!value) return "";
@@ -122,7 +123,7 @@ export const formatEmailDate = (value: string | null, language: EmailLanguage): 
   if (Number.isNaN(date.getTime())) return "";
 
   if (language === "th") {
-    return `${date.getDate()} ${MONTHS_TH[date.getMonth()]} ${date.getFullYear() + 543}`;
+    return `${date.getDate()} ${MONTHS_TH[date.getMonth()]} ${date.getFullYear()}`;
   }
   return `${date.getDate()} ${MONTHS_EN[date.getMonth()]} ${date.getFullYear()}`;
 };
@@ -130,7 +131,7 @@ export const formatEmailDate = (value: string | null, language: EmailLanguage): 
 const dateRange = (from: string | null, to: string | null, language: EmailLanguage): string => {
   const a = formatEmailDate(from, language);
   const b = formatEmailDate(to, language);
-  if (a && b) return `${a} – ${b}`;
+  if (a && b) return language === "th" ? `${a} ถึง ${b}` : `${a} to ${b}`;
   return a || b || "";
 };
 
@@ -148,8 +149,46 @@ export const localName = (
 export const hasLanguage = (data: ReportEmailData, language: EmailLanguage): boolean =>
   Boolean((language === "th" ? data.commentTh : data.commentEn)?.trim());
 
-export const subjectFor = (data: ReportEmailData, language: EmailLanguage): string =>
-  COPY[language].subject(localName(data.studentName, data.studentNameTh, language));
+/**
+ * The organisation's own words around the report, from an email template, in
+ * one language, placeholders still in braces. The report itself (grade and
+ * the teacher's paragraph) is never part of a frame, so no template can drop
+ * or rewrite what a teacher wrote. Without a frame the built in words are used.
+ */
+export interface ReportFrame {
+  subject: string;
+  intro: string;
+  closing: string;
+}
+
+const PLACEHOLDERS = ["donor_name", "student_name", "school_name", "grade_level", "report_period", "organisation"];
+
+/** Fills {placeholders}; an unknown one is left as written so a typo shows rather than vanishing. */
+export const fillFrame = (
+  text: string,
+  data: ReportEmailData,
+  language: EmailLanguage,
+  recipientName: string | null,
+): string => {
+  const values: Record<string, string> = {
+    donor_name: recipientName ?? "",
+    student_name: localName(data.studentName, data.studentNameTh, language),
+    school_name: localName(data.schoolName, data.schoolNameTh, language),
+    grade_level: data.gradeLevel ?? "",
+    report_period: dateRange(data.coversStart, data.coversEnd, language),
+    organisation: data.organisationName,
+  };
+  return text.replace(/\{([a-z_]+)\}/g, (match, key: string) => (PLACEHOLDERS.includes(key) ? values[key] : match));
+};
+
+/** A frame is usable in a language only when all three parts are written. */
+export const frameComplete = (frame: ReportFrame | null | undefined): frame is ReportFrame =>
+  Boolean(frame?.subject.trim() && frame?.intro.trim() && frame?.closing.trim());
+
+export const subjectFor = (data: ReportEmailData, language: EmailLanguage, frame?: ReportFrame | null): string =>
+  frameComplete(frame)
+    ? fillFrame(frame.subject, data, language, null).trim()
+    : COPY[language].subject(localName(data.studentName, data.studentNameTh, language));
 
 /* ---------------------------------------------------------------- HTML */
 
@@ -166,9 +205,18 @@ export const renderReportEmail = (
   data: ReportEmailData,
   language: EmailLanguage,
   recipientName: string | null,
+  frame?: ReportFrame | null,
 ): string => {
   const copy = COPY[language];
   const accent = data.primaryColor?.trim() || FALLBACK_ACCENT;
+  const framed = frameComplete(frame) ? frame : null;
+  // A template's paragraphs, with their line breaks kept.
+  const frameParagraphs = (text: string, style: string) =>
+    escapeHtml(fillFrame(text, data, language, recipientName))
+      .split(/\n{2,}/)
+      .filter((part) => part.trim())
+      .map((part) => `<p style="${style}">${part.replace(/\n/g, "<br />")}</p>`)
+      .join("");
 
   const student = escapeHtml(localName(data.studentName, data.studentNameTh, language));
   const school = escapeHtml(localName(data.schoolName, data.schoolNameTh, language));
@@ -216,9 +264,13 @@ export const renderReportEmail = (
   }
 
   rows.push(`<tr><td style="padding:28px 32px 0">
-    <p style="margin:0 0 20px;font-size:16px;line-height:1.6;color:${BODY}">${escapeHtml(
-      copy.greeting(recipientName),
-    )}</p>
+    ${
+      framed
+        ? frameParagraphs(framed.intro, `margin:0 0 16px;font-size:16px;line-height:1.6;color:${BODY}`)
+        : `<p style="margin:0 0 20px;font-size:16px;line-height:1.6;color:${BODY}">${escapeHtml(
+            copy.greeting(recipientName),
+          )}</p>`
+    }
     <h1 style="margin:0 0 6px;font-size:22px;line-height:1.35;font-weight:600;color:${INK}">${student}</h1>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:${MUTED}">${[
       school && `${escapeHtml(copy.schoolLabel)}: ${school}`,
@@ -242,21 +294,25 @@ export const renderReportEmail = (
 
   rows.push(
     `<tr><td style="padding:0 32px">
-      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${MUTED}">${escapeHtml(
-        copy.intro(student),
-      )}</p>
+      ${
+        framed
+          ? ""
+          : `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${MUTED}">${escapeHtml(copy.intro(student))}</p>`
+      }
       ${body}
     </td></tr>`,
   );
 
   rows.push(`<tr><td style="padding:8px 32px 28px">
     <hr style="border:0;border-top:1px solid ${LINE};margin:0 0 20px" />
-    <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:${BODY}">${escapeHtml(
-      copy.signOff,
-    )}</p>
+    ${
+      framed
+        ? frameParagraphs(framed.closing, `margin:0 0 12px;font-size:15px;line-height:1.6;color:${BODY}`)
+        : `<p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:${BODY}">${escapeHtml(copy.signOff)}</p>
     <p style="margin:0 0 18px;font-size:15px;line-height:1.6;font-weight:600;color:${accent}">${escapeHtml(
       data.organisationName,
-    )}</p>
+    )}</p>`
+    }
     ${
       data.contactEmail
         ? `<p style="margin:0;font-size:13px;line-height:1.6;color:${MUTED}">${escapeHtml(
@@ -269,7 +325,7 @@ export const renderReportEmail = (
   return `<!doctype html>
 <html lang="${language}">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>${escapeHtml(subjectFor(data, language))}</title></head>
+<title>${escapeHtml(subjectFor(data, language, framed))}</title></head>
 <body style="margin:0;padding:0;background:${GROUND};font-family:${fontStack};color:${BODY}">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:${GROUND}">
     <tr><td align="center" style="padding:24px 12px">
@@ -292,12 +348,31 @@ export const renderReportEmailText = (
   data: ReportEmailData,
   language: EmailLanguage,
   recipientName: string | null,
+  frame?: ReportFrame | null,
 ): string => {
   const copy = COPY[language];
+  const framed = frameComplete(frame) ? frame : null;
   const student = localName(data.studentName, data.studentNameTh, language);
   const school = localName(data.schoolName, data.schoolNameTh, language);
   const grade = (language === "th" ? data.gradeTextTh : data.gradeTextEn) ?? "";
   const comment = (language === "th" ? data.commentTh : data.commentEn) ?? "";
+
+  if (framed) {
+    return [
+      fillFrame(framed.intro, data, language, recipientName),
+      "",
+      student,
+      [school, data.gradeLevel, dateRange(data.coversStart, data.coversEnd, language)].filter(Boolean).join(" · "),
+      grade ? `${copy.gradeLabel}: ${grade}` : "",
+      "",
+      comment,
+      "",
+      fillFrame(framed.closing, data, language, recipientName),
+      data.contactEmail ? copy.replyNote(data.contactEmail) : "",
+    ]
+      .filter((line) => line !== "")
+      .join("\n");
+  }
 
   return [
     copy.greeting(recipientName),

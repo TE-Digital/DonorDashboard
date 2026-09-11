@@ -11,13 +11,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { Avatar, SimpleGrid, Stack, TextInput } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabaseClient";
 import {
   InlineMessage,
   LoadingState,
   PageHeader,
   SectionCard,
-  errorSummary,
+  emptyValue,
   fieldId,
   firstError,
   focusField,
@@ -26,9 +27,9 @@ import {
 } from "../../design-system";
 import { Badge, Button } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
+import { toFriendlyError } from "../../i18n/errors";
 import { useEffectiveTeacherId } from "../viewAs/ViewAsContext";
 import {
-  TEACHER_FIELDS_PENDING_NOTE,
   TEACHER_FIELD_ORDER,
   loadTeacherProfile,
   saveTeacherProfile,
@@ -53,6 +54,7 @@ const toDetails = (profile: TeacherProfile): TeacherDetailsInput => ({
 });
 
 export const TeacherProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const teacherId = useEffectiveTeacherId();
 
   const [profile, setProfile] = useState<TeacherProfile | null>(null);
@@ -77,7 +79,11 @@ export const TeacherProfilePage: React.FC = () => {
     setExtended(result.extended);
 
     if (result.error || !result.profile) {
-      setError(result.error ?? "Profile not found.");
+      setError(
+        result.error
+          ? toFriendlyError(result.error, "errors.load", "Error loading teacher profile")
+          : t("teacher.profileNotFound"),
+      );
       setLoading(false);
       return;
     }
@@ -114,11 +120,23 @@ export const TeacherProfilePage: React.FC = () => {
     // Email and school are read-only here, so they are not asked for again.
     const problems = validateTeacherDetails(draft, { requireSchool: false });
     delete problems.email;
-    setFieldErrors(problems);
 
-    if (hasErrors(problems)) {
-      setError(errorSummary(problems));
-      focusField(FORM_ID, firstError(problems, TEACHER_FIELD_ORDER));
+    // validateTeacherDetails words its messages in English and for an admin;
+    // here the same problems are told to the teacher, in their language.
+    const messages: FieldErrors<TeacherField> = {};
+    if (problems.fullName) messages.fullName = t("teacherPages.profile.fullNameRequired");
+    if (problems.fullNameTh) messages.fullNameTh = t("teacherPages.profile.fullNameThRequired");
+    if (problems.phone) {
+      messages.phone = draft.phone.trim()
+        ? t("person.phoneHint")
+        : t("teacherPages.profile.phoneRequired");
+    }
+    if (problems.lineId) messages.lineId = t("teacherPages.profile.lineIdRequired");
+    setFieldErrors(messages);
+
+    if (hasErrors(messages)) {
+      setError(t("teacherPages.common.fieldsNeedAttention", { count: Object.keys(messages).length }));
+      focusField(FORM_ID, firstError(messages, TEACHER_FIELD_ORDER));
       return;
     }
 
@@ -130,13 +148,15 @@ export const TeacherProfilePage: React.FC = () => {
     setSaving(false);
 
     if (result.error) {
-      setError(result.error);
+      setError(toFriendlyError(result.error, "errors.save", "Error saving teacher profile"));
       return;
     }
 
     setEditing(false);
     setDraft(null);
-    setNotice(result.extended ? "Your details were saved." : TEACHER_FIELDS_PENDING_NOTE);
+    setNotice(
+      result.extended ? t("teacherPages.profile.saved") : t("teacherPages.profile.partlySaved"),
+    );
     await load();
   };
 
@@ -144,27 +164,27 @@ export const TeacherProfilePage: React.FC = () => {
   if (!profile) {
     return (
       <Stack>
-        <PageHeader title="My profile" />
-        <InlineMessage tone="error">{error ?? "Profile not found."}</InlineMessage>
+        <PageHeader title={t("nav.myProfile")} />
+        <InlineMessage tone="error">{error ?? t("teacher.profileNotFound")}</InlineMessage>
       </Stack>
     );
   }
 
   const fields: Array<[string, string]> = [
-    ["Full name (English)", profile.full_name || "—"],
-    ["Full name (Thai)", profile.full_name_th || "—"],
-    ["Email address", profile.email || "—"],
-    ["Phone number", profile.phone || "—"],
-    ["LINE ID", profile.line_id || "—"],
-    ["School", schoolName ?? "Not set by an administrator yet"],
-    ["Students assigned", String(studentCount)],
+    [t("person.fullNameEnglish"), profile.full_name || emptyValue()],
+    [t("person.fullNameThai"), profile.full_name_th || emptyValue()],
+    [t("person.email"), profile.email || emptyValue()],
+    [t("person.phone"), profile.phone || emptyValue()],
+    [t("person.lineId"), profile.line_id || emptyValue()],
+    [t("student.school"), schoolName ?? t("teacherPages.profile.schoolNotSet")],
+    [t("teacher.assignedStudents"), String(studentCount)],
   ];
 
   return (
     <Stack>
       <PageHeader
-        title="My profile"
-        subtitle="Your contact details, as the office and the schools see them."
+        title={t("nav.myProfile")}
+        subtitle={t("teacherPages.profile.subtitle")}
         actions={
           editing ? (
             <>
@@ -177,10 +197,10 @@ export const TeacherProfilePage: React.FC = () => {
                   setError(null);
                 }}
               >
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button variant="primary" disabled={saving} onClick={() => void save()}>
-                {saving ? "Saving…" : "Save changes"}
+                {saving ? t("common.saving") : t("common.saveChanges")}
               </Button>
             </>
           ) : (
@@ -193,13 +213,15 @@ export const TeacherProfilePage: React.FC = () => {
                 setEditing(true);
               }}
             >
-              Edit details
+              {t("teacherPages.profile.editDetails")}
             </Button>
           )
         }
       />
 
-      {!extended && <InlineMessage tone="warning">{TEACHER_FIELDS_PENDING_NOTE}</InlineMessage>}
+      {!extended && (
+        <InlineMessage tone="warning">{t("teacherPages.profile.notSetUp")}</InlineMessage>
+      )}
       {notice && <InlineMessage tone="success">{notice}</InlineMessage>}
       {error && <InlineMessage tone="error">{error}</InlineMessage>}
 
@@ -209,24 +231,26 @@ export const TeacherProfilePage: React.FC = () => {
             {profileInitials(profile.full_name)}
           </Avatar>
           <div className={styles.profileIdentity}>
-            <h2 className={styles.profileName}>{profile.full_name || "(no name)"}</h2>
+            <h2 className={styles.profileName}>
+              {profile.full_name || t("teacherPages.common.unnamed")}
+            </h2>
             <p className={styles.profileMeta}>
-              {profile.email || "No email recorded"}
+              {profile.email || t("person.noEmail")}
               {schoolName ? ` · ${schoolName}` : ""}
             </p>
           </div>
           <span style={{ marginLeft: "auto" }}>
-            <Badge tone="info">Teacher</Badge>
+            <Badge tone="info">{t("teacher.one")}</Badge>
           </span>
         </div>
       </SectionCard>
 
-      <SectionCard title="Details">
+      <SectionCard title={t("teacherPages.profile.details")}>
         {editing && draft ? (
           <Stack gap="lg">
             <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
               <TextInput
-                label="Full name (English)"
+                label={t("person.fullNameEnglish")}
                 id={fieldId(FORM_ID, "fullName")}
                 error={fieldErrors.fullName}
                 required
@@ -234,41 +258,38 @@ export const TeacherProfilePage: React.FC = () => {
                 onChange={(event) => setField("fullName", event.currentTarget.value)}
               />
               <TextInput
-                label="Full name (Thai)"
+                label={t("person.fullNameThai")}
                 id={fieldId(FORM_ID, "fullNameTh")}
                 error={fieldErrors.fullNameTh}
                 required
-                placeholder="เช่น อารยา สุขใจ"
+                placeholder={t("teacherPages.profile.thaiNamePlaceholder")}
                 value={draft.fullNameTh}
                 onChange={(event) => setField("fullNameTh", event.currentTarget.value)}
               />
               <TextInput
-                label="Phone number"
+                label={t("person.phone")}
                 id={fieldId(FORM_ID, "phone")}
                 error={fieldErrors.phone}
                 required
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                placeholder="08x xxx xxxx"
+                placeholder="081 234 5678"
                 value={draft.phone}
                 onChange={(event) => setField("phone", event.currentTarget.value)}
               />
               <TextInput
-                label="LINE ID"
+                label={t("person.lineId")}
                 id={fieldId(FORM_ID, "lineId")}
                 error={fieldErrors.lineId}
                 required
-                placeholder="@your-line-id"
+                placeholder={t("teacherPages.profile.lineIdPlaceholder")}
                 value={draft.lineId}
                 onChange={(event) => setField("lineId", event.currentTarget.value)}
               />
             </SimpleGrid>
 
-            <InlineMessage tone="info">
-              Your email address and the school you represent are managed by the office. Ask an
-              administrator to change either one.
-            </InlineMessage>
+            <InlineMessage tone="info">{t("teacherPages.profile.managedByUs")}</InlineMessage>
           </Stack>
         ) : (
           <div className={styles.fieldGrid}>

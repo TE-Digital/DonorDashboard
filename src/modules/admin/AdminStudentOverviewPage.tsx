@@ -22,12 +22,20 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Avatar, Menu, Modal, Stack, Text, Textarea } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ContactCell, KpiRow, LoadingState } from "../../design-system";
+import { useTranslation } from "react-i18next";
+import { ContactCell, KpiRow, LoadingState, formatCurrency } from "../../design-system";
 import { Badge, Button, Icon, IconButton, Tabs } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
 import { supabase } from "../../lib/supabaseClient";
 import { ReportList, loadCycleReports, reportCycle, type CycleReport } from "../reports";
 import { DonorProfileTab } from "./DonorProfileTab";
+import { SponsorChips } from "../sponsorship/SponsorChips";
+import { SponsorsTab } from "../sponsorship/SponsorsTab";
+import { AssignSponsorDrawer } from "../sponsorship/AssignSponsorDrawer";
+import { WelcomeEmailDialog } from "../sponsorship/WelcomeEmailDialog";
+import { NeedsDecisionPanel } from "../sponsorship/NeedsDecisionPanel";
+import { loadStudentSponsorships, type Sponsorship } from "../sponsorship/sponsorships";
+import { loadDonorBalance } from "../donor/donorMoney";
 import { ProfileCompletionBar } from "./ProfileCompletionBar";
 import {
   EVENT_ICON,
@@ -66,9 +74,9 @@ const loadSchoolWithPeriod = async (schoolId: string) => {
   return supabase.from("schools").select("id, name").eq("id", schoolId).maybeSingle();
 };
 
-type TabValue = "overview" | "scholarships" | "reports" | "donor";
+type TabValue = "overview" | "donors" | "scholarships" | "reports" | "donor";
 
-const TAB_VALUES: TabValue[] = ["overview", "scholarships", "reports", "donor"];
+const TAB_VALUES: TabValue[] = ["overview", "donors", "scholarships", "reports", "donor"];
 
 /** A ?tab= that names a real tab, so a link can point at one. Anything else opens the record as normal. */
 const tabFromUrl = (value: string | null): TabValue =>
@@ -115,11 +123,23 @@ const TIMELINE_PREVIEW = 8;
 export const AdminStudentOverviewPage: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [student, setStudent] = useState<StudentRecord | null>(null);
   const [school, setSchool] = useState<School | null>(null);
   const [teacher, setTeacher] = useState<Teacher | null>(null);
+  // Old awards stay on screen until they have been copied into scholarships
+  // (supabase/scripts/copy_scholarship_awards.sql, run by hand). Removing them
+  // first would make every student's funding history disappear.
   const [awards, setAwards] = useState<Award[]>([]);
+  const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
+  /** False before 20260911140000; the tab then shows money and status only. */
+  const [sponsorshipsExtended, setSponsorshipsExtended] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+  const [welcoming, setWelcoming] = useState<Sponsorship | null>(null);
+  const [deciding, setDeciding] = useState<Sponsorship | null>(null);
+  /** Set after "Reassign": the assign drawer opens on that donor, with their money now free. */
+  const [reassigning, setReassigning] = useState<{ donorId: string; donorName: string | null; free: number } | null>(null);
   const [reports, setReports] = useState<CycleReport[]>([]);
   const [notes, setNotes] = useState<StudentNote[]>([]);
   const [events, setEvents] = useState<StudentEvent[]>([]);
@@ -145,6 +165,46 @@ export const AdminStudentOverviewPage: React.FC = () => {
     },
     [setSearchParams],
   );
+
+  // The Today rail links here with ?welcome=<sponsorship id>; open it once the
+  // sponsorships have loaded, then drop the parameter so a reload does not reopen it.
+  useEffect(() => {
+    const id = searchParams.get("welcome");
+    if (!id || !sponsorships.length) return;
+    const row = sponsorships.find((item) => item.id === id);
+    if (row) setWelcoming(row);
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        params.delete("welcome");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [searchParams, sponsorships, setSearchParams]);
+
+  // Same for ?decide=<sponsorship id>, from the Today rail's "Decide about" items.
+  useEffect(() => {
+    const id = searchParams.get("decide");
+    if (!id || !sponsorships.length) return;
+    const row = sponsorships.find((item) => item.id === id && item.status === "needs_decision");
+    if (row) setDeciding(row);
+    setSearchParams(
+      (current) => {
+        const params = new URLSearchParams(current);
+        params.delete("decide");
+        return params;
+      },
+      { replace: true },
+    );
+  }, [searchParams, sponsorships, setSearchParams]);
+
+  /** After a reassign ends the support, the donor's money is free: open the drawer on them. */
+  const openReassign = async (row: Sponsorship) => {
+    const balance = await loadDonorBalance(row.donorId);
+    setReassigning({ donorId: row.donorId, donorName: row.donorName, free: balance.data.free_balance_thb });
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,7 +248,7 @@ export const AdminStudentOverviewPage: React.FC = () => {
     const record = read.data;
     setStudent(record);
 
-    const [schoolResult, teacherResult, awardResult, reportResult, noteRows, eventRows] =
+    const [schoolResult, teacherResult, awardResult, reportResult, noteRows, eventRows, sponsorshipRead] =
       await Promise.all([
         record.school_id
           ? loadSchoolWithPeriod(record.school_id)
@@ -210,7 +270,11 @@ export const AdminStudentOverviewPage: React.FC = () => {
         loadCycleReports(supabase, [studentId]),
         loadNotes(studentId),
         loadEvents(studentId),
+        loadStudentSponsorships(studentId),
       ]);
+
+    setSponsorships(sponsorshipRead.data);
+    setSponsorshipsExtended(sponsorshipRead.extended);
 
     setSchool((schoolResult.data as School | null) ?? null);
     setTeacher((teacherResult.data as Teacher | null) ?? null);
@@ -250,6 +314,13 @@ export const AdminStudentOverviewPage: React.FC = () => {
     () => awards.find((award) => award.status?.toLowerCase() === "active") ?? awards[0] ?? null,
     [awards],
   );
+
+  /** Everyone funding this student right now. More than one is normal. */
+  const activeSponsorships = useMemo(
+    () => sponsorships.filter((row) => row.status === "active"),
+    [sponsorships],
+  );
+  const monthlyFromDonors = activeSponsorships.reduce((sum, row) => sum + row.monthlyAmountThb, 0);
 
   /**
    * Scrolls to the first field that is not filled in, and marks it.
@@ -537,6 +608,11 @@ export const AdminStudentOverviewPage: React.FC = () => {
                 <span>No school assigned</span>
               )}
             </p>
+            {activeSponsorships.length > 0 && (
+              <p className={styles.detailMeta}>
+                <SponsorChips sponsorships={activeSponsorships} />
+              </p>
+            )}
           </div>
         </div>
 
@@ -568,7 +644,7 @@ export const AdminStudentOverviewPage: React.FC = () => {
                 leftSection={<Icon name="send" size={15} />}
                 onClick={() => setTab("donor")}
               >
-                Donor profile
+                {t("donorCard.tabLabel")}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item
@@ -634,25 +710,36 @@ export const AdminStudentOverviewPage: React.FC = () => {
             ),
             onClick: () => setTab("reports"),
           },
-          {
-            label: "Scholarship",
-            mark: "money",
-            value: scholarship
-              ? scholarship.grant_types?.name || student.scholarship || "Scholarship"
-              : "None",
-            footnote: scholarship ? (
-              <span className={styles.kpiPillRow}>
-                <span>{amount(scholarship.amount_for_period, scholarship.currency)}</span>
-                <Badge tone={scholarship.status?.toLowerCase() === "active" ? "success" : "neutral"}>
-                  {scholarship.status || "Recorded"}
-                </Badge>
-                <span>active since {date(scholarship.period_start)}</span>
-              </span>
-            ) : (
-              "No scholarship on record"
-            ),
-            onClick: () => setTab("scholarships"),
-          },
+          // Who pays. Donors from scholarships when there are any; until the old
+          // awards are copied across, a student funded only through an award
+          // still shows that award here rather than "Waiting for a donor".
+          activeSponsorships.length > 0 || !scholarship
+            ? {
+                label: t("sponsorship.kpi.label"),
+                mark: "money",
+                value: activeSponsorships.length
+                  ? t("sponsorship.kpi.active", { count: activeSponsorships.length })
+                  : t("sponsorship.kpi.none"),
+                footnote: activeSponsorships.length
+                  ? t("sponsorship.kpi.monthly", { amount: formatCurrency(monthlyFromDonors) })
+                  : t("sponsorship.kpi.noneFootnote"),
+                onClick: () => setTab("donors"),
+              }
+            : {
+                label: "Scholarship",
+                mark: "money",
+                value: scholarship.grant_types?.name || student.scholarship || "Scholarship",
+                footnote: (
+                  <span className={styles.kpiPillRow}>
+                    <span>{amount(scholarship.amount_for_period, scholarship.currency)}</span>
+                    <Badge tone={scholarship.status?.toLowerCase() === "active" ? "success" : "neutral"}>
+                      {scholarship.status || "Recorded"}
+                    </Badge>
+                    <span>active since {date(scholarship.period_start)}</span>
+                  </span>
+                ),
+                onClick: () => setTab("scholarships"),
+              },
           {
             label: "Teacher assigned",
             mark: "teachers",
@@ -676,9 +763,10 @@ export const AdminStudentOverviewPage: React.FC = () => {
         onChange={(value) => setTab(value as TabValue)}
         tabs={[
           { value: "overview", label: "Overview" },
+          { value: "donors", label: t("sponsorship.tab.label"), count: activeSponsorships.length },
           { value: "scholarships", label: "Scholarships", count: awards.length },
           { value: "reports", label: "Reports", count: reports.length },
-          ...(lifecycle ? [{ value: "donor", label: "Donor profile" }] : []),
+          ...(lifecycle ? [{ value: "donor", label: t("donorCard.tabLabel") }] : []),
         ]}
       />
 
@@ -865,6 +953,54 @@ export const AdminStudentOverviewPage: React.FC = () => {
             ))
           )}
         </div>
+      )}
+
+      {tab === "donors" && (
+        <SponsorsTab
+          studentName={student.nickname || student.name}
+          sponsorships={sponsorships}
+          extended={sponsorshipsExtended}
+          monthlyGap={Math.max(0, (student.monthly_support_expected ?? 0) - monthlyFromDonors)}
+          onAssign={status === "archived" ? undefined : () => setAssigning(true)}
+          onChanged={() => void load()}
+          onWelcome={setWelcoming}
+          onDecide={setDeciding}
+        />
+      )}
+
+      <AssignSponsorDrawer
+        opened={assigning}
+        onClose={() => setAssigning(false)}
+        mode={{ kind: "student", studentId: student.id, studentName: student.nickname || student.name }}
+        onAssigned={() => void load()}
+      />
+
+      {welcoming && (
+        <WelcomeEmailDialog row={welcoming} onClose={() => setWelcoming(null)} onDone={() => void load()} />
+      )}
+
+      {deciding && (
+        <NeedsDecisionPanel
+          row={deciding}
+          studentName={student.nickname || student.name}
+          onClose={() => setDeciding(null)}
+          onDecided={() => void load()}
+          onReassign={(row) => void openReassign(row)}
+        />
+      )}
+
+      {reassigning && (
+        <AssignSponsorDrawer
+          opened
+          onClose={() => setReassigning(null)}
+          mode={{
+            kind: "donor",
+            donorId: reassigning.donorId,
+            donorName: reassigning.donorName,
+            freeBalance: reassigning.free,
+          }}
+          onAssigned={() => void load()}
+        />
       )}
 
       {tab === "reports" && (

@@ -133,7 +133,7 @@ export const RoleEditorDrawer: React.FC<RoleEditorDrawerProps> = ({
       const names = added.map((r) => ROLE_META[r].label).join(", ");
       if (addError) {
         console.error("Error adding roles", addError);
-        failed.push(`${names} could not be granted`);
+        failed.push(`${names} couldn't be granted`);
       } else {
         landed.push(`${names} granted`);
       }
@@ -148,7 +148,7 @@ export const RoleEditorDrawer: React.FC<RoleEditorDrawerProps> = ({
       const names = removed.map((r) => ROLE_META[r].label).join(", ");
       if (removeError) {
         console.error("Error removing roles", removeError);
-        failed.push(`${names} could not be removed`);
+        failed.push(`${names} couldn't be removed`);
       } else {
         landed.push(`${names} removed`);
       }
@@ -164,7 +164,7 @@ export const RoleEditorDrawer: React.FC<RoleEditorDrawerProps> = ({
       setSaving(false);
       setError(
         landed.length
-          ? `${landed.join(", ")}. But ${failed.join(", and ")} — the ticks below now show what the database holds. Try the rest again in a minute.`
+          ? `${landed.join(", ")}. But ${failed.join(", and ")}. The list below now shows what actually saved. Try the rest again in a minute.`
           : `${failed.join(", and ")}. Nothing on this panel has been saved. Try again in a minute.`,
       );
       onSaved();
@@ -263,8 +263,8 @@ export const RoleEditorDrawer: React.FC<RoleEditorDrawerProps> = ({
       >
         <Stack gap="md">
           <Text size="sm">
-            {name} will be able to see and change every student, donor, school and account —
-            including this page, and including your own access.
+            {name} will be able to see and change every student, donor, school and account,
+            including this page and your own access.
           </Text>
           <Stack gap="xs">
             <Button

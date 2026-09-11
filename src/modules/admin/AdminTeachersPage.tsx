@@ -20,7 +20,15 @@ import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { Anchor, Avatar, Stack, Text } from "@mantine/core";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ContactCell, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  ContactCell,
+  LoadingState,
+  PageHeader,
+  TableSection,
+  emptyValue,
+  formatDate,
+  type TableKpi,
+} from "../../design-system";
 import { TeacherFormDrawer } from "./TeacherFormDrawer";
 import { reportTeacherCreated } from "./AdminCreateTeacherPage";
 import { AccessBadge, AccessMenu } from "./AccessActions";
@@ -173,7 +181,7 @@ export const AdminTeachersPage: React.FC = () => {
           created_at: p.created_at,
           studentCount: 0,
           overdueCount: 0,
-          schools: "—",
+          schools: "No school recorded",
           lastReport: null as string | null,
         }));
 
@@ -328,7 +336,7 @@ export const AdminTeachersPage: React.FC = () => {
             ? names.length > 1
               ? `${names[0]} +${names.length - 1}`
               : names[0]
-            : "—",
+            : "No school recorded",
         };
       });
 
@@ -407,8 +415,8 @@ export const AdminTeachersPage: React.FC = () => {
       },
       {
         label: "Not signed in yet",
-        value: access.available ? waiting : "—",
-        footnote: access.available ? "invited or without an account" : "account state unavailable",
+        value: access.available ? waiting : "Unknown",
+        footnote: access.available ? "invited or without an account" : "we can't read sign ins right now",
         mark: "accounts",
         active: focus === "waiting",
         onClick: access.available ? toggle("waiting") : undefined,
@@ -436,7 +444,7 @@ export const AdminTeachersPage: React.FC = () => {
   const columns: DataColumn<TeacherRow>[] = [
     {
       key: "id",
-      label: "Teacher ID",
+      label: "Reference",
       width: 120,
       muted: true,
       render: (t) => `TC-${t.id.slice(0, 6).toUpperCase()}`,
@@ -488,14 +496,14 @@ export const AdminTeachersPage: React.FC = () => {
       // rather than alphabetically among the words.
       filterValue: (t) => t.lastReport ?? "",
       render: (t) => (
-        <span title={t.lastReport ? new Date(t.lastReport).toLocaleDateString() : "No accepted report"}>
+        <span title={t.lastReport ? formatDate(t.lastReport) : "No accepted report"}>
           {isSilent(t) ? (
             <Badge tone="warning" dot>
               {relativeDate(t.lastReport)}
             </Badge>
           ) : (
             <Text size="sm" c={t.lastReport ? undefined : "dimmed"}>
-              {t.studentCount === 0 && !t.lastReport ? "—" : relativeDate(t.lastReport)}
+              {t.studentCount === 0 && !t.lastReport ? "No students yet" : relativeDate(t.lastReport)}
             </Text>
           )}
         </span>
@@ -538,7 +546,7 @@ export const AdminTeachersPage: React.FC = () => {
       label: "Created",
       width: 120,
       muted: true,
-      render: (t) => (t.created_at ? new Date(t.created_at).toLocaleDateString() : "—"),
+      render: (t) => formatDate(t.created_at),
     },
     {
       // Row-level actions live at the end of the row and never conflict with
@@ -566,7 +574,7 @@ export const AdminTeachersPage: React.FC = () => {
 
   const EMPTY_COPY: Record<Focus, { title: string; body: string }> = {
     all: {
-      title: "No teachers found",
+      title: "No teachers yet",
       body: "Teachers appear here once they have an account.",
     },
     waiting: {

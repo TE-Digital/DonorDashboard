@@ -77,7 +77,7 @@ Both money migrations were affected and both are now fixed: `donor_balance`, `st
 
 ## 3. P1 — migrations to apply
 
-Eight files, in this order. The two dated `20260831090000` share a timestamp; they sort deterministically by filename (`bilingual_and_email` before `school_location`) and touch different objects, but the collision should be broken by renaming one before anyone relies on ordering.
+Twelve files, in this order, then the sponsorship migrations from `20260911120000` onwards (documented with that work). `school_location` was renamed from `20260831090000` to `20260831100000` (2026-09-11) so no two files share a version. It touches only `schools` and every statement in it is safe to re-run, so an environment that already applied it under the old name is unaffected.
 
 | # | Migration | Adds | Frontend already depends on it |
 | --- | --- | --- | --- |
@@ -88,9 +88,13 @@ Eight files, in this order. The two dated `20260831090000` share a timestamp; th
 | 5 | `20260829090000_school_reporting_period` | `schools.reporting_period_months` | Per-school report cycles on the students and teachers directories |
 | 6 | `20260830090000_donor_funding` | `donor_contributions`, `report_comments`, the money views, the report gate, `flag_report()`/`resolve_report_flag()` | Donor money screens, report flags and comments |
 | 7 | `20260831090000_bilingual_and_email` | `name_th` on students and schools, bilingual report fields, send/delivery columns, `report_email_payload` | Thai names, bilingual reports, email delivery state |
-| 8 | `20260831090000_school_location` | `schools.province`, `district` | The school form's address fields |
+| 8 | `20260831100000_school_location` | `schools.province`, `district` | The school form's address fields |
+| 9 | `20260911090000_report_recipients_email_pref` | `report_email_payload` re-created to leave out donors with `wants_email_updates` off | Report emails respect the donor's own setting |
+| 10 | `20260911100000_donor_records` | `donors.donor_type`/`contact_person`/`country`, Thai phones normalised to E.164, scholarship status `active · needs_decision · ended`, `source_award_id` on scholarships and payments, `donor_balance` with `last_received_on` | Donor side panel, donor overview, donors list columns and filters |
+| 11 | `20260911110000_scholarship_award_copy_plan` | Read-only `scholarship_award_copy_plan` view (admin only) | Nothing directly: it is the preview for `supabase/scripts/copy_scholarship_awards.sql`, run by hand after it (see `supabase/scripts/README.md`) |
+| 12 | `20260911115000_report_deliveries` | `report_deliveries` (one row per report and recipient: waiting, sent, failed), `update_updated_at()` | Reports beta's Waiting to send filter and column, the send dialog, the sidebar count |
 
-Migrations 6, 7 and 8 were written during this session and have never been run. Nothing in this repo has been executed against a database.
+Migrations 6 to 12 were written during this project and have never been run. Nothing in this repo has been executed against a database. Before the award copy script runs in production, task 1.13 (removing the old donor pages) must wait.
 
 **Work:** apply in order on a copy first; confirm each screen's fallback branch stops firing; then production.
 
@@ -181,7 +185,7 @@ select schemaname, tablename, policyname, qual
 from pg_policies
 where schemaname = 'public' and qual = 'true';
 
--- Which of the eight migrations are already applied, by probing for a column each one adds
+-- Which of the nine migrations are already applied, by probing for a column each one adds
 select
   to_regclass('public.student_events')       is not null as lifecycle_applied,
   to_regclass('public.donor_contributions')  is not null as funding_applied,

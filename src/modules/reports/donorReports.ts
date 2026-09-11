@@ -15,6 +15,7 @@
 // rule for anything that goes around it. This file is the client half.
 
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import { isMissingRelation } from "../donor/donorMoney";
 import { parseAttachments, type ReportAttachment } from "./reportAttachments";
 
@@ -166,12 +167,14 @@ export interface CommentResult {
 
 const commentFailure = (error: { code?: string; message?: string }): CommentResult => {
   if (isMissingRelation(error)) {
-    return { ok: false, message: "Comments are not set up on this database yet." };
+    console.error("report_comments is missing", error);
+    return { ok: false, message: "Comments aren't available yet. Check back soon." };
   }
   if (error.code === "42501") {
-    return { ok: false, message: "You cannot comment on this report." };
+    console.error("Comment refused", error);
+    return { ok: false, message: "You can't comment on this report." };
   }
-  return { ok: false, message: error.message ?? "Could not post that comment." };
+  return { ok: false, message: toFriendlyError(error, "errors.send", "reportComment") };
 };
 
 export const postComment = async (
@@ -197,7 +200,7 @@ export const postComment = async (
 /** A person may edit what they wrote. RLS decides whether it is theirs. */
 export const editComment = async (id: string, body: string): Promise<CommentResult> => {
   const trimmed = body.trim();
-  if (!trimmed) return { ok: false, message: "A comment cannot be empty." };
+  if (!trimmed) return { ok: false, message: "Write something first." };
 
   const { error } = await supabase
     .from("report_comments")

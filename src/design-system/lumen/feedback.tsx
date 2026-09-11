@@ -178,6 +178,10 @@ export const Dialog: React.FC<DialogProps> = ({
   onClose,
   children,
 }) => {
+  // Named by its title and described by its description, so a screen reader
+  // announces what the dialog is for, not just "dialog".
+  const titleId = React.useId();
+  const descriptionId = React.useId();
   if (!open) return null;
   return (
     <div
@@ -195,6 +199,9 @@ export const Dialog: React.FC<DialogProps> = ({
     >
       <div
         role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-describedby={description ? descriptionId : undefined}
         style={{
           width,
           maxWidth: "92%",
@@ -208,6 +215,7 @@ export const Dialog: React.FC<DialogProps> = ({
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 14px 0 18px" }}>
           <div style={{ flex: 1 }}>
             <h2
+              id={titleId}
               style={{
                 fontSize: "var(--fs-h2)",
                 lineHeight: "var(--lh-h2)",
@@ -218,6 +226,7 @@ export const Dialog: React.FC<DialogProps> = ({
             </h2>
             {description && (
               <p
+                id={descriptionId}
                 style={{
                   margin: "4px 0 0",
                   fontSize: "var(--fs-sm)",

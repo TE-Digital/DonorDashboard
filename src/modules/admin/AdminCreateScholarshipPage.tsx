@@ -14,6 +14,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import {
   FormBody,
   FormError,
@@ -89,7 +90,7 @@ const validateAward = (values: {
   }
 
   if (values.amount != null && values.amount < 0) {
-    errors.amount = "An amount cannot be negative.";
+    errors.amount = "Enter an amount of 0 or more.";
   }
 
   // Money that is marked as paid needs the day it was paid, or the payment
@@ -205,9 +206,9 @@ export const AdminCreateScholarshipPage: React.FC = () => {
             label: d.name ?? "Unnamed donor",
           }))
         );
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Error loading scholarship options", err);
-        setError("Could not load reference data.");
+        setError("We couldn't load the options for this form. Check your connection and try again.");
       } finally {
         setLoading(false);
       }
@@ -297,16 +298,14 @@ export const AdminCreateScholarshipPage: React.FC = () => {
         .insert(payload);
 
       if (insertError) {
-        console.error("Insert scholarship error", insertError);
-        setError(insertError.message);
+        setError(toFriendlyError(insertError, "errors.create"));
         setSaving(false);
         return;
       }
 
       navigate("/admin/scholarships", { replace: true });
-    } catch (err: any) {
-      console.error("Unexpected error creating scholarship", err);
-      setError(err.message ?? "Unexpected error while creating scholarship.");
+    } catch (err: unknown) {
+      setError(toFriendlyError(err, "errors.create"));
       setSaving(false);
     }
   };
@@ -373,7 +372,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Period & amount">
+        <FormSection title="Period and amount">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <DateInput label="Period start" {...field("periodStart")} value={periodStart} onChange={setPeriodStart} required />
             <DateInput label="Period end" {...field("periodEnd")} value={periodEnd} onChange={setPeriodEnd} required />
@@ -383,7 +382,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               value={amountForPeriod}
               onChange={(val) => setAmountForPeriod(typeof val === "number" ? val : undefined)}
               min={0}
-              placeholder="e.g. 8400, 150000"
+              placeholder="8400 or 150000"
             />
             <Select
               label="Currency"
@@ -395,7 +394,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Status & payment">
+        <FormSection title="Status and payment">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Status"
@@ -423,7 +422,7 @@ export const AdminCreateScholarshipPage: React.FC = () => {
               />
             </Stack>
             <TextInput
-              label="Payment note / reference"
+              label="Payment note or reference"
               value={paymentNote}
               onChange={(e) => setPaymentNote(e.currentTarget.value)}
             />

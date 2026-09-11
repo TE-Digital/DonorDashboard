@@ -1,3 +1,4 @@
+import { formatCurrency } from "../../design-system";
 // src/modules/donor/donorMoney.ts
 //
 // One definition of what money means in this product.
@@ -51,7 +52,7 @@ export const CONTRIBUTION_METHODS = [
 ] as const;
 
 export const contributionMethodLabel = (value: string | null | undefined): string =>
-  CONTRIBUTION_METHODS.find((m) => m.value === value)?.label ?? value ?? "—";
+  CONTRIBUTION_METHODS.find((m) => m.value === value)?.label ?? value ?? "Not recorded";
 
 /** Given, committed, and what is left to allocate. Straight from the view. */
 export interface DonorBalance {
@@ -73,6 +74,8 @@ export interface DonorBalance {
   covers_next_month: boolean;
   shortfall_next_month_thb: number;
   preferred_language: "en" | "th";
+  /** The most recent non-voided payment's date. Null before 20260911100000, or with no payments. */
+  last_received_on: string | null;
 }
 
 /** Need against received, for one student. */
@@ -113,6 +116,7 @@ const EMPTY_BALANCE = (donorId: string): DonorBalance => ({
   covers_next_month: true,
   shortfall_next_month_thb: 0,
   preferred_language: "en",
+  last_received_on: null,
 });
 
 /**
@@ -179,6 +183,7 @@ export const loadDonorBalances = async (
       covers_next_month: row.covers_next_month ?? true,
       shortfall_next_month_thb: num(row.shortfall_next_month_thb),
       preferred_language: (row.preferred_language as "en" | "th") ?? "en",
+      last_received_on: row.last_received_on ?? null,
     });
   });
 
@@ -279,13 +284,13 @@ const saveFailure = (error: { code?: string; message?: string }): SaveResult => 
   if (isMissingRelation(error)) {
     return {
       ok: false,
-      message: "Contributions are not set up on this database yet. Apply the funding migration and try again.",
+      message: "Payments can't be recorded yet. Ask whoever looks after the system to set this up.",
     };
   }
   if (error.code === "42501") {
-    return { ok: false, message: "You do not have permission to record money for this donor." };
+    return { ok: false, message: "You don't have permission to record money for this donor." };
   }
-  return { ok: false, message: error.message ?? "Could not save the contribution." };
+  return { ok: false, message: error.message ?? "We couldn't save this payment. Check your connection and try again." };
 };
 
 export const createContribution = async (
@@ -459,9 +464,9 @@ const RANK_BAND = 1e12;
  */
 export const shortfallSentence = (balance: DonorBalance): string | null => {
   if (balance.covers_next_month) return null;
-  return `Needs ${new Intl.NumberFormat("en-US").format(
-    Math.round(balance.shortfall_next_month_thb),
-  )} THB more to cover next month.`;
+  // The shared formatter, so this reads "฿8,400" like every other amount
+  // rather than "8,400 THB".
+  return `Needs ${formatCurrency(Math.round(balance.shortfall_next_month_thb))} more to cover next month.`;
 };
 
 export const coverageRank = (coverage: StudentCoverage | undefined): number => {

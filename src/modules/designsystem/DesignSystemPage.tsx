@@ -7,6 +7,7 @@
 // Never hard-code a hex here; if a colour is missing, add the token.
 
 import React from "react";
+import { CountrySelect, PhoneInput, phoneMessage, phoneProblem } from "../../design-system";
 import {
   Badge,
   Banner,
@@ -41,6 +42,38 @@ import {
 } from "../../design-system/lumen";
 
 /* ------------------------------------------------------------- page helpers */
+
+/**
+ * Country and phone, wired together as the donor form uses them. Lives here so
+ * the pair can be tried without an account: this page is development-only.
+ */
+const DonorContactDemo: React.FC = () => {
+  const [country, setCountry] = React.useState<string | null>("TH");
+  const [phone, setPhone] = React.useState("");
+  const [touched, setTouched] = React.useState(false);
+  const problem = touched ? phoneProblem(phone, country) : null;
+
+  return (
+    <div
+      data-testid="donor-contact-demo"
+      style={{ display: "flex", flexWrap: "wrap", gap: "var(--sp-4)", width: "100%" }}
+    >
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <CountrySelect id="demo-country" value={country} onChange={setCountry} />
+      </div>
+      <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+        <PhoneInput
+          id="demo-phone"
+          value={phone}
+          country={country}
+          onChange={setPhone}
+          onBlur={() => setTouched(true)}
+          error={phoneMessage(problem, country)}
+        />
+      </div>
+    </div>
+  );
+};
 
 const Section: React.FC<{
   id: string;
@@ -782,6 +815,9 @@ export const DesignSystemPage: React.FC = () => {
                   <Radio name="d" checked={radio === "b"} label="Default" onChange={() => setRadio("b")} />
                   <Radio name="d" checked={radio === "c"} label="Relaxed" onChange={() => setRadio("c")} />
                   <Switch checked={sw} label="Only my portfolio" onChange={setSw} />
+                </Row>
+                <Row label="donor contact" align="flex-start">
+                  <DonorContactDemo />
                 </Row>
               </Panel>
             </Section>

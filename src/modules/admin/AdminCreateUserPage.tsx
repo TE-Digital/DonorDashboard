@@ -4,8 +4,8 @@ import { Button, Group, SimpleGrid, Switch, TextInput } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { notifications } from "@mantine/notifications";
 import { useAuth } from "../auth/AuthContext";
+import { toFriendlyError } from "../../i18n/errors";
 import {
-  FieldLabel,
   FormBody,
   FormError,
   FormFooter,
@@ -68,9 +68,9 @@ export const AdminCreateUserPage: React.FC = () => {
     // Marked on the fields, not summarised in the banner: "Full name and email
     // are required" told a person nothing about which of the two was empty.
     const problems: FieldErrors<UserField> = {};
-    if (!fullName.trim()) problems.fullName = "A full name is required.";
+    if (!fullName.trim()) problems.fullName = "Add this person's full name.";
     if (!email.trim()) {
-      problems.email = "An email address is required — the invitation is sent to it.";
+      problems.email = "Add an email address. The invitation is sent to it.";
     } else if (!isEmail(email)) {
       problems.email = "Enter a complete email address, for example name@example.com.";
     }
@@ -94,8 +94,9 @@ export const AdminCreateUserPage: React.FC = () => {
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     if (!supabaseUrl) {
+      console.error("VITE_SUPABASE_URL is not configured.");
       setSubmitting(false);
-      setError("VITE_SUPABASE_URL is not configured.");
+      setError("We couldn't reach the invitation service. Try again in a minute.");
       return;
     }
 
@@ -130,33 +131,30 @@ export const AdminCreateUserPage: React.FC = () => {
         console.error("admin-create-user function error:", txt);
 
         setError(
-          "User could NOT be created. The server returned an error. See console for details."
+          "We couldn't create this account. Check the details above and try again."
         );
 
         notifications.show({
-          title: "User not created",
-          message: "The server rejected the request.",
+          title: "Account not created",
+          message: "Check the details and try again.",
           color: "red",
         });
         return;
       }
 
-      setMessage("User created successfully. Invitation email sent.");
+      const sent = `${fullName.trim()}'s invitation was sent to ${email.trim()}.`;
+      setMessage(sent);
       notifications.show({
-        title: "User created",
-        message: "The user has been created and invited via email.",
+        title: "Invitation sent",
+        message: sent,
         color: "green",
       });
-    } catch (err: any) {
-      console.error("Unexpected error calling admin-create-user", err);
-      setError(
-        err?.message ?? "Unexpected error: Could not reach the server."
-      );
+    } catch (err: unknown) {
+      setError(toFriendlyError(err, "errors.network"));
 
       notifications.show({
-        title: "Network error",
-        message:
-          "Failed to reach the server. Function may not be deployed or reachable.",
+        title: "We couldn't connect",
+        message: "Check your connection and try again.",
         color: "red",
       });
     } finally {
@@ -205,7 +203,7 @@ export const AdminCreateUserPage: React.FC = () => {
               type="tel"
               inputMode="tel"
               autoComplete="tel"
-              placeholder="+66 ..."
+              placeholder="081 234 5678"
               value={phone}
               onChange={(e) => setPhone(e.currentTarget.value)}
             />
@@ -213,8 +211,7 @@ export const AdminCreateUserPage: React.FC = () => {
         </FormSection>
 
         <FormSection title="Roles">
-          <FieldLabel>Roles</FieldLabel>
-          <Group gap="lg" wrap="wrap">
+          <Group gap="lg" wrap="wrap" role="group" aria-label="Roles">
             {ALL_ROLES.map((role) => (
               <Switch
                 key={role}
@@ -234,7 +231,7 @@ export const AdminCreateUserPage: React.FC = () => {
           }
         >
           <Button type="submit" loading={submitting}>
-            Create & Send Invite
+            Create and send invite
           </Button>
         </FormFooter>
       </FormBody>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button, NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import {
   FormBody,
   FormError,
@@ -42,7 +43,7 @@ export const AdminCreateGrantTypePage: React.FC = () => {
       // On the field, not only in the banner: one input, but the same rule as
       // every other form in the product.
       setNameError("Give this grant type a name.");
-      setError("One field needs attention before this can be saved.");
+      setError("One thing needs attention before this can be saved.");
       focusField(FORM_ID, "name");
       return;
     }
@@ -69,8 +70,7 @@ export const AdminCreateGrantTypePage: React.FC = () => {
         .insert(payload);
 
       if (insertError) {
-        console.error("Insert grant type error", insertError);
-        setError(insertError.message);
+        setError(toFriendlyError(insertError, "errors.create"));
         setSaving(false);
         return;
       }
@@ -80,9 +80,8 @@ export const AdminCreateGrantTypePage: React.FC = () => {
       } else {
         navigate("/admin/scholarships", { replace: true });
       }
-    } catch (err: any) {
-      console.error("Unexpected error creating grant type", err);
-      setError(err.message ?? "Unexpected error while creating grant type.");
+    } catch (err: unknown) {
+      setError(toFriendlyError(err, "errors.create"));
       setSaving(false);
     }
   };
@@ -98,7 +97,7 @@ export const AdminCreateGrantTypePage: React.FC = () => {
               label="Name"
               id={fieldId(FORM_ID, "name")}
               error={nameError}
-              placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
+              placeholder='"KG to Grade 9", "Grade 10 to 12", "University full scholarship"'
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
               required
@@ -113,11 +112,11 @@ export const AdminCreateGrantTypePage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Amount & duration">
+        <FormSection title="Amount and duration">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <NumberInput
               label="Standard scholarship amount"
-              placeholder="e.g. 6000, 8400, 160000"
+              placeholder="6000, 8400 or 160000"
               value={amountPerPeriod}
               onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}
               min={0}
@@ -131,7 +130,7 @@ export const AdminCreateGrantTypePage: React.FC = () => {
             />
             <NumberInput
               label="Default duration (months)"
-              placeholder="e.g. 3, 12, 16, or 48 for full university"
+              placeholder="3, 12, 16, or 48 for full university"
               value={defaultDurationMonths}
               onChange={(val) => setDefaultDurationMonths(typeof val === "number" ? val : undefined)}
               min={1}

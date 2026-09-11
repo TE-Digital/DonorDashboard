@@ -4,7 +4,7 @@
 // shared by every directory and every detail page, so two screens never
 // disagree about whether a teacher has an account.
 //
-// Sign-in state is never stored in public.profiles. It lives in auth.users and
+// Sign in state is never stored in public.profiles. It lives in auth.users and
 // is read through the admin_user_access_state() function added by
 // supabase/migrations/20260820100000_user_access.sql — a copy would go stale
 // the moment somebody accepted an invite, and a stale "Invited" badge is worse
@@ -95,17 +95,17 @@ export const ACCESS_META: Record<AccessState, AccessMeta> = {
   revoked: {
     label: "Access removed",
     tone: "danger",
-    hint: "Sign-in is blocked. The record and its history are untouched.",
+    hint: "Sign in is blocked. The record and its history are untouched.",
   },
   none: {
     label: "No account",
     tone: "neutral",
-    hint: "This person has no sign-in yet. Send an invitation to create one.",
+    hint: "This person has no sign in yet. Send an invitation to create one.",
   },
   unknown: {
     label: "Unknown",
     tone: "neutral",
-    hint: "Account state could not be read. Apply supabase/migrations/20260820100000_user_access.sql.",
+    hint: "We can't show this account's sign in state yet. That part is still being set up.",
   },
 };
 
@@ -131,7 +131,7 @@ export interface AccessMap {
 const EMPTY_MAP: AccessMap = { byUser: {}, available: false, error: null };
 
 /**
- * Sign-in state for every user with a profile, in one call.
+ * Sign in state for every user with a profile, in one call.
  *
  * Deliberately not filtered by id: a directory needs all of them, and the
  * function already answers nothing at all to a non-admin.
@@ -184,7 +184,11 @@ export const runAccessAction = async (
   accessToken: string | null | undefined,
 ): Promise<AccessActionResult> => {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  if (!supabaseUrl) throw new AccessActionError("VITE_SUPABASE_URL is not configured.");
+  if (!supabaseUrl) {
+    // A deploy without the env var; say so in the console, not on screen (VOICE.md R11).
+    console.error("admin-user-access: VITE_SUPABASE_URL is not configured");
+    throw new AccessActionError("We couldn't reach the account service. Try again in a minute.");
+  }
 
   let response: Response;
   try {
@@ -198,7 +202,7 @@ export const runAccessAction = async (
     });
   } catch (networkError) {
     console.error("admin-user-access: network", networkError);
-    throw new AccessActionError("The server could not be reached. Check your connection, then try again.");
+    throw new AccessActionError("We couldn't connect. Check your internet connection and try again.");
   }
 
   const payload = await response.json().catch(() => null);
@@ -206,7 +210,7 @@ export const runAccessAction = async (
   if (!response.ok) {
     const detail = (payload as { error?: string } | null)?.error;
     console.error("admin-user-access: failed", response.status, detail);
-    throw new AccessActionError(detail || "The action did not go through. Try again in a minute.");
+    throw new AccessActionError(detail || "That didn't go through. Try again in a minute.");
   }
 
   return {
@@ -243,12 +247,12 @@ export const ACTION_COPY: Record<AccessAction, ActionCopy> = {
     message: "{name} can set a new password from the email. The link works once.",
   },
   invite_link: {
-    label: "Copy sign-in link",
+    label: "Copy sign in link",
     icon: "link",
-    done: "Sign-in link copied",
+    done: "Sign in link copied",
     message: "Send it to {name} yourself. Anyone holding this link can sign in as them.",
     confirm: {
-      title: "Copy a sign-in link?",
+      title: "Copy a sign in link?",
       body: "The link signs in as this person, works once, and expires. Send it on a private channel such as LINE, and never in a group chat.",
       commit: "Copy the link",
     },
@@ -260,7 +264,7 @@ export const ACTION_COPY: Record<AccessAction, ActionCopy> = {
     message: "{name} can no longer sign in. Their record and reports are untouched.",
     confirm: {
       title: "Remove access for this person?",
-      body: "They are signed out and cannot sign in again until access is restored. Nothing is deleted, and you can undo this from the same menu.",
+      body: "They are signed out and can't sign in again until access is restored. Nothing is deleted, and you can undo this from the same menu.",
       commit: "Remove access",
     },
   },
@@ -306,7 +310,7 @@ export const EVENT_LABEL: Record<string, string> = {
   invite: "Invitation sent",
   resend_invite: "Invitation sent again",
   send_reset: "Password link sent",
-  invite_link: "Sign-in link copied",
+  invite_link: "Sign in link copied",
   revoke: "Access removed",
   restore: "Access restored",
 };

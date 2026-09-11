@@ -46,7 +46,7 @@ serve(async (req) => {
       explicitRedirectTo || `${frontendUrl}/welcome`;
 
     if (!donorId) {
-      return new Response(JSON.stringify({ error: "donorId is required" }), {
+      return new Response(JSON.stringify({ error: "Choose a donor to invite." }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -61,14 +61,15 @@ serve(async (req) => {
 
     if (donorError) {
       console.error("invite-donor: error loading donor", donorError);
-      return new Response(JSON.stringify({ error: "Error loading donor" }), {
+      return new Response(JSON.stringify({ error: "We couldn't load this donor. Try again in a minute." }), {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
     if (!donor) {
-      return new Response(JSON.stringify({ error: "Donor not found" }), {
+      console.error("invite-donor: donor not found", donorId);
+      return new Response(JSON.stringify({ error: "We couldn't find this donor. They may have been removed." }), {
         status: 404,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -88,7 +89,7 @@ serve(async (req) => {
     if (!email) {
       return new Response(
         JSON.stringify({
-          error: "Donor has no email in contact information.",
+          error: "This donor has no email address yet. Add one to their contact details, then invite them.",
         }),
         {
           status: 400,
@@ -113,7 +114,7 @@ serve(async (req) => {
     if (profileError) {
       console.error("invite-donor: profileError", profileError);
       return new Response(
-        JSON.stringify({ error: "Error loading profile for this email." }),
+        JSON.stringify({ error: "We couldn't check whether this email already has an account. Try again in a minute." }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -139,7 +140,7 @@ serve(async (req) => {
         console.error("invite-donor: resetPasswordForEmail error", resetError);
         return new Response(
           JSON.stringify({
-            error: "User exists, but failed to send login email.",
+            error: "This person already has an account, but we couldn't send them a sign in link. Try again in a minute.",
           }),
           {
             status: 500,
@@ -162,7 +163,7 @@ serve(async (req) => {
       if (inviteError || !inviteResult || !inviteResult.user) {
         console.error("invite-donor: inviteUserByEmail error", inviteError);
         return new Response(
-          JSON.stringify({ error: "Failed to create/invite user." }),
+          JSON.stringify({ error: "We couldn't invite this donor. Try again in a minute." }),
           {
             status: 500,
             headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -206,7 +207,7 @@ serve(async (req) => {
     if (updateError) {
       console.error("invite-donor: updateError", updateError);
       return new Response(
-        JSON.stringify({ error: "Failed to link donor to profile." }),
+        JSON.stringify({ error: "The invite was sent, but we couldn't finish linking this donor's account. Try again in a minute." }),
         {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -237,7 +238,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         ok: true,
-        message: "Donor linked (and invited if needed).",
+        message: "This donor can now sign in. We've sent them an email with a link to get started.",
         language: preferredLanguage,
         redirectTo, // for debugging / confirmation
       }),
@@ -248,7 +249,7 @@ serve(async (req) => {
     );
   } catch (err) {
     console.error("invite-donor unexpected error", err);
-    return new Response(JSON.stringify({ error: "Internal error" }), {
+    return new Response(JSON.stringify({ error: "We couldn't finish that. Try again in a minute." }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

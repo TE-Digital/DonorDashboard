@@ -11,6 +11,8 @@
 // Everything below is a placeholder. Nothing here is persisted, and no caller
 // should treat these values as facts about the school.
 
+import { emptyValue, formatDate } from "../../design-system/format";
+
 export type SchoolStatus = "Active" | "Pending" | "Inactive";
 export type SchoolSystem = "Government" | "Border Police";
 
@@ -138,9 +140,8 @@ const hashOf = (value: string): number => {
 export const locationParts = (address: string | null): string[] =>
   (address ?? "").split(",").map((part) => part.trim()).filter(Boolean);
 
-const PLACEHOLDER = "—";
-
 export const deriveSchoolProfile = (school: SchoolRecord): SchoolProfile => {
+  const PLACEHOLDER = emptyValue();
   const seed = hashOf(school.id || school.name);
   const parts = locationParts(school.address);
   const system: SchoolSystem = /border|patrol|ตชด/i.test(school.name)
@@ -169,7 +170,7 @@ export const deriveSchoolProfile = (school: SchoolRecord): SchoolProfile => {
     contact: PLACEHOLDER,
     contactPhone: PLACEHOLDER,
     contactEmail: PLACEHOLDER,
-    joined: school.created_at ? new Date(school.created_at).toLocaleDateString() : PLACEHOLDER,
+    joined: formatDate(school.created_at),
     notes: "",
   };
 };

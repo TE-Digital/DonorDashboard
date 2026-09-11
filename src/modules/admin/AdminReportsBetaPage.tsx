@@ -15,7 +15,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Group, Select, Stack, Text } from "@mantine/core";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { InlineMessage, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  TableSection,
+  emptyValue,
+  formatDate,
+  formatDateRange,
+  type TableKpi,
+} from "../../design-system";
 import { Badge, Button, type DataColumn } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
 import {
@@ -26,6 +35,8 @@ import {
   type ReportRecord,
   type ReportStatus,
 } from "../reports";
+import { loadOpenDeliveries, type ReportDelivery } from "../reports/reportDeliveries";
+import { WaitingDeliveryDialog } from "../reports/WaitingDeliveryDialog";
 import styles from "./AdminDirectory.module.scss";
 
 type ReportRow = {
@@ -44,17 +55,11 @@ type ReportRow = {
   flagged: boolean;
   /** The donor-facing sentence, trimmed to a line so the row stays one line. */
   summary: string;
+  /** Recipients this approved report hasn't reached yet (waiting or failed). */
+  waiting: ReportDelivery[];
 };
 
-const asDate = (value: string | null): string =>
-  value
-    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
-        new Date(value),
-      )
-    : "—";
-
-const shortDate = (value: string | null): string =>
-  value ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" }).format(new Date(value)) : "";
+const asDate = (value: string | null): string => formatDate(value);
 
 export const AdminReportsBetaPage: React.FC = () => {
   const [rows, setRows] = useState<ReportRow[]>([]);
@@ -84,9 +89,11 @@ export const AdminReportsBetaPage: React.FC = () => {
   };
 
   const navigate = useNavigate();
+  const [sendingFor, setSendingFor] = useState<ReportRow | null>(null);
 
-  const load = async () => {
-    setLoading(true);
+  // `quiet` keeps the table mounted, for a reload after a send.
+  const load = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     setLoadError(null);
 
     const reportResult = await supabase
@@ -148,6 +155,15 @@ export const AdminReportsBetaPage: React.FC = () => {
             .map((row: any) => row.id),
     );
 
+    // Who each approved report is still waiting to reach. Before the
+    // deliveries migration this is empty, and the Waiting to send filter
+    // simply shows nothing.
+    const deliveryRead = await loadOpenDeliveries(reports.map((report) => report.id));
+    const waitingByReport = new Map<string, ReportDelivery[]>();
+    deliveryRead.rows.forEach((delivery) => {
+      waitingByReport.set(delivery.report_id, [...(waitingByReport.get(delivery.report_id) ?? []), delivery]);
+    });
+
     const studentById = new Map(students.map((s) => [s.id, s]));
     const schoolById = new Map(((schoolResult.data ?? []) as any[]).map((s) => [s.id, s.name]));
     const teacherById = new Map(((teacherResult.data ?? []) as any[]).map((t) => [t.id, t.full_name]));
@@ -155,9 +171,10 @@ export const AdminReportsBetaPage: React.FC = () => {
     setRows(
       reports.map((report) => {
         const student = report.student_id ? studentById.get(report.student_id) : null;
-        const covers = [shortDate(report.covers_start), shortDate(report.covers_end)]
-          .filter(Boolean)
-          .join(" – ");
+        const covers =
+          report.covers_start || report.covers_end
+            ? formatDateRange(report.covers_start, report.covers_end)
+            : "";
 
         return {
           id: report.id,
@@ -168,13 +185,14 @@ export const AdminReportsBetaPage: React.FC = () => {
             ? teacherById.get(student.responsible_teacher_id) || "Unnamed teacher"
             : "No teacher assigned",
           school_id: student?.school_id ?? null,
-          school_name: student?.school_id ? schoolById.get(student.school_id) || "School" : "—",
+          school_name: student?.school_id ? schoolById.get(student.school_id) || "School" : "No school recorded",
           report_date: report.report_date,
-          covers: covers || "—",
-          grade: report.grade || report.grade_text || (report.grade_numeric != null ? String(report.grade_numeric) : "") || "—",
+          covers: covers || "No dates recorded",
+          grade: report.grade || report.grade_text || (report.grade_numeric != null ? String(report.grade_numeric) : "") || emptyValue(),
           status: (report.status ?? "submitted") as ReportStatus,
           flagged: flaggedIds.has(report.id),
           summary: (report.donor_comment || report.info || "").replace(/\s+/g, " ").trim(),
+          waiting: report.status === "approved" ? waitingByReport.get(report.id) ?? [] : [],
         };
       }),
     );
@@ -191,6 +209,9 @@ export const AdminReportsBetaPage: React.FC = () => {
     // answer, which can be true of a report in any state — so it filters on its
     // own column rather than on status.
     if (statusFilter === "flagged") return rows.filter((row) => row.flagged);
+    // Like "flagged", not a stored status: an approved report someone is
+    // still waiting for.
+    if (statusFilter === "waiting") return rows.filter((row) => row.waiting.length > 0);
     return rows.filter((row) => row.status === statusFilter);
   }, [rows, statusFilter]);
 
@@ -208,7 +229,14 @@ export const AdminReportsBetaPage: React.FC = () => {
         footnote: "changes requested",
         accent: "orange",
       },
-      { label: "Approved", value: count("approved"), footnote: "sent to the donor", accent: "green" },
+      {
+        label: "Approved",
+        value: count("approved"),
+        // "Sent to the donor" stopped being true once a send could skip
+        // someone. The footnote says how many still have somebody waiting.
+        footnote: `${rows.filter((row) => row.waiting.length > 0).length} waiting to send`,
+        accent: "green",
+      },
     ];
   }, [rows]);
 
@@ -263,7 +291,37 @@ export const AdminReportsBetaPage: React.FC = () => {
       label: "What the donor reads",
       width: 320,
       muted: true,
-      render: (row) => (row.summary ? row.summary : "—"),
+      render: (row) => (row.summary ? row.summary : emptyValue()),
+    },
+    {
+      key: "waiting",
+      label: "Waiting for",
+      width: 240,
+      filterValue: (row) => row.waiting.map((d) => d.name ?? d.email ?? "").join(", "),
+      render: (row) =>
+        row.waiting.length === 0 ? (
+          ""
+        ) : (
+          <Group gap="xs" wrap="nowrap">
+            <Text size="sm" truncate>
+              {new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
+                row.waiting.map((d) => d.name ?? d.email ?? "Someone"),
+              )}
+            </Text>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="send"
+              onClick={(event) => {
+                // The row opens the report; this opens the send, not both.
+                event.stopPropagation();
+                setSendingFor(row);
+              }}
+            >
+              Send report
+            </Button>
+          </Group>
+        ),
     },
     {
       key: "status",
@@ -278,6 +336,22 @@ export const AdminReportsBetaPage: React.FC = () => {
         const meta = row.flagged
           ? REPORT_STATE_META.flagged
           : REPORT_STATE_META[row.status as ReportCycleState];
+        // Approved but not yet with everyone. This column is pinned, so on a
+        // phone it's the one place the state can be seen; the names are in
+        // the Waiting for column and in the send dialog.
+        if (!row.flagged && row.waiting.length > 0) {
+          return (
+            <span
+              title={`Waiting for ${new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
+                row.waiting.map((d) => d.name ?? d.email ?? "Someone"),
+              )}`}
+            >
+              <Badge tone="warning" dot>
+                Waiting to send
+              </Badge>
+            </span>
+          );
+        }
         return (
           <span title={meta.hint}>
             <Badge tone={meta.tone} dot>
@@ -300,7 +374,7 @@ export const AdminReportsBetaPage: React.FC = () => {
       <Stack gap="md" className={styles.page}>
         <PageHeader
           title="Reports beta"
-          subtitle="Everything the teachers have sent in, newest first — who it is about, who wrote it, and whether it still needs you."
+          subtitle="Everything the teachers have sent in, newest first. Who it's about, who wrote it, and whether it still needs you."
           actions={
             <Button variant="primary" icon="plus" onClick={() => navigate("/admin/reports/new")}>
               Add report
@@ -326,6 +400,7 @@ export const AdminReportsBetaPage: React.FC = () => {
                 data={[
                   { value: "all", label: "All statuses" },
                   { value: "flagged", label: "Flagged by a donor" },
+                  { value: "waiting", label: "Waiting to send" },
                   ...[...Object.keys(REPORT_STATE_META)]
                     .filter((state) =>
                       ["draft", "submitted", "under_review", "changes_requested", "approved"].includes(state),
@@ -346,18 +421,40 @@ export const AdminReportsBetaPage: React.FC = () => {
             // A report that has been submitted goes to verification, not to
             // the edit form: the next act on it is deciding whether it is fit
             // to send, and that decision has its own screen.
-            onRowClick={(row) =>
+            onRowClick={(row) => {
+              // On Waiting to send the next act is sending, so the row opens
+              // that. It also matters on a phone, where the Send button sits
+              // under the pinned status column.
+              if (statusFilter === "waiting" && row.waiting.length > 0) {
+                setSendingFor(row);
+                return;
+              }
               navigate(
                 ["submitted", "under_review", "approved"].includes(row.status)
                   ? `/admin/reports/${row.id}/verify`
                   : `/admin/reports/${row.id}/edit`,
-              )
+              );
+            }}
+            emptyTitle={statusFilter === "waiting" ? "Nobody is waiting" : "No reports yet"}
+            emptyDescription={
+              statusFilter === "waiting"
+                ? "Every approved report has reached everyone it's meant for."
+                : "Reports written by teachers appear here as soon as they are saved."
             }
-            emptyTitle="No reports yet"
-            emptyDescription="Reports written by teachers appear here as soon as they are saved."
           />
         )}
       </Stack>
+
+      {sendingFor && (
+        <WaitingDeliveryDialog
+          opened
+          reportId={sendingFor.id}
+          studentName={sendingFor.student_name}
+          deliveries={sendingFor.waiting}
+          onClose={() => setSendingFor(null)}
+          onSent={() => void load(true)}
+        />
+      )}
     </>
   );
 };

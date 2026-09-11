@@ -1,5 +1,83 @@
 // The email, shown at the size it will be read.
 
+// Add recipients: email, language and Add on one row, stacking on a phone.
+.add {
+  display: grid;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+// Controls line up with the box, not its label, and drop below it on a phone.
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.addInput {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.addControls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.extra {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  max-width: 100%;
+  padding-left: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font-size: var(--fs-sm);
+  color: var(--text-body);
+}
+
+.extraEmail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+// A funding donor with no address: the fix sits where the gap is noticed.
+.missing {
+  display: grid;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.missingRow {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+// Name and state on one line in the Waiting to send dialog; wraps on a phone.
+.waitingHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
 .recipients {
   display: flex;
   flex-wrap: wrap;

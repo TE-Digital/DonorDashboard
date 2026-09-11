@@ -93,7 +93,7 @@ export const ResetPasswordPage: React.FC = () => {
     const problem = !email.trim()
       ? "Enter the email address you sign in with."
       : !isEmail(email)
-        ? "That does not look like an email address."
+        ? "That doesn't look like an email address."
         : null;
 
     setEmailError(problem);
@@ -114,10 +114,12 @@ export const ResetPasswordPage: React.FC = () => {
 
       if (error) {
         console.error("resetPasswordForEmail error:", error);
-        setRequestError(error.message ?? "Could not send reset email.");
+        setRequestError(
+          "We couldn't send that reset email. Check the address and try again."
+        );
       } else {
         setRequestMessage(
-          "If this email exists in our system, a reset link has been sent. Please check your inbox."
+          "If that email is on file, we've sent a reset link. Check your inbox."
         );
       }
     } finally {
@@ -135,7 +137,7 @@ export const ResetPasswordPage: React.FC = () => {
       problems.password = "Use at least 8 characters.";
     }
     if (newPassword !== confirmPassword) {
-      problems.confirm = "The two passwords do not match.";
+      problems.confirm = "The two passwords don't match.";
     }
     setFieldErrors(problems);
 
@@ -153,11 +155,11 @@ export const ResetPasswordPage: React.FC = () => {
 
       if (error) {
         console.error("updateUser error:", error);
-        setResetError(error.message ?? "Could not update password.");
+        setResetError("We couldn't update your password. Try again.");
         return;
       }
 
-      setResetMessage("Your password has been updated successfully.");
+      setResetMessage("Your password is updated. You can sign in with it now.");
     } finally {
       setUpdating(false);
     }
@@ -177,12 +179,12 @@ export const ResetPasswordPage: React.FC = () => {
         />
       )}
       <Text fw={700} fz={28} className={classes.title}>
-        {branding.hero_title ?? "iCare Donor Dashboard"}
+        {branding.hero_title ?? "Donor Dashboard"}
       </Text>
       <Text fz="sm" c="dimmed" ta="center" className={classes.subtitle}>
         {mode === "reset"
           ? "Choose a new password for your account."
-          : "Enter your email and we will send you a password reset link."}
+          : "Enter your email and we'll send you a link to reset your password."}
       </Text>
     </Stack>
   );
@@ -206,9 +208,9 @@ export const ResetPasswordPage: React.FC = () => {
       >
         <Stack align="center">
           <Text fw={700} fz={28} className={classes.title}>
-            {branding.hero_title ?? "iCare Donor Dashboard"}
+            {branding.hero_title ?? "Donor Dashboard"}
           </Text>
-          <Text c="dimmed">Preparing password reset page…</Text>
+          <Text c="dimmed">Getting your password page ready…</Text>
         </Stack>
       </div>
     );
@@ -268,7 +270,7 @@ export const ResetPasswordPage: React.FC = () => {
                   type="button"
                   onClick={() => navigate("/login")}
                 >
-                  Back to login
+                  Back to sign in
                 </Button>
               </Stack>
             </form>
@@ -333,7 +335,7 @@ export const ResetPasswordPage: React.FC = () => {
                   type="button"
                   onClick={() => navigate("/login")}
                 >
-                  Back to login
+                  Back to sign in
                 </Button>
               </Stack>
             </form>

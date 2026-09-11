@@ -11,7 +11,7 @@
 // controls, and without anything that was never shared with them.
 
 import React from "react";
-import { EmptyState, LoadingState } from "../../design-system";
+import { EmptyState, LoadingState, formatDate } from "../../design-system";
 import { Badge, Button, Icon } from "../../design-system/lumen";
 import { ReportFormDrawer } from "./ReportFormDrawer";
 import { attachmentName, attachmentUrl, isImagePath, type ReportAttachment } from "./reportAttachments";
@@ -19,12 +19,7 @@ import { loadStudentReports, type ReportSummary } from "./reportRecord";
 import { REPORT_STATE_META } from "./reportStatus";
 import styles from "./ReportList.module.scss";
 
-const asDate = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
-        new Date(value),
-      )
-    : "No date";
+const asDate = (value: string | null) => (value ? formatDate(value) : "No date");
 
 export interface ReportListProps {
   studentId: string;

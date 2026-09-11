@@ -112,7 +112,7 @@ export const uploadAttachments = async (
       console.error("Error uploading attachment", error);
       return {
         attachments: uploaded,
-        error: `${draft.file.name} could not be uploaded. The report was not saved.`,
+        error: `We couldn't upload ${draft.file.name}, so the report isn't saved yet. Try again.`,
       };
     }
 

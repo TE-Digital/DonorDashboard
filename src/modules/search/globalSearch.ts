@@ -10,6 +10,7 @@
 // /teacher/students/:id, not the admin record).
 
 import { supabase } from "../../lib/supabaseClient";
+import { isMissingColumnError } from "../admin/teacherProfile";
 
 export type SearchCategory = "students" | "teachers" | "schools" | "donors";
 
@@ -135,24 +136,38 @@ async function searchSchools(term: string): Promise<SearchHit[]> {
 }
 
 async function searchDonors(term: string): Promise<SearchHit[]> {
-  const { data, error } = await supabase
-    .from("donors")
-    .select("id, name, contact")
-    .ilike("name", `%${term}%`)
-    .order("name")
-    .limit(PER_CATEGORY);
+  // The donors list has no search box of its own (finding one donor is this
+  // dialog's job), so a donor has to be findable by what an admin actually
+  // remembers: the name, the email address, or the person at an organisation.
+  const run = (columns: string[], select: string) =>
+    supabase
+      .from("donors")
+      .select(select)
+      .or(ilikeAny(term, columns))
+      .order("name")
+      .limit(PER_CATEGORY);
+
+  let { data, error } = await run(["name", "contact->>email", "contact_person"], "id, name, contact, contact_person");
+  // contact_person arrives with 20260911100000_donor_records.sql. Until then,
+  // name and email still find a donor.
+  if (error && isMissingColumnError(error)) {
+    ({ data, error } = await run(["name", "contact->>email"], "id, name, contact"));
+  }
 
   if (error || !data) return [];
 
-  return data.map((d: any) => {
+  return (data as any[]).map((d) => {
     const contact = (d.contact ?? {}) as { email?: string | null; phone?: string | null };
     return {
       id: d.id,
       category: "donors" as const,
       title: d.name || "Anonymous donor",
-      subtitle: [contact.email, contact.phone].filter(Boolean).join(" · "),
-      // Donors have no read-only record of their own; the edit form is it.
-      to: `/admin/donors/${d.id}/edit`,
+      subtitle: [d.contact_person ? `Contact: ${d.contact_person}` : null, contact.email, contact.phone]
+        .filter(Boolean)
+        .join(" · "),
+      // The overview, not the edit form: search is how a donor is found, and
+      // finding one shouldn't open a form over them.
+      to: `/admin/donors/${d.id}`,
     };
   });
 }

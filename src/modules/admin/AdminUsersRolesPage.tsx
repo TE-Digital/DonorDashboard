@@ -14,7 +14,15 @@
 import React, { useEffect, useState } from "react";
 import { supabase, Profile } from "../../lib/supabaseClient";
 import { Anchor, Stack, Text } from "@mantine/core";
-import { ContactCell, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  ContactCell,
+  LoadingState,
+  PageHeader,
+  TableSection,
+  formatDate,
+  formatDateTime,
+  type TableKpi,
+} from "../../design-system";
 import { Badge, Button as LumenButton, type DataColumn } from "../../design-system/lumen";
 import { AccessBadge, AccessMenu } from "./AccessActions";
 import {
@@ -133,14 +141,14 @@ export const AdminUsersRolesPage: React.FC = () => {
       { label: "Admins", value: counts("admin"), footnote: "full access", mark: "admins" },
       {
         label: "Never signed in",
-        value: access.available ? neverIn : "—",
-        footnote: access.available ? "invited or without an account" : "account state unavailable",
+        value: access.available ? neverIn : "Unknown",
+        footnote: access.available ? "invited or without an account" : "we can't read sign ins right now",
         mark: neverIn ? "overdue" : "ontrack",
       },
       {
         label: "Access removed",
-        value: access.available ? revoked : "—",
-        footnote: revoked ? "cannot sign in" : "nobody blocked",
+        value: access.available ? revoked : "Unknown",
+        footnote: revoked ? "can't sign in" : "nobody blocked",
         mark: "accounts",
       },
     ];
@@ -207,7 +215,7 @@ export const AdminUsersRolesPage: React.FC = () => {
       // Roles answer "what may this person do?". This column answers the
       // question that comes first: can they get in at all?
       key: "access",
-      label: "Sign-in",
+      label: "Access",
       width: 150,
       filterValue: (u) => ACCESS_META[stateOf(u)].label,
       sortValue: (u) => ACCESS_RANK[stateOf(u)],
@@ -222,14 +230,14 @@ export const AdminUsersRolesPage: React.FC = () => {
       // Already loaded with the access map and, until now, thrown away. It is
       // the one fact that ages an account: a year of silence is a question.
       key: "last_sign_in",
-      label: "Last sign-in",
+      label: "Last signed in",
       width: 140,
       filterValue: (u) => access.byUser[u.id]?.last_sign_in_at ?? "",
       render: (u) => {
         const at = access.byUser[u.id]?.last_sign_in_at ?? null;
-        if (!access.available) return <Text size="sm" c="dimmed">—</Text>;
+        if (!access.available) return <Text size="sm" c="dimmed">Unknown</Text>;
         return (
-          <span title={at ? new Date(at).toLocaleString() : "This account has never been used"}>
+          <span title={at ? formatDateTime(at) : "This account has never been used"}>
             {at ? (
               <Text size="sm">{relativeDate(at)}</Text>
             ) : (
@@ -246,7 +254,7 @@ export const AdminUsersRolesPage: React.FC = () => {
       label: "Created",
       width: 120,
       muted: true,
-      render: (u) => (u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"),
+      render: (u) => formatDate(u.created_at),
     },
     {
       key: "actions",
@@ -277,7 +285,7 @@ export const AdminUsersRolesPage: React.FC = () => {
   return (
     <Stack className={styles.page}>
       <PageHeader
-        title="Users & roles"
+        title="Users and roles"
         subtitle="Who can sign in, and what each account is allowed to do."
       />
 
@@ -299,7 +307,7 @@ export const AdminUsersRolesPage: React.FC = () => {
           </span>
         }
         onRowClick={(u) => setEditing(u)}
-        emptyTitle={roleFilter === "all" ? "No users found" : "Nobody with that role"}
+        emptyTitle={roleFilter === "all" ? "No accounts yet" : "Nobody with that role"}
         emptyDescription={
           roleFilter === "all"
             ? "Accounts appear here once somebody is invited from Teachers or Donors."

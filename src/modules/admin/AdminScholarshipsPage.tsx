@@ -9,6 +9,8 @@ import {
   PageHeader,
   StatusBadge,
   TableSection,
+  formatDate,
+  formatDateRange,
   type TableKpi,
 } from "../../design-system";
 import { Button as LumenButton, type DataColumn } from "../../design-system/lumen";
@@ -75,7 +77,7 @@ export const AdminScholarshipsPage: React.FC = () => {
 
       if (error) {
         console.error("Error loading scholarships", error);
-        setError("Could not load scholarships.");
+        setError("We couldn't load scholarships. Check your connection and try again.");
         setScholarships([]);
       } else {
         setScholarships(asRows<ScholarshipRow>(data));
@@ -151,7 +153,7 @@ export const AdminScholarshipsPage: React.FC = () => {
     const rowsToExport = filtered;
 
     if (rowsToExport.length === 0) {
-      alert("No scholarships to export for the current filter.");
+      alert("No scholarships match these filters, so there's nothing to export yet.");
       return;
     }
 
@@ -236,18 +238,16 @@ export const AdminScholarshipsPage: React.FC = () => {
     id: row.id,
     student: row.students?.name || "Unassigned",
     donor: row.donors?.name || "Unassigned",
-    grant: row.grant_types?.name || "—",
+    grant: row.grant_types?.name || "No grant type",
     period:
-      row.period_start && row.period_end
-        ? `${new Date(row.period_start).toLocaleDateString()} – ${new Date(
-            row.period_end
-          ).toLocaleDateString()}`
-        : "—",
+      row.period_start || row.period_end
+        ? formatDateRange(row.period_start, row.period_end)
+        : "No dates recorded",
     amount: row.amount_for_period ?? null,
     currency: row.currency || "THB",
     status: row.status ?? null,
     is_paid: row.is_paid ?? null,
-    payment: row.payment_date ? new Date(row.payment_date).toLocaleDateString() : "—",
+    payment: row.payment_date ? formatDate(row.payment_date) : "No payment date",
   }));
 
   const kpis: TableKpi[] = (() => {
@@ -287,13 +287,13 @@ export const AdminScholarshipsPage: React.FC = () => {
       render: (r) =>
         r.amount != null
           ? `${r.amount.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${r.currency}`
-          : "—",
+          : "Amount not recorded",
     },
     {
       key: "status",
       label: "Status",
       width: 120,
-      filterValue: (r) => r.status ?? "—",
+      filterValue: (r) => r.status ?? "No status",
       render: (r) => renderStatusBadge(r.status),
     },
     {
@@ -356,7 +356,7 @@ export const AdminScholarshipsPage: React.FC = () => {
             />
           </>
         }
-        emptyTitle="No scholarships found"
+        emptyTitle="No scholarships yet"
         emptyDescription="Add a scholarship to start tracking an award."
         emptyIcon="hand-coins"
         emptyAction={

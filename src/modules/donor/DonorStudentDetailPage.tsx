@@ -24,7 +24,12 @@ import {
   LoadingState,
   PageHeader,
   StatusBadge,
+  emptyValue,
+  formatCurrency,
+  formatDate,
+  formatDateRange,
 } from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 
 type DonorRow = {
   id: string;
@@ -115,7 +120,7 @@ export const DonorStudentDetailPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!profile || !studentId) {
-        setError("Could not load donor or student information.");
+        setError("We couldn't load this student. Go back to your dashboard and open them again.");
         setLoading(false);
         return;
       }
@@ -133,15 +138,14 @@ export const DonorStudentDetailPage: React.FC = () => {
           .maybeSingle();
 
         if (donorError) {
-          console.error("Error loading donor profile", donorError);
-          setError("Could not load donor profile.");
+          setError(toFriendlyError(donorError, "errors.load", "loadDonorProfile"));
           setLoading(false);
           return;
         }
 
         if (!donorRow) {
           setError(
-            "Your account is not linked to a donor profile yet. Please contact the administrator."
+            "Your sign in isn't linked to a donor profile yet. Ask us to connect it and your students will appear here."
           );
           setLoading(false);
           return;
@@ -167,8 +171,11 @@ export const DonorStudentDetailPage: React.FC = () => {
           .maybeSingle();
 
         if (studentError || !studentData) {
-          console.error("Error loading student", studentError);
-          setError("Could not load student information.");
+          setError(
+            studentError
+              ? toFriendlyError(studentError, "errors.load", "loadStudent")
+              : "We couldn't find this student."
+          );
           setLoading(false);
           return;
         }
@@ -310,10 +317,7 @@ export const DonorStudentDetailPage: React.FC = () => {
 
         setReports(decorated);
       } catch (err: any) {
-        console.error("Unexpected error loading donor student detail", err);
-        setError(
-          err?.message ?? "Unexpected error while loading the student updates."
-        );
+        setError(toFriendlyError(err, "errors.load", "loadDonorStudentDetail"));
       } finally {
         setLoading(false);
       }
@@ -357,22 +361,18 @@ export const DonorStudentDetailPage: React.FC = () => {
           Student updates
         </Text>
         <Card withBorder>
-          <Text size="sm">Student could not be found.</Text>
+          <Text size="sm">We couldn't find this student.</Text>
         </Card>
       </Stack>
     );
   }
 
   const lastScholarshipLabel = summary.lastScholarshipDate
-    ? new Date(summary.lastScholarshipDate).toLocaleDateString()
-    : "—";
+    ? formatDate(summary.lastScholarshipDate)
+    : emptyValue();
 
   const totalAmountLabel =
-    summary.totalAmount > 0
-      ? `${summary.totalAmount.toLocaleString("en-US", {
-          maximumFractionDigits: 0,
-        })} ${summary.currency || "THB"}`
-      : "—";
+    summary.totalAmount > 0 ? formatCurrency(summary.totalAmount) : emptyValue();
 
   const displayName = student.nickname || student.name || "(no name)";
   const schoolName = student.school?.name ?? null;
@@ -428,7 +428,7 @@ export const DonorStudentDetailPage: React.FC = () => {
             <Stack gap={4}>
               <Text fw={600} size="lg">
                 {displayName}
-                {student.grade_level ? ` – Grade ${student.grade_level}` : ""}
+                {student.grade_level ? `, Grade ${student.grade_level}` : ""}
               </Text>
               <Text size="sm" c="dimmed">
                 {schoolName || "No school information"}
@@ -473,21 +473,9 @@ export const DonorStudentDetailPage: React.FC = () => {
             ) : (
               <Stack gap="xs">
                 {awards.map((a) => {
-                  const periodLabel =
-                    a.period_start && a.period_end
-                      ? `${new Date(
-                          a.period_start
-                        ).toLocaleDateString()} – ${new Date(
-                          a.period_end
-                        ).toLocaleDateString()}`
-                      : "—";
+                  const periodLabel = formatDateRange(a.period_start, a.period_end);
 
-                  const amountLabel =
-                    a.amount_for_period != null
-                      ? `${a.amount_for_period.toLocaleString("en-US", {
-                          maximumFractionDigits: 0,
-                        })} ${a.currency || "THB"}`
-                      : "—";
+                  const amountLabel = formatCurrency(a.amount_for_period);
 
                   return (
                     <Group
@@ -536,16 +524,12 @@ export const DonorStudentDetailPage: React.FC = () => {
               <Stack gap="sm">
                 {reports.map((r) => {
                   const dateLabel = r.report_date
-                    ? new Date(r.report_date).toLocaleDateString()
+                    ? formatDate(r.report_date)
                     : "No date";
 
                   const rangeLabel =
                     r.covers_start && r.covers_end
-                      ? `${new Date(
-                          r.covers_start
-                        ).toLocaleDateString()} – ${new Date(
-                          r.covers_end
-                        ).toLocaleDateString()}`
+                      ? formatDateRange(r.covers_start, r.covers_end)
                       : null;
 
                   const mainText =

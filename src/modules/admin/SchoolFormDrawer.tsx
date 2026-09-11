@@ -32,7 +32,6 @@ export const SchoolFormDrawer: React.FC<SchoolFormDrawerProps> = ({
       busy={saving}
       dirty={dirty}
       title="Add school"
-      subtitle="Record the school so it can be selected without leaving this screen."
       size={860}
       status={
         formError ? (

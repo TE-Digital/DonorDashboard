@@ -29,7 +29,7 @@ import type { EntityFormHandle } from "./entityForm";
 export const reportTeacherCreated = (teacher: CreatedTeacher) => {
   notifications.show({
     title: "Invitation sent",
-    message: `${teacher.email} can set a password from the email and sign in.`,
+    message: `${teacher.fullName}'s invitation was sent to ${teacher.email}. They can choose a password from the email and sign in.`,
     color: "green",
   });
 
@@ -47,7 +47,7 @@ export const reportTeacherCreated = (teacher: CreatedTeacher) => {
   // not time out.
   if (!teacher.extended) {
     notifications.show({
-      title: "Some fields were not saved",
+      title: "Some details weren't saved",
       message: TEACHER_FIELDS_PENDING_NOTE,
       color: "yellow",
       autoClose: false,

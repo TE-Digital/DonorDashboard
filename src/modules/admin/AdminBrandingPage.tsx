@@ -15,6 +15,7 @@ import {
 import { BUTTON_RADIUS_OPTIONS, FONT_FAMILY_OPTIONS } from "../../design-system";
 import { useBranding } from "../theme/BrandingContext";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 
 
 export const AdminBrandingPage: React.FC = () => {
@@ -101,9 +102,8 @@ export const AdminBrandingPage: React.FC = () => {
 
       // Force-refresh theme / branding context
      // window.location.reload();
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message ?? "Error saving branding settings");
+    } catch (e: unknown) {
+      setError(toFriendlyError(e, "errors.save"));
     } finally {
       setSaving(false);
     }
@@ -112,7 +112,7 @@ export const AdminBrandingPage: React.FC = () => {
   return (
     <Stack>
       <Text fw={700} size="lg">
-        Branding & Layout
+        Branding and layout
       </Text>
 
       <Card withBorder>
@@ -128,8 +128,8 @@ export const AdminBrandingPage: React.FC = () => {
             />
           )}
           <FileInput
-            label="Upload logo (PNG/JPG/SVG)"
-            placeholder="Choose file"
+            label="Upload a new logo"
+            placeholder="PNG, JPG or SVG. A transparent background works best."
             value={file}
             onChange={setFile}
           />
@@ -138,7 +138,7 @@ export const AdminBrandingPage: React.FC = () => {
 
       <Card withBorder>
         <Stack gap="md">
-          <Text fw={500}>Colors & Font</Text>
+          <Text fw={500}>Colors and font</Text>
 
           <ColorInput
             label="Primary color"
@@ -172,16 +172,16 @@ export const AdminBrandingPage: React.FC = () => {
 
       <Card withBorder>
         <Stack gap="md">
-          <Text fw={500}>Hero Section (Dashboard)</Text>
+          <Text fw={500}>Dashboard banner</Text>
           <TextInput
-            label="Hero title"
+            label="Banner title"
             placeholder="iCare Donor Dashboard"
             value={heroTitle}
             onChange={(e) => setHeroTitle(e.currentTarget.value)}
           />
           <TextInput
-            label="Hero subtitle"
-            placeholder="Helping children in remote schools, together."
+            label="Banner subtitle"
+            placeholder="Supporting students in remote schools, together."
             value={heroSubtitle}
             onChange={(e) => setHeroSubtitle(e.currentTarget.value)}
           />
@@ -190,15 +190,15 @@ export const AdminBrandingPage: React.FC = () => {
 
       <Card withBorder>
         <Stack gap="md">
-          <Text fw={500}>Login Screen</Text>
+          <Text fw={500}>Sign in screen</Text>
           <TextInput
-            label="Login title"
+            label="Sign in title"
             placeholder="Welcome back"
             value={loginTitle}
             onChange={(e) => setLoginTitle(e.currentTarget.value)}
           />
           <TextInput
-            label="Login subtitle"
+            label="Sign in subtitle"
             placeholder="Sign in to manage students, donors and reports."
             value={loginSubtitle}
             onChange={(e) => setLoginSubtitle(e.currentTarget.value)}
@@ -208,9 +208,9 @@ export const AdminBrandingPage: React.FC = () => {
 
       <Card withBorder>
         <Stack gap="md">
-          <Text fw={500}>Donor Contact Email</Text>
+          <Text fw={500}>Donor contact email</Text>
           <TextInput
-            label="Email for donor communication"
+            aria-label="Donor contact email"
             type="email"
             inputMode="email"
             autoComplete="email"

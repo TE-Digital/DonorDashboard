@@ -1,0 +1,62 @@
+// The same segmented tablist the report verify screen uses, as a shared piece.
+
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: var(--motion-hover);
+
+  &:hover:not(:disabled) {
+    color: var(--text-body);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    color: var(--text-subtle);
+  }
+}
+
+.active {
+  background: var(--surface-card);
+  color: var(--text-heading);
+  box-shadow: var(--shadow-hairline);
+}
+
+// Amber and worded, never colour alone.
+.missing {
+  font-size: var(--fs-micro);
+  font-weight: var(--fw-medium);
+  color: var(--amber-700);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}

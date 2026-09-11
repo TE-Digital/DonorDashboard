@@ -24,7 +24,17 @@ import {
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useNavigate } from "react-router-dom";
-import { EmptyState, LoadingState, PageHeader, color } from "../../design-system";
+import { useTranslation } from "react-i18next";
+import {
+  EmptyState,
+  InlineMessage,
+  LoadingState,
+  PageHeader,
+  color,
+  emptyValue,
+  formatDate,
+} from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 
 type ReportStatus = "ok" | "missing" | "overdue";
 
@@ -35,9 +45,11 @@ interface StudentRow extends Student {
 }
 
 export const TeacherStudentsPage: React.FC = () => {
+  const { t } = useTranslation();
   const teacherId = useEffectiveTeacherId();
   const [data, setData] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState<string | null>(null);
@@ -51,6 +63,7 @@ export const TeacherStudentsPage: React.FC = () => {
     const load = async () => {
       if (!teacherId) return;
       setLoading(true);
+      setLoadError(null);
 
       // 1) Load students + their term_updates
       const { data: studentData, error } = await supabase
@@ -76,7 +89,8 @@ export const TeacherStudentsPage: React.FC = () => {
         .neq("status", "archived");
 
       if (error) {
-        console.error(error);
+        setLoadError(toFriendlyError(error, "errors.load", "Error loading teacher students"));
+        setData([]);
         setLoading(false);
         return;
       }
@@ -202,39 +216,20 @@ export const TeacherStudentsPage: React.FC = () => {
   const columns = useMemo<ColumnDef<StudentRow>[]>(
     () => [
       {
-        header: "Name",
+        header: t("person.name"),
         accessorKey: "name",
-        cell: (info) => info.getValue() || "—",
+        cell: (info) => (info.getValue() as string | null) || t("teacherPages.common.unnamed"),
       },
       {
-        header: "Grade",
+        header: t("student.gradeLevel"),
         accessorKey: "grade_level",
-        cell: (info) => info.getValue() || "—",
+        cell: (info) => (info.getValue() as string | null) || emptyValue(),
       },
       {
-        header: "Last report",
+        header: t("report.lastReport"),
         accessorKey: "last_report_date",
         cell: ({ row }) => {
-          const last = row.original.last_report_date;
-          const status = row.original.report_status;
-          let label: string;
-
-          if (!last) {
-            label = "No report";
-          } else {
-            label = new Date(last).toLocaleDateString();
-          }
-
-          if (status === "overdue") {
-            label += " (overdue)";
-          } else if (status === "missing") {
-            label += " (required)";
-          }
-
-          let color: string | undefined;
-          if (status === "overdue") color = "red";
-          else if (status === "missing") color = "orange";
-
+          const { label, color } = getLastReportLabel(row.original);
           return (
             <Text size="sm" c={color}>
               {label}
@@ -244,30 +239,37 @@ export const TeacherStudentsPage: React.FC = () => {
       },
       {
         id: "actions",
-        header: "Actions",
-        cell: ({ row }) => (
-          <Group gap="xs">
-            <Button
-              size="xs"
-              variant="light"
-              onClick={() => navigate(`/teacher/students/${row.original.id}`)}
-            >
-              Open
-            </Button>
-            <Button
-              size="xs"
-              variant="subtle"
-              onClick={() =>
-                navigate(`/teacher/reports/new?studentId=${row.original.id}`)
-              }
-            >
-              Add report
-            </Button>
-          </Group>
-        ),
+        header: t("teacherPages.students.actions"),
+        cell: ({ row }) => {
+          const name = row.original.name || t("teacherPages.common.unnamed");
+          return (
+            <Group gap="xs">
+              <Button
+                size="xs"
+                variant="light"
+                aria-label={t("teacherPages.students.openFor", { name })}
+                onClick={() => navigate(`/teacher/students/${row.original.id}`)}
+              >
+                {t("teacherPages.students.open")}
+              </Button>
+              <Button
+                size="xs"
+                variant="subtle"
+                aria-label={t("teacherPages.students.addReportFor", { name })}
+                onClick={() =>
+                  navigate(`/teacher/reports/new?studentId=${row.original.id}`)
+                }
+              >
+                {t("teacherPages.students.addReport")}
+              </Button>
+            </Group>
+          );
+        },
       },
     ],
-    [navigate]
+    // getLastReportLabel only reads t, so t is the dependency that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [navigate, t]
   );
 
   const table = useReactTable({
@@ -279,41 +281,52 @@ export const TeacherStudentsPage: React.FC = () => {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  // Helper to format last-report label for cards
-  const getLastReportLabel = (row: StudentRow) => {
-    const last = row.last_report_date;
-    const status = row.report_status;
+  // The last report as a teacher reads it: when, and whether one is owed now.
+  function getLastReportLabel(row: StudentRow): { label: string; color?: string } {
+    if (row.report_status === "missing") {
+      return { label: t("teacherPages.students.reportNeeded"), color: "orange" };
+    }
+    const date = row.last_report_date ? formatDate(row.last_report_date) : t("report.none");
+    if (row.report_status === "overdue") {
+      return { label: t("teacherPages.students.reportOverdue", { date }), color: "red" };
+    }
+    return { label: date };
+  }
 
-    let label = last
-      ? new Date(last).toLocaleDateString()
-      : "No report";
-
-    if (status === "overdue") label += " (overdue)";
-    else if (status === "missing") label += " (required)";
-
-    let color: string | undefined;
-    if (status === "overdue") color = "red";
-    else if (status === "missing") color = "orange";
-
-    return { label, color };
-  };
+  // Empty because nothing is assigned yet, or because the filters hide
+  // everyone: two different things to tell the teacher.
+  const empty =
+    data.length === 0
+      ? {
+          title: t("teacherPages.students.emptyTitle"),
+          description: t("teacherPages.students.emptyBody"),
+        }
+      : {
+          title: t("teacherPages.students.noMatchTitle"),
+          description: t("teacherPages.students.noMatchBody"),
+        };
+  const showEmpty = filteredData.length === 0 && !loadError;
 
   return (
     <Stack>
-      <PageHeader title="My students" />
+      <PageHeader title={t("nav.myStudents")} />
+
+      {loadError && <InlineMessage tone="error">{loadError}</InlineMessage>}
 
       {/* Filters */}
       {isMobile ? (
         <Stack gap="xs">
           <TextInput
             size="sm"
-            placeholder="Search by name or village"
+            placeholder={t("teacherPages.students.searchPlaceholder")}
+            aria-label={t("common.search")}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
           />
           <Select
             size="sm"
-            placeholder="Filter by grade level"
+            placeholder={t("student.filterByGrade")}
+            aria-label={t("student.filterByGrade")}
             value={gradeFilter}
             onChange={setGradeFilter}
             data={gradeOptions}
@@ -324,14 +337,16 @@ export const TeacherStudentsPage: React.FC = () => {
         <Group gap="sm">
           <TextInput
             size="sm"
-            placeholder="Search by name or village"
+            placeholder={t("teacherPages.students.searchPlaceholder")}
+            aria-label={t("common.search")}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
             w={260}
           />
           <Select
             size="sm"
-            placeholder="Filter by grade level"
+            placeholder={t("student.filterByGrade")}
+            aria-label={t("student.filterByGrade")}
             value={gradeFilter}
             onChange={setGradeFilter}
             data={gradeOptions}
@@ -345,45 +360,46 @@ export const TeacherStudentsPage: React.FC = () => {
       ) : isMobile ? (
         // ---------- MOBILE: cards ----------
         <Stack gap="sm">
-          {filteredData.length === 0 && (
-            <EmptyState title="No students found." />
-          )}
+          {showEmpty && <EmptyState title={empty.title} description={empty.description} />}
 
           {filteredData.map((row) => {
             const { label, color } = getLastReportLabel(row);
+            const name = row.name || t("teacherPages.common.unnamed");
 
             return (
               <Card key={row.id} withBorder radius="md" shadow="xs">
                 <Stack gap={4}>
-                  <Text fw={600}>{row.name || "Unnamed student"}</Text>
+                  <Text fw={600}>{name}</Text>
                   {row.grade_level && (
                     <Text size="sm" c="dimmed">
-                      Grade {row.grade_level}
+                      {t("teacherPages.common.classLabel", { grade: row.grade_level })}
                     </Text>
                   )}
                   <Text size="sm" c={color}>
-                    Last report: {label}
+                    {t("teacherPages.students.lastReportLine", { label })}
                   </Text>
 
                   <Group mt="xs" grow>
                     <Button variant="default"
                       size="xs"
+                      aria-label={t("teacherPages.students.openFor", { name })}
                       onClick={() =>
                         navigate(`/teacher/students/${row.id}`)
                       }
                     >
-                      Open
+                      {t("teacherPages.students.open")}
                     </Button>
                     <Button
                       size="xs"
                       variant="outline"
+                      aria-label={t("teacherPages.students.addReportFor", { name })}
                       onClick={() =>
                         navigate(
                           `/teacher/reports/new?studentId=${row.id}`
                         )
                       }
                     >
-                      Add report
+                      {t("teacherPages.students.addReport")}
                     </Button>
                   </Group>
                 </Stack>
@@ -464,12 +480,10 @@ export const TeacherStudentsPage: React.FC = () => {
                   </tr>
                 );
               })}
-              {filteredData.length === 0 && (
+              {showEmpty && (
                 <tr>
                   <td colSpan={columns.length} style={{ padding: "16px" }}>
-                    <Text c="dimmed" size="sm">
-                      No students found.
-                    </Text>
+                    <EmptyState title={empty.title} description={empty.description} />
                   </td>
                 </tr>
               )}

@@ -1,0 +1,52 @@
+// Mobile first: one column. Wider screens set the three money and date fields in a row.
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-subtle);
+  cursor: default;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-3);
+}
+
+.switches {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.note {
+  font-size: var(--fs-sm);
+  color: var(--amber-700);
+}
+
+.pledge {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 641px) {
+  // Tablet: two per line, so the dates don't crush into a third of the width.
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .switches {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-5);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

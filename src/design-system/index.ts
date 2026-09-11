@@ -89,6 +89,20 @@ export {
   hasErrors,
   isEmail,
   isPhone,
+  isInternationalPhone,
+  normalisePhone,
+  displayPhone,
+  phoneProblem,
+  phoneMessage,
   today,
 } from "./fieldValidation";
-export type { DateProblem, FieldErrors } from "./fieldValidation";
+export type { DateProblem, FieldErrors, PhoneProblem } from "./fieldValidation";
+
+// Where somebody is, and how to ring them: every country the phone check knows,
+// named by the browser, with the dialling code beside the field.
+export { callingCode, countryName, countryOptions } from "./countries";
+export type { CountryOption } from "./countries";
+export { CountrySelect } from "./components/CountrySelect";
+export type { CountrySelectProps } from "./components/CountrySelect";
+export { PhoneInput } from "./components/PhoneInput";
+export type { PhoneInputProps } from "./components/PhoneInput";

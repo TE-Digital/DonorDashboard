@@ -183,7 +183,7 @@ export const validateReportDetails = (values: ReportDetailsInput): FieldErrors<R
   // A draft is allowed to be unfinished. Anything past draft is on its way to a
   // donor, and the donor's sentence is the point of the whole record.
   if (values.status !== "draft" && !values.donorComment.trim()) {
-    errors.donorComment = "Write the comment for the donor before submitting this report.";
+    errors.donorComment = "Write the comment for the donor before sending this report in.";
   }
 
   return errors;
@@ -209,7 +209,7 @@ export const loadReport = async (reportId: string): Promise<LoadedReport> => {
     return {
       details: emptyReportDetails(),
       attachments: [],
-      error: "That report could not be opened. It may have been deleted.",
+      error: "We couldn't find this report. It may have been removed.",
     };
   }
 
@@ -325,7 +325,7 @@ export const deleteReport = async (reportId: string): Promise<string | null> => 
 const writeFailure = (error: { code?: string; message?: string } | null): string => {
   const message = (error?.message ?? "").toLowerCase();
   if (error?.code === "42501" || message.includes("row-level security")) {
-    return "Your account is not allowed to change this report. Ask an administrator.";
+    return "You can't change this report. Ask an admin if you need to.";
   }
-  return "The report did not save. Check your connection, then try again.";
+  return "We couldn't save the report. Check your connection and try again.";
 };

@@ -162,7 +162,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg" mt="lg">
           <TextInput
             label="Nickname"
-            placeholder="e.g. Nong"
+            placeholder="The name friends and teachers use, like Nong"
             disabled={disabled}
             value={details.nickname}
             onChange={(event) => set("nickname", event.currentTarget.value)}
@@ -224,7 +224,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
           />
           <TextInput
             label="Village"
-            placeholder="e.g. Ban Mai"
+            placeholder="Ban Mai"
             disabled={disabled}
             value={details.village}
             onChange={(event) => set("village", event.currentTarget.value)}
@@ -233,7 +233,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
 
         <div className={styles.formRow}>
           <Textarea
-            label="Short bio / background"
+            label="Short bio and background"
             minRows={4}
             autosize
             disabled={disabled}
@@ -244,7 +244,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
         </div>
 
         <h3 className={styles.subsectionTitle}>Guardian and contact</h3>
-        <p className={styles.subsectionHint}>Internal only — never shown to donors.</p>
+        <p className={styles.subsectionHint}>Internal only. Never shown to donors.</p>
 
         <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
           <TextInput
@@ -258,7 +258,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
           />
           <Select
             label="Relationship to student"
-            placeholder="e.g. Mother"
+            placeholder="Mother"
             clearable
             disabled={disabled}
             data={GUARDIAN_RELATIONSHIPS as unknown as string[]}
@@ -337,7 +337,7 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
               searchable
               clearable
               disabled={disabled}
-              nothingFoundMessage="No school matches — add it instead"
+              nothingFoundMessage="No school matches. Add it instead."
               data={schools.map((school) => ({ value: school.value, label: school.label }))}
               value={details.schoolId}
               onChange={(value) => set("schoolId", value)}
@@ -376,13 +376,13 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
             searchable
             clearable
             disabled={disabled}
-            nothingFoundMessage="No teacher matches — add one instead"
+            nothingFoundMessage="No teacher matches. Add one instead."
             data={teacherOptions as never}
             value={details.teacherProfileId}
             onChange={(value) => set("teacherProfileId", value)}
           />
           <Select
-            label="Scholarship / grant type"
+            label="Scholarship or grant type"
             placeholder="Select scholarship"
             searchable
             clearable
@@ -392,9 +392,9 @@ export const StudentFields: React.FC<StudentFieldsProps> = ({
             onChange={(value) => set("grantTypeId", value)}
           />
           <NumberInput
-            label="Monthly support expected (THB)"
+            label="Monthly support expected"
             {...field("monthlySupport")}
-            placeholder="e.g. 800"
+            placeholder="800"
             min={0}
             thousandSeparator=","
             hideControls

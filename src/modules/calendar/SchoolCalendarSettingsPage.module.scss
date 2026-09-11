@@ -1,0 +1,136 @@
+// Mobile first: every range stacks, the preview reads as a card at the top.
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  max-width: 880px;
+}
+
+.preview {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.previewLine {
+  margin: 0;
+  color: var(--text-body);
+}
+
+.previewSemesters {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  color: var(--text-body);
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.previewSemesterName {
+  font-weight: var(--fw-semibold);
+  color: var(--text-heading);
+}
+
+.rangeRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+}
+
+.monthDay {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-heading);
+}
+
+.monthDayControls {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.day {
+  flex: 0 0 88px;
+}
+
+.month {
+  flex: 1 1 auto;
+}
+
+.error {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--status-danger);
+}
+
+.days {
+  max-width: 240px;
+}
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-block: var(--sp-3);
+  background: var(--bg-app);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.status {
+  font-size: var(--fs-sm);
+  color: var(--status-danger);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+@media (min-width: 641px) {
+  .rangeRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .previewSemesters li {
+    flex-direction: row;
+    gap: var(--sp-2);
+  }
+}
+
+@media (min-width: 1024px) {
+  .preview {
+    padding: var(--sp-5);
+  }
+}

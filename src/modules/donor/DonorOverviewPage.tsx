@@ -113,8 +113,8 @@ export const DonorOverviewPage: React.FC = () => {
     return (
       <EmptyState
         icon="circle-help"
-        title="This account is not linked to a donor record"
-        description="Ask iCare to connect your sign-in to your donor profile."
+        title="Your sign in isn't linked to a donor profile yet"
+        description="Ask us to connect it, and your students will appear here."
       />
     );
   }
@@ -131,8 +131,8 @@ export const DonorOverviewPage: React.FC = () => {
         </h1>
         <p className={styles.sub}>
           {students.length === 0
-            ? "You are not yet supporting a student. iCare will let you know when you are matched."
-            : `You are supporting ${students.length} student${students.length === 1 ? "" : "s"}. ${
+            ? "You're not supporting a student yet. We'll let you know when you're matched."
+            : `You're supporting ${students.length} student${students.length === 1 ? "" : "s"}. ${
                 reports.length === 0
                   ? "No reports have arrived yet."
                   : `The most recent report arrived ${formatDate(
@@ -145,7 +145,7 @@ export const DonorOverviewPage: React.FC = () => {
       {openFlags.length > 0 && (
         <div className={styles.flags}>
           <span className={styles.flagsTitle}>
-            You are waiting on {openFlags.length} answer{openFlags.length === 1 ? "" : "s"}
+            You're waiting on {openFlags.length} answer{openFlags.length === 1 ? "" : "s"}
           </span>
           {openFlags.map((report) => (
             <span key={report.id}>
@@ -219,7 +219,7 @@ export const DonorOverviewPage: React.FC = () => {
           <EmptyState
             icon="clipboard-list"
             title="No reports yet"
-            description="Reports arrive at the end of each school term, once a teacher has written one and iCare has checked it."
+            description="Reports arrive at the end of each school term, once a teacher has written one and we've checked it."
           />
         ) : (
           reports.map((report) => (

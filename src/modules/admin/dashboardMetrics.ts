@@ -29,6 +29,7 @@ import {
 } from "../donor/donorMoney";
 import { isMissingRelation } from "../donor/donorMoney";
 import { loadCycleReports, reportCycle } from "../reports";
+import { loadSponsorshipTodayItems } from "../sponsorship/sponsorshipToday";
 
 const num = (value: unknown): number => {
   const parsed = typeof value === "number" ? value : Number(value ?? 0);
@@ -480,7 +481,7 @@ export const dashboardCsv = (metrics: DashboardMetrics): string => {
       "Active scholarships, prorated across the year. Pledged, not disbursed.",
     ]),
   );
-  lines.push(csvRow([`Received ${year}`, metrics.funding.receivedThisYearThb, "Contributions recorded this year"]));
+  lines.push(csvRow([`Received ${year}`, metrics.funding.receivedThisYearThb, "Payments recorded this year"]));
   lines.push(csvRow(["Unallocated balance", metrics.funding.freeBalanceThb, `Held by ${metrics.funding.donorsWithIdleFunds} donors`]));
   lines.push(csvRow(["Monthly gap", metrics.funding.monthlyGapThb, `${metrics.funding.uncoveredStudents} students short`]));
   lines.push(csvRow(["Annual gap", metrics.funding.annualGapThb, "Monthly gap over twelve months"]));
@@ -563,7 +564,14 @@ export const downloadDashboardCsv = (metrics: DashboardMetrics): void => {
  * more today's problem than one that came in this morning, and a rail that
  * showed only today's arrivals would quietly drop it.
  */
-export type TodayKind = "flagged" | "verify" | "allocate" | "request";
+export type TodayKind =
+  | "flagged"
+  | "verify"
+  | "decision"
+  | "allocate"
+  | "welcome"
+  | "renewal"
+  | "request";
 
 export interface TodayItem {
   id: string;
@@ -574,13 +582,18 @@ export interface TodayItem {
   waitingDays: number | null;
   /** Where acting on it happens. The rail links out; it never acts in place. */
   href: string;
+  /** Left too long. Sorts to the top of the rail and turns the danger tone. */
+  urgent?: boolean;
 }
 
 const RANK: Record<TodayKind, number> = {
   flagged: 0,
   verify: 1,
-  allocate: 2,
-  request: 3,
+  decision: 2,
+  allocate: 3,
+  welcome: 4,
+  renewal: 5,
+  request: 6,
 };
 
 const daysSince = (value: string | null | undefined): number | null => {
@@ -701,7 +714,14 @@ export const loadTodayItems = async (
     });
   });
 
-  if (funding.donorsWithIdleFunds > 0) {
+  // Donor work: who can fund a waiting student, welcomes to send, decisions to
+  // make, support about to end. When there are donors to name, they replace the
+  // single "Allocate" total below, which only said that money was somewhere.
+  const donorWork = await loadSponsorshipTodayItems();
+  items.push(...donorWork);
+  const namedDonors = donorWork.some((item) => item.kind === "allocate");
+
+  if (funding.donorsWithIdleFunds > 0 && !namedDonors) {
     items.push({
       id: "allocate",
       kind: "allocate",
@@ -725,8 +745,10 @@ export const loadTodayItems = async (
 
   // A flag outranks everything -- a donor asked a question and is waiting on a
   // person. Within a kind, longest wait first.
+  // Anything left too long goes above even a flag: it has already waited a month.
   return items.sort(
     (a, b) =>
+      Number(Boolean(b.urgent)) - Number(Boolean(a.urgent)) ||
       RANK[a.kind] - RANK[b.kind] ||
       (b.waitingDays ?? -1) - (a.waitingDays ?? -1) ||
       a.title.localeCompare(b.title),

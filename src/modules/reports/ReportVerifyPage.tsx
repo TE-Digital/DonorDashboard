@@ -16,14 +16,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Stack, Switch, Text, Textarea, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
 import {
   LoadingState,
   PageHeader,
+  emptyValue,
   formatDate,
   formatDateRange,
 } from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 import { Badge, Banner, Button, Dialog, EmptyState, Icon } from "../../design-system/lumen";
 import {
   attachmentName,
@@ -191,22 +194,13 @@ export const ReportVerifyPage: React.FC = () => {
     setBusy(false);
 
     if (writeError) {
-      setError(writeError.message ?? "Could not approve this report.");
-      return;
-    }
-
-    if (recipients.length === 0) {
-      // Approving files the report. With nobody funding this student there is
-      // no email to preview, and pretending otherwise would be theatre.
-      setAnnouncement(
-        "Report approved. No donor is funding this student yet, so nobody has received it.",
-      );
-      setTimeout(() => navigate("/admin/reports"), 900);
+      setError(toFriendlyError(writeError, "errors.save", "approveReport"));
       return;
     }
 
     // Approved is not sent. The email is the entire delivery, so a person sees
-    // it before it goes.
+    // it before it goes. It opens even with no funding donor: an address can
+    // be added there, so a report always has a way to reach somebody.
     setPreviewOpen(true);
   };
 
@@ -227,7 +221,7 @@ export const ReportVerifyPage: React.FC = () => {
     setBusy(false);
 
     if (writeError) {
-      setError(writeError.message ?? "Could not send this back.");
+      setError(toFriendlyError(writeError, "errors.save", "requestReportChanges"));
       return;
     }
 
@@ -241,8 +235,7 @@ export const ReportVerifyPage: React.FC = () => {
     return (
       <EmptyState
         icon="clipboard-list"
-        title="Report not found"
-        description="It may have been removed."
+        title="We couldn't find this report. It may have been removed."
         action={
           <Button variant="secondary" onClick={() => navigate("/admin/reports")}>
             Back to reports
@@ -279,7 +272,7 @@ export const ReportVerifyPage: React.FC = () => {
     setResolving(false);
 
     if (!result.ok) {
-      setError(result.message ?? "The flag could not be cleared.");
+      setError(result.message ?? "We couldn't clear the flag. Try again.");
       return;
     }
 
@@ -291,7 +284,7 @@ export const ReportVerifyPage: React.FC = () => {
     if (recipients.length === 0) {
       return (
         <span className={`${styles.recipients} ${styles.recipientsNone}`}>
-          No donor funds this student yet — approving files the report, it does not send it.
+          No donor funds this student yet. You can add an address when you send it.
         </span>
       );
     }
@@ -345,7 +338,7 @@ export const ReportVerifyPage: React.FC = () => {
       )}
 
       {error && (
-        <Banner tone="danger" title="Could not save">
+        <Banner tone="danger" title="We couldn't save this">
           {error}
         </Banner>
       )}
@@ -388,21 +381,21 @@ export const ReportVerifyPage: React.FC = () => {
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Grade</span>
             <span className={styles.fieldValue}>
-              {report.grade_text || report.grade || "—"}
-              {report.grade_numeric !== null ? ` (${report.grade_numeric})` : ""}
+              {report.grade_text || report.grade || emptyValue()}
+              {report.grade_numeric != null ? ` (${report.grade_numeric})` : ""}
             </span>
           </div>
 
           <div className={styles.field}>
             <span className={styles.fieldLabel}>Written for the donor</span>
-            <span className={styles.fieldValue}>{report.donor_comment || "—"}</span>
+            <span className={styles.fieldValue}>{report.donor_comment || emptyValue()}</span>
           </div>
 
           {report.internal_note && (
             <div className={styles.internal}>
               <div className={styles.internalLabel}>
                 <Icon name="shield-off" size={14} />
-                Internal note — never sent to a donor
+                Internal note, never sent to a donor
               </div>
               <div className={styles.fieldValue}>{report.internal_note}</div>
             </div>
@@ -466,7 +459,7 @@ export const ReportVerifyPage: React.FC = () => {
 
           <TextInput
             label={writing === "en" ? "Grade, as the donor reads it" : "ผลการเรียนที่ผู้บริจาคจะเห็น"}
-            placeholder={writing === "en" ? "Top of her class" : "ได้ที่หนึ่งของห้อง"}
+            placeholder={writing === "en" ? "Top of the class" : "ได้ที่หนึ่งของห้อง"}
             lang={writing}
             value={writing === "en" ? gradeEn : gradeTh}
             onChange={(event) =>
@@ -480,7 +473,7 @@ export const ReportVerifyPage: React.FC = () => {
             label={writing === "en" ? "The update" : "เนื้อหารายงาน"}
             placeholder={
               writing === "en"
-                ? "Mali finished top of her class this term and has started helping the younger children with their reading."
+                ? "Mali finished top of the class this term and has started helping the younger children with their reading."
                 : "ภาคเรียนนี้มะลิสอบได้ที่หนึ่งของห้อง และเริ่มช่วยสอนการอ่านให้น้อง ๆ"
             }
             autosize
@@ -496,7 +489,7 @@ export const ReportVerifyPage: React.FC = () => {
 
           <div className={styles.field}>
             <span className={styles.fieldLabel}>
-              Photographs and files — each one off by default
+              Photographs and files. Each one stays hidden until you turn it on.
             </span>
             <div className={styles.attachments}>
               {attachments.length === 0 && (
@@ -546,7 +539,7 @@ export const ReportVerifyPage: React.FC = () => {
                 ? "A version is missing"
                 : alreadySent
                   ? "Save and resend"
-                  : "Approve & send to donor"}
+                  : "Approve and send"}
           </Button>
         </div>
       </div>
@@ -564,10 +557,37 @@ export const ReportVerifyPage: React.FC = () => {
         reportId={report.id}
         opened={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        onSent={(sent) => {
+        onSent={({ sent, skipped, unsaved }) => {
+          const list = new Intl.ListFormat("en", { style: "long", type: "conjunction" });
+          const sentNames = list.format(sent.map((r) => r.name ?? r.email ?? "a donor"));
+          const skippedNames = list.format(skipped.map((r) => r.name ?? "a donor"));
+          const whose = studentName ? `${studentName}'s report is` : "The report is";
           setAnnouncement(
-            `Report sent to ${sent.map((r) => r.name ?? "a donor").join(" and ")}.`,
+            skipped.length > 0
+              ? `${whose} sent to ${sentNames}. Not sent to ${skippedNames}: they have no email address saved.`
+              : `${whose} sent to ${sentNames}.`,
           );
+          if (skipped.length > 0) {
+            // The live region is off-screen. A skipped donor has to be seen, not
+            // only announced: until report drafts exist this is the only notice.
+            notifications.show({
+              color: "yellow",
+              title: `Not sent to ${skippedNames}`,
+              message:
+                "We don't have an email address for them. Add one to the donor, then send this report again. Donors who already got it won't get it twice.",
+              autoClose: false,
+            });
+          }
+          if (unsaved.length > 0) {
+            // They got the email; only the saving failed. Said so the address
+            // isn't assumed to be on the record next time.
+            notifications.show({
+              color: "yellow",
+              title: `Address not saved for ${list.format(unsaved)}`,
+              message: "They got this report, but the address didn't save to the donor's page. Add it there.",
+              autoClose: false,
+            });
+          }
           setTimeout(() => navigate("/admin/reports"), 900);
         }}
       />

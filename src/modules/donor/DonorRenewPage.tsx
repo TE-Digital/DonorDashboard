@@ -198,7 +198,7 @@ export const DonorRenewPage: React.FC = () => {
     setSuccess(false);
 
     if (!name.trim() || !email.trim() || !message.trim()) {
-      setError("Please fill in your name, email, and message.");
+      setError("Add your name, email and message so we can reply.");
       setSubmitting(false);
       return;
     }
@@ -217,7 +217,9 @@ export const DonorRenewPage: React.FC = () => {
 
     if (fnError) {
       console.error("donor-renew-request error", fnError);
-      setError(fnError.message ?? "Could not send your request.");
+      setError(
+        "We couldn't send your request. Check your connection and try again."
+      );
       setSubmitting(false);
       return;
     }
@@ -235,17 +237,12 @@ export const DonorRenewPage: React.FC = () => {
         </ThemeIcon>
 
         <Text fw={800} size="32px" ta="center">
-          Continue Your Impact
-        </Text>
-
-        <Text size="sm" c="dimmed" ta="center">
-          iCare Thailand Foundation – Investing in tomorrow, empowering today
+          Keep supporting a student
         </Text>
 
         <Text size="md" c="dimmed" ta="center" maw={520}>
-          The impact of your kindness is invaluable. If you’d like to continue
-          supporting a student—or adjust your scholarship—we’re here to help.
-          Thank you for investing in their future.
+          If you’d like to keep supporting a student, or change your
+          scholarship, we’re here to help.
         </Text>
       </Stack>
 
@@ -258,7 +255,7 @@ export const DonorRenewPage: React.FC = () => {
               src={url}
               w={150}
               radius="md"
-              alt="Impact photo"
+              alt="A photo from one of your students' reports"
               style={{ objectFit: "cover", maxHeight: 140 }}
             />
           ))}
@@ -290,8 +287,7 @@ export const DonorRenewPage: React.FC = () => {
               variant="light"
               icon={<IconCheck size={16} />}
             >
-              Thank you! Your request was sent successfully. Our team will get
-              back to you via email.
+              Thank you. We have your request and will reply by email.
             </Alert>
           )}
 
@@ -326,7 +322,7 @@ export const DonorRenewPage: React.FC = () => {
               disabled={loadingGrantTypes}
             />
             <Text size="xs" c="dimmed">
-              If you would like to continue with a specific grant type, choose it here.
+              If you'd like to keep a specific grant type, choose it here.
             </Text>
           </Stack>
 

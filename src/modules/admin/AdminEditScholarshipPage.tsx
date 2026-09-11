@@ -13,6 +13,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import {
   FormBody,
   FormError,
@@ -104,7 +105,7 @@ const validateAward = (values: {
   }
 
   if (values.amount != null && values.amount < 0) {
-    errors.amount = "An amount cannot be negative.";
+    errors.amount = "Enter an amount of 0 or more.";
   }
 
   // Money that is marked as paid needs the day it was paid, or the payment
@@ -230,7 +231,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
 
         if (schError) throw schError;
         if (!schData) {
-          setError("Scholarship not found.");
+          setError("We couldn't find this scholarship. It may have been removed.");
           setLoading(false);
           return;
         }
@@ -257,9 +258,8 @@ export const AdminEditScholarshipPage: React.FC = () => {
         );
         setPaymentNote(row.payment_note || "");
         setNotes(row.notes || "");
-      } catch (err: any) {
-        console.error("Error loading scholarship", err);
-        setError("Could not load scholarship.");
+      } catch (err: unknown) {
+        setError(toFriendlyError(err, "errors.load"));
       } finally {
         setLoading(false);
       }
@@ -360,16 +360,14 @@ export const AdminEditScholarshipPage: React.FC = () => {
         .eq("id", scholarshipId);
 
       if (updateError) {
-        console.error("Update scholarship error", updateError);
-        setError(updateError.message);
+        setError(toFriendlyError(updateError, "errors.save"));
         setSaving(false);
         return;
       }
 
       navigate("/admin/scholarships", { replace: true });
-    } catch (err: any) {
-      console.error("Unexpected error updating scholarship", err);
-      setError(err.message ?? "Unexpected error while updating scholarship.");
+    } catch (err: unknown) {
+      setError(toFriendlyError(err, "errors.save"));
       setSaving(false);
     }
   };
@@ -421,7 +419,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Period & amount">
+        <FormSection title="Period and amount">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <DateInput label="Period start" {...field("periodStart")} value={periodStart} onChange={setPeriodStart} required />
             <DateInput label="Period end" {...field("periodEnd")} value={periodEnd} onChange={setPeriodEnd} required />
@@ -431,7 +429,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
               value={amountForPeriod}
               onChange={(val) => setAmountForPeriod(typeof val === "number" ? val : undefined)}
               min={0}
-              placeholder="e.g. 8400"
+              placeholder="8400"
             />
             <Select
               label="Currency"
@@ -443,7 +441,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Status & payment">
+        <FormSection title="Status and payment">
           <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
             <Select
               label="Status"
@@ -471,7 +469,7 @@ export const AdminEditScholarshipPage: React.FC = () => {
               />
             </Stack>
             <TextInput
-              label="Payment note / reference"
+              label="Payment note or reference"
               value={paymentNote}
               onChange={(e) => setPaymentNote(e.currentTarget.value)}
             />

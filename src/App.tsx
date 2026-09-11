@@ -78,6 +78,8 @@ import { DonorOverviewPage } from "./modules/donor/DonorOverviewPage";
 import { DonorStudentDetailPage } from "./modules/donor/DonorStudentDetailPage";
 import { DonorRenewPage } from "./modules/donor/DonorRenewPage";
 import { ReportVerifyPage } from "./modules/reports/ReportVerifyPage";
+import { SchoolCalendarSettingsPage } from "./modules/calendar/SchoolCalendarSettingsPage";
+import { EmailTemplatesPage } from "./modules/sponsorship/EmailTemplatesPage";
 
 import { ProfilePage } from "./modules/profile/ProfilePage";
 
@@ -243,6 +245,10 @@ const App: React.FC = () => {
 
             {/* Branding */}
             <Route path="branding" element={<AdminBrandingPage />} />
+            {/* When the Thai school year and its semesters run. */}
+            <Route path="settings/calendar" element={<SchoolCalendarSettingsPage />} />
+            {/* The words around donor emails, in English and Thai. */}
+            <Route path="settings/email-templates" element={<EmailTemplatesPage />} />
           </Route>
 
           {/* ---------- TEACHER AREA ---------- */}

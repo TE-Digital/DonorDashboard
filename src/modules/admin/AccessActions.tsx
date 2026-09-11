@@ -107,7 +107,7 @@ export const AccessMenu: React.FC<AccessMenuProps> = ({
           title: copy.done,
           value: result.actionLink,
           owner: person,
-          redacted: "One-time sign-in link · expires",
+          redacted: "Single use sign in link · expires",
         });
       } else {
         notifications.show({
@@ -141,7 +141,7 @@ export const AccessMenu: React.FC<AccessMenuProps> = ({
         message:
           error instanceof AccessActionError
             ? error.message
-            : "The action did not go through. Try again in a minute.",
+            : "We couldn't send that. Check your connection and try again in a minute.",
         color: "red",
         icon: <Icon name="circle-alert" size={16} />,
         autoClose: 6000,
@@ -223,7 +223,7 @@ export const AccessMenu: React.FC<AccessMenuProps> = ({
                 }
               }}
             >
-              Copy sign-in address
+              Copy sign in address
             </Button>
           )}
         </div>
@@ -252,7 +252,7 @@ export const AccessMenu: React.FC<AccessMenuProps> = ({
           {actions.length === 0 && (
             // A dead control with no reason is a dead end, so the menu says why
             // it is empty rather than showing nothing.
-            <Menu.Item disabled>No sign-in exists for this person yet</Menu.Item>
+            <Menu.Item disabled>This person can't sign in yet</Menu.Item>
           )}
 
           {actions.map((action) => (
@@ -281,7 +281,7 @@ export const AccessMenu: React.FC<AccessMenuProps> = ({
                   }
                 }}
               >
-                Copy sign-in address
+                Copy sign in address
               </Menu.Item>
             </>
           )}

@@ -123,6 +123,15 @@
   justify-content: flex-start;
 }
 
+// Donor chips beside a "needs a decision" badge, wrapping rather than widening the column.
+.donorCell {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
 .rowActions :global(.mantine-ActionIcon-root) {
   color: var(--text-muted);
   border-radius: var(--radius);

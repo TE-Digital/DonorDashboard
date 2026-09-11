@@ -1,7 +1,6 @@
 // src/modules/teacher/TeacherStudentDetailPage.tsx
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Anchor,
   Avatar,
   Button,
@@ -21,12 +20,14 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { Link, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabaseClient";
 import { ReportList } from "../reports";
 import { asRow } from "../../lib/supabaseRelations";
+import { toFriendlyError } from "../../i18n/errors";
 import {
+  InlineMessage,
   LoadingState,
-  errorSummary,
   fieldId,
   firstError,
   focusField,
@@ -81,6 +82,7 @@ type ReportRow = {
 };
 
 export const TeacherStudentDetailPage: React.FC = () => {
+  const { t } = useTranslation();
   const { studentId } = useParams<{ studentId: string }>();
 
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!studentId) {
-        setError("Missing student id");
+        setError(t("errors.missingStudentId"));
         setLoading(false);
         return;
       }
@@ -151,14 +153,13 @@ export const TeacherStudentDetailPage: React.FC = () => {
           .maybeSingle();
 
         if (studentError) {
-          console.error("Error loading student", studentError);
-          setError("Could not load student details.");
+          setError(toFriendlyError(studentError, "errors.load", "Error loading student"));
           setLoading(false);
           return;
         }
 
         if (!data) {
-          setError("Student not found.");
+          setError(t("teacherPages.studentDetail.notFound"));
           setLoading(false);
           return;
         }
@@ -205,7 +206,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
           setSchools(
             (schoolRows ?? []).map((row: any) => ({
               value: row.id as string,
-              label: (row.name as string) || "(no name)",
+              label: (row.name as string) || t("teacherPages.common.unnamedSchool"),
             }))
           );
         }
@@ -230,9 +231,8 @@ export const TeacherStudentDetailPage: React.FC = () => {
         } else {
           setReports((reportRows ?? []) as ReportRow[]);
         }
-      } catch (err: any) {
-        console.error("Unexpected error loading student detail", err);
-        setError(err.message ?? "Unexpected error while loading student.");
+      } catch (err: unknown) {
+        setError(toFriendlyError(err, "errors.load", "Unexpected error loading student detail"));
       } finally {
         setLoading(false);
       }
@@ -276,7 +276,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
       if (uploadError) {
         console.error(uploadError);
-        setError("Photo upload failed.");
+        setError(t("person.photoFailed"));
         return;
       }
 
@@ -287,15 +287,15 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
       if (updatePhotoError) {
         console.error(updatePhotoError);
-        setError("Student saved, but unable to link photo.");
+        setError(t("teacherPages.studentDetail.photoLinkFailed"));
         return;
       }
 
       setProfilePhotoPath(filePath);
-      setMessage("Photo updated.");
+      setMessage(t("person.photoUpdated"));
     } catch (e) {
       console.error(e);
-      setError("Unexpected error while uploading photo.");
+      setError(t("person.photoFailed"));
     } finally {
       setUploadingPhoto(false);
     }
@@ -314,18 +314,18 @@ export const TeacherStudentDetailPage: React.FC = () => {
     // save a student the admin form would have refused.
     const trimmedName = name.trim();
     const problems: FieldErrors<StudentEditField> = {};
-    if (!trimmedName) problems.name = "The student's name is required.";
-    if (!contactGuardian.trim()) problems.guardian = "A guardian name is required on every student.";
+    if (!trimmedName) problems.name = t("teacherPages.studentDetail.nameRequired");
+    if (!contactGuardian.trim()) problems.guardian = t("student.guardianRequired");
     if (!contactPhone.trim()) {
-      problems.phone = "A contact phone number is required on every student.";
+      problems.phone = t("student.phoneRequired");
     } else if (!isPhone(contactPhone)) {
-      problems.phone = "Enter a Thai phone number, for example 081 234 5678.";
+      problems.phone = t("person.phoneHint");
     }
-    if (!schoolId) problems.schoolId = "Select the school this student attends.";
+    if (!schoolId) problems.schoolId = t("teacherPages.studentDetail.schoolRequired");
     setFieldErrors(problems);
 
     if (hasErrors(problems)) {
-      setError(errorSummary(problems));
+      setError(t("teacherPages.common.fieldsNeedAttention", { count: Object.keys(problems).length }));
       focusField(FORM_ID, firstError(problems, STUDENT_EDIT_ORDER));
       setSaving(false);
       return;
@@ -368,15 +368,12 @@ export const TeacherStudentDetailPage: React.FC = () => {
     setSaving(false);
 
     if (updateError) {
-      console.error("Error updating student", updateError);
-      setError(updateError.message);
+      setError(toFriendlyError(updateError, "errors.save", "Error updating student"));
       return;
     }
 
     if (!data) {
-      setError(
-        "Student could not be updated. You may not have permission to edit this record."
-      );
+      setError(t("teacherPages.studentDetail.saveDenied"));
       return;
     }
 
@@ -384,7 +381,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
       prev ? ({ ...prev, ...data } as StudentDetail) : (data as StudentDetail)
     );
 
-    setMessage("Student details have been saved.");
+    setMessage(t("teacherPages.studentDetail.saved", { name: trimmedName }));
   };
 
   if (loading) {
@@ -397,10 +394,10 @@ export const TeacherStudentDetailPage: React.FC = () => {
     return (
       <Center mih="60vh">
         <Stack align="center">
-          <Title order={3}>Student details</Title>
-          <Alert color="red" variant="light">
+          <Title order={3}>{t("teacherPages.studentDetail.title")}</Title>
+          <InlineMessage tone="error">
             {error}
-          </Alert>
+          </InlineMessage>
         </Stack>
       </Center>
     );
@@ -409,42 +406,39 @@ export const TeacherStudentDetailPage: React.FC = () => {
   if (!student) {
     return (
       <Center mih="60vh">
-        <Text>Student could not be found.</Text>
+        <Text>{t("teacherPages.studentDetail.notFound")}</Text>
       </Center>
     );
   }
 
+  const displayName = student.name || t("teacherPages.common.unnamed");
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="center">
-        <div>
-          <Title order={3}>Student details</Title>
-          <Text size="sm" c="dimmed">
-            View and update the basic information for this student.
-          </Text>
-        </div>
+        <Title order={3}>{t("teacherPages.studentDetail.title")}</Title>
       </Group>
 
       <Card withBorder component="form" onSubmit={handleSaveStudent}>
         <Stack gap="sm">
           {error && (
-            <Alert color="red" variant="light">
+            <InlineMessage tone="error">
               {error}
-            </Alert>
+            </InlineMessage>
           )}
 
           {message && (
-            <Alert color="green" variant="light">
+            <InlineMessage tone="success">
               {message}
-            </Alert>
+            </InlineMessage>
           )}
 
           <Grid gutter="md">
             {/* LEFT COLUMN: Photo */}
             <Grid.Col span={{ base: 12, md: 4 }}>
               <Stack gap="sm">
-                <Text fw={500} size="sm">
-                  Photo
+                <Text fw={500} size="sm" id={`${FORM_ID}-photo`}>
+                  {t("teacherPages.studentDetail.photo")}
                 </Text>
                 <Divider />
 
@@ -453,12 +447,14 @@ export const TeacherStudentDetailPage: React.FC = () => {
                     size={96}
                     radius="xl"
                     src={profilePhotoUrl ?? undefined}
+                    alt={t("teacherPages.studentDetail.photoAlt", { name: displayName })}
                   />
                 </Group>
 
+                {/* The heading above names this field, so no second visible label (R9). */}
                 <FileInput
-                  label="Profile photo"
-                  placeholder="Upload image"
+                  aria-labelledby={`${FORM_ID}-photo`}
+                  placeholder={t("teacherPages.studentDetail.choosePhoto")}
                   value={profilePhotoFile}
                   onChange={setProfilePhotoFile}
                   accept="image/*"
@@ -471,7 +467,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   loading={uploadingPhoto}
                   disabled={!profilePhotoFile}
                 >
-                  Upload
+                  {t("teacherPages.studentDetail.uploadPhoto")}
                 </Button>
               </Stack>
             </Grid.Col>
@@ -480,7 +476,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
             <Grid.Col span={{ base: 12, md: 8 }}>
               <Stack gap="sm">
                 <TextInput
-                  label="Name"
+                  label={t("person.name")}
                   id={fieldId(FORM_ID, "name")}
                   error={fieldErrors.name}
                   required
@@ -488,14 +484,14 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   onChange={(e) => setName(e.currentTarget.value)}
                 />
                 <TextInput
-                  label="Nickname"
+                  label={t("person.nickname")}
                   value={nickname}
                   onChange={(e) => setNickname(e.currentTarget.value)}
                 />
                 <Group grow>
                   <Select
-                    label="Grade level"
-                    placeholder="Select grade"
+                    label={t("student.gradeLevel")}
+                    placeholder={t("teacherPages.studentDetail.gradePlaceholder")}
                     value={gradeLevel}
                     onChange={setGradeLevel}
                     // The same list the admin form writes. This picker used to
@@ -506,24 +502,24 @@ export const TeacherStudentDetailPage: React.FC = () => {
                     clearable
                   />
                   <TextInput
-                    label="Village / community"
+                    label={t("student.village")}
                     value={village ?? ""}
                     onChange={(e) => setVillage(e.currentTarget.value)}
                   />
                 </Group>
                 <Group grow>
                   <DateInput
-                    label="Birthdate"
+                    label={t("student.birthdate")}
                     value={birthdate}
                     onChange={setBirthdate}
                     clearable
                   />
                   <Select
-                    label="School"
+                    label={t("student.school")}
                     id={fieldId(FORM_ID, "schoolId")}
                     error={fieldErrors.schoolId}
                     required
-                    placeholder="Select school"
+                    placeholder={t("teacherPages.studentDetail.schoolPlaceholder")}
                     data={schools}
                     value={schoolId}
                     onChange={setSchoolId}
@@ -531,10 +527,10 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   />
                 </Group>
                 <TextInput
-                  label="Expected monthly support (THB)"
+                  label={t("student.monthlySupport")}
                   value={monthlySupport}
                   onChange={(e) => setMonthlySupport(e.currentTarget.value)}
-                  placeholder="e.g. 1000"
+                  placeholder="1000"
                 />
               </Stack>
             </Grid.Col>
@@ -546,10 +542,10 @@ export const TeacherStudentDetailPage: React.FC = () => {
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Stack gap="sm">
                 <Text fw={500} size="sm">
-                  Guardian / contact details
+                  {t("teacherPages.studentDetail.guardianHeading")}
                 </Text>
                 <TextInput
-                  label="Guardian name"
+                  label={t("student.guardian")}
                   id={fieldId(FORM_ID, "guardian")}
                   error={fieldErrors.guardian}
                   required
@@ -557,7 +553,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   onChange={(e) => setContactGuardian(e.currentTarget.value)}
                 />
                 <TextInput
-                  label="Phone number"
+                  label={t("person.phone")}
                   id={fieldId(FORM_ID, "phone")}
                   error={fieldErrors.phone}
                   type="tel"
@@ -568,12 +564,12 @@ export const TeacherStudentDetailPage: React.FC = () => {
                   onChange={(e) => setContactPhone(e.currentTarget.value)}
                 />
                 <TextInput
-                  label="Address"
+                  label={t("person.address")}
                   value={contactAddress}
                   onChange={(e) => setContactAddress(e.currentTarget.value)}
                 />
                 <TextInput
-                  label="LINE / WhatsApp"
+                  label={t("person.lineOrWhatsapp")}
                   value={contactLineOrWhatsApp}
                   onChange={(e) =>
                     setContactLineOrWhatsApp(e.currentTarget.value)
@@ -584,11 +580,12 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Stack gap="sm">
-                <Text fw={500} size="sm">
-                  Background / notes
+                {/* One heading names the field; no repeated visible label (R9). */}
+                <Text fw={500} size="sm" id={`${FORM_ID}-background`}>
+                  {t("student.background")}
                 </Text>
                 <Textarea
-                  aria-label="Background / notes"
+                  aria-labelledby={`${FORM_ID}-background`}
                   minRows={4}
                   autosize
                   value={bio ?? ""}
@@ -600,7 +597,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
 
           <Group justify="flex-end" mt="sm">
             <Button type="submit" loading={saving}>
-              Save changes
+              {t("common.saveChanges")}
             </Button>
           </Group>
         </Stack>
@@ -612,7 +609,7 @@ export const TeacherStudentDetailPage: React.FC = () => {
           student while they write it. */}
       <Card withBorder>
         <Stack gap="sm">
-          <Text fw={500}>Term updates</Text>
+          <Text fw={500}>{t("teacherPages.studentDetail.reports")}</Text>
           <ReportList studentId={studentId ?? ""} studentName={student?.name ?? null} />
         </Stack>
       </Card>

@@ -57,7 +57,7 @@ export const ProfileCompletionBar: React.FC<ProfileCompletionBarProps> = ({
       <button
         type="button"
         className={`${styles.wrap} ${styles[size]} ${styles.clickable}`}
-        title={`${title} — click to jump to the first one`}
+        title={`${title}. Select to go to the first one.`}
         aria-label={`${label} Jump to ${completion.missing[0].label}.`}
         onClick={(event) => {
           event.stopPropagation();

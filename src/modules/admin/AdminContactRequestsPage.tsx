@@ -8,6 +8,8 @@ import {
   PageHeader,
   StatusBadge,
   TableSection,
+  emptyValue,
+  formatDateTime,
   type TableKpi,
 } from "../../design-system";
 import {
@@ -76,7 +78,7 @@ export const AdminContactRequestsPage: React.FC = () => {
 
     if (error) {
       console.error("Error loading contact_requests", error);
-      setError("Could not load contact requests.");
+      setError("We couldn't load contact requests. Check your connection and try again.");
       setRequests([]);
       setLoading(false);
       return;
@@ -185,7 +187,7 @@ export const AdminContactRequestsPage: React.FC = () => {
       label: "Created",
       width: 160,
       muted: true,
-      render: (r) => new Date(r.created_at).toLocaleString(),
+      render: (r) => formatDateTime(r.created_at),
     },
     {
       key: "contact_type",
@@ -209,10 +211,10 @@ export const AdminContactRequestsPage: React.FC = () => {
       key: "grant_type",
       label: "Grant type",
       width: 150,
-      filterValue: (r) => r.grant_types?.name ?? "—",
-      render: (r) => r.grant_types?.name ?? "–",
+      filterValue: (r) => r.grant_types?.name ?? emptyValue(),
+      render: (r) => r.grant_types?.name ?? emptyValue(),
     },
-    { key: "source", label: "Source", width: 130, muted: true, render: (r) => r.source || "–" },
+    { key: "source", label: "Source", width: 130, muted: true, render: (r) => r.source || emptyValue() },
     {
       key: "message",
       label: "Message",
@@ -271,8 +273,8 @@ export const AdminContactRequestsPage: React.FC = () => {
     <>
       <Stack gap="md">
         <PageHeader
-          title="Contact & renewal requests"
-          subtitle="Overview of donor renewal requests and other contact leads submitted via the dashboards or future public forms."
+          title="Contact and renewal requests"
+          subtitle="Donors asking to renew, and anyone else who got in touch through the dashboards."
           actions={<LumenButton variant="secondary" icon="refresh-cw" onClick={loadRequests}>Refresh</LumenButton>}
         />
 
@@ -331,7 +333,7 @@ export const AdminContactRequestsPage: React.FC = () => {
         {openedRequest && (
           <Stack gap="sm">
             <Text size="sm" c="dimmed">
-              {new Date(openedRequest.created_at).toLocaleString()}
+              {formatDateTime(openedRequest.created_at)}
             </Text>
 
             <Group gap="xs">
@@ -365,8 +367,7 @@ export const AdminContactRequestsPage: React.FC = () => {
 
             {openedRequest.handled_at && (
               <Text size="xs" c="dimmed">
-                Handled at:{" "}
-                {new Date(openedRequest.handled_at).toLocaleString()}
+                Handled {formatDateTime(openedRequest.handled_at)}
               </Text>
             )}
 

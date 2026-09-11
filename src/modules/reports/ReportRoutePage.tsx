@@ -43,8 +43,8 @@ export const ReportRoutePage: React.FC<ReportRoutePageProps> = ({ area }) => {
       title={editing ? "Edit report" : "Add report"}
       subtitle={
         editing
-          ? "Update this term report. The donor comment is sent to the sponsor as written."
-          : "Record how this student is doing this term. The donor comment is sent to the sponsor as written."
+          ? "The donor comment goes to the donor as written."
+          : "Record how this student is doing this term. The donor comment goes to the donor as written."
       }
     >
       <ReportForm

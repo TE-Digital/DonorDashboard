@@ -53,14 +53,14 @@ export const DonorBalanceCard: React.FC<DonorBalanceCardProps> = ({
   const shortfall = donorView ? null : shortfallSentence(balance);
 
   const note = (() => {
-    if (unavailable) return "Contribution records are not set up on this database yet.";
+    if (unavailable) return "Payments can't be recorded yet. Balances show as zero until this is set up.";
     if (shortfall) return shortfall;
-    if (negative) return `Over-allocated by ${formatCurrency(Math.abs(free))}`;
+    if (negative) return `${formatCurrency(Math.abs(free))} more than this donor has given`;
     if (free === 0 && balance.total_given_thb === 0) {
-      return donorView ? "No contributions recorded yet." : "No money recorded for this donor yet.";
+      return donorView ? "No payments recorded yet." : "No money recorded for this donor yet.";
     }
     if (free === 0) return donorView ? "All of your giving is supporting a student." : "Fully allocated.";
-    return donorView ? "Not yet assigned to a student" : "Free to allocate";
+    return donorView ? "Not yet assigned to a student" : "Waiting to be allocated";
   })();
 
   return (
@@ -77,7 +77,7 @@ export const DonorBalanceCard: React.FC<DonorBalanceCardProps> = ({
     >
       <div>
         <div className={styles.label}>
-          {negative ? "Over-allocated" : donorView ? "Unassigned" : "Free balance"}
+          {negative ? "More allocated than given" : donorView ? "Unassigned" : "Unallocated"}
         </div>
         {/* The figure changes as an allocation is typed next door, so it is
             announced rather than silently redrawn. */}
@@ -106,7 +106,7 @@ export const DonorBalanceCard: React.FC<DonorBalanceCardProps> = ({
         <div className={styles.actions}>
           {onRecordContribution && (
             <Button variant="primary" icon="banknote" onClick={onRecordContribution}>
-              Record contribution
+              Record payment
             </Button>
           )}
           {onAllocate && (

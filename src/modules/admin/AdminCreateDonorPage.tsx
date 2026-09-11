@@ -53,7 +53,6 @@ export const AdminCreateDonorPage: React.FC = () => {
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors<DonorField>>({});
-  const [emailWarning, setEmailWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -83,24 +82,6 @@ export const AdminCreateDonorPage: React.FC = () => {
     load();
   }, []);
 
-  const checkEmail = async (val: string) => {
-    if (!val) {
-      setEmailWarning(null);
-      return;
-    }
-    const { data } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", val.trim())
-      .maybeSingle();
-    if (data) {
-      setEmailWarning(
-        "This email is already associated with a user account. The donor will be automatically linked."
-      );
-    } else {
-      setEmailWarning(null);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,11 +188,7 @@ const { data: inserted, error: insertError } = await supabase
                 id={fieldId(FORM_ID, "email")}
                 error={fieldErrors.email}
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.currentTarget.value);
-                  setEmailWarning(null);
-                }}
-                onBlur={() => checkEmail(email)}
+                onChange={(e) => setEmail(e.currentTarget.value)}
                 placeholder="name@example.com"
               />
             </div>

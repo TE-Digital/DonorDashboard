@@ -221,25 +221,25 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
 
       const problems: FieldErrors<SchoolField> = {};
 
-      if (!thaiName.trim()) problems.thaiName = "The Thai school name is required.";
-      if (!englishName.trim()) problems.englishName = "The English school name is required.";
+      if (!thaiName.trim()) problems.thaiName = "Add the school's name in Thai.";
+      if (!englishName.trim()) problems.englishName = "Add the school's name in English.";
 
       if (!province) problems.province = "Select a province.";
-      if (!district.trim()) problems.district = "The district is required.";
-      if (!subdistrict.trim()) problems.subdistrict = "The subdistrict is required.";
+      if (!district.trim()) problems.district = "Select the district.";
+      if (!subdistrict.trim()) problems.subdistrict = "Select the subdistrict.";
 
       // "P6 to K1" is not a range. The two selects cannot know about each
       // other, so the pair is checked here.
       if (gradeFrom && gradeTo && GRADES.indexOf(gradeTo) < GRADES.indexOf(gradeFrom)) {
-        problems.gradeTo = `The last grade cannot come before ${gradeFrom}.`;
+        problems.gradeTo = `The last grade can't come before ${gradeFrom}.`;
       }
 
       if (dateProblem(dateJoined ? dateJoined.toISOString() : null) === "future") {
-        problems.dateJoined = "A school cannot have joined on a date that has not happened.";
+        problems.dateJoined = "Choose today or an earlier date. A school can't join in the future.";
       }
 
       if (!contactName.trim()) {
-        problems.contactName = "A contact person is required for school coordination.";
+        problems.contactName = "Add a contact person for this school.";
       }
 
       // A name with no channel is not a contact. Which channel is theirs to
@@ -447,9 +447,8 @@ export const SchoolForm = forwardRef<EntityFormHandle, SchoolFormProps>(
           <Textarea label="Description" minRows={4} value={description} onChange={(e) => setDescription(e.currentTarget.value)} placeholder="Anything a field officer should know before visiting" />
           <div className={styles.sectionNote}>
             <InlineMessage tone="info" size="xs">
-              The schools table stores the English name and the composed address. The remaining
-              fields are shown on the school page from a derived profile until columns exist for
-              them.
+              Only the school's English name and address are saved for now. The other details
+              show on the school's page but aren't stored yet.
             </InlineMessage>
           </div>
         </FormSection>

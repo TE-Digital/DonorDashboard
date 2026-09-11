@@ -84,7 +84,9 @@ export const AdminDashboardPage: React.FC = () => {
         // A read that fails is said out loud. An empty dashboard that looks
         // like a quiet month is the one failure mode worth going out of our
         // way to avoid.
-        if (!cancelled) setLoadError("The dashboard could not be loaded. Try again shortly.");
+        if (!cancelled) {
+          setLoadError("We couldn't load the dashboard. Check your connection and try again.");
+        }
       }
       if (!cancelled) setLoading(false);
     };
@@ -153,7 +155,7 @@ export const AdminDashboardPage: React.FC = () => {
       downloadDashboardCsv(metrics);
     } catch (error) {
       console.error("Dashboard export failed", error);
-      setExportError("The export could not be created. Try again.");
+      setExportError("We couldn't create the export. Try again in a minute.");
     }
     setExporting(false);
   };
@@ -166,7 +168,7 @@ export const AdminDashboardPage: React.FC = () => {
         <HeroSection />
         <PageHeader title="Dashboard" />
         <InlineMessage tone="error">
-          {loadError ?? "The dashboard could not be loaded."}
+          {loadError ?? "We couldn't load the dashboard. Check your connection and try again."}
         </InlineMessage>
       </Stack>
     );
@@ -195,8 +197,8 @@ export const AdminDashboardPage: React.FC = () => {
 
       {!metrics.moneyAvailable && (
         <InlineMessage tone="warning">
-          The funding tables are not set up on this database yet, so every money figure
-          below reads zero. Apply the donor funding migration to see real balances.
+          Donor funding isn't set up yet, so every money figure below reads zero. Real
+          balances appear here once it is.
         </InlineMessage>
       )}
 

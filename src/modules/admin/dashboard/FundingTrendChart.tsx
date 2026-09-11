@@ -70,7 +70,7 @@ export const FundingTrendChart: React.FC<FundingTrendChartProps> = ({ points }) 
     >
       {everything ? (
         <p className={styles.headlineNote}>
-          No contributions or allocations recorded in the last twelve months.
+          No payments or allocations recorded in the last twelve months.
         </p>
       ) : (
         <>

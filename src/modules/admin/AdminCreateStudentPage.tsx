@@ -35,10 +35,7 @@ export const AdminCreateStudentPage: React.FC = () => {
   const teacherUserId = searchParams.get("teacherUserId");
 
   return (
-    <FormPage
-      title="Add student"
-      subtitle="Create the student record, link them to a school and a teacher, and capture the contact details."
-    >
+    <FormPage title="Add student">
       <StudentForm
         ref={form}
         showActions

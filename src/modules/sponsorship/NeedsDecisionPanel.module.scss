@@ -1,0 +1,91 @@
+// Mobile first: everything stacks, and the choices read top to bottom in the
+// order an admin would usually weigh them.
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.happened {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.6;
+  color: var(--text-heading);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-sunken);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+
+  dt {
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-heading);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+}
+
+.choiceNote {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+// Mobile first: the primary way forward is last in the list and stays in view
+// at the foot of the full screen panel. From tablet up it sits in the list.
+.primaryChoice {
+  position: sticky;
+  bottom: 0;
+  padding-block: var(--sp-3);
+  background: var(--surface-card);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (min-width: 641px) {
+  .primaryChoice {
+    position: static;
+    padding-block: 0;
+    border-top: 0;
+  }
+}

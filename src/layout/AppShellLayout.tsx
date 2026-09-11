@@ -6,7 +6,7 @@
 //
 // Nav item ids ARE route paths — SideNav hands the id straight to navigate().
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Burger, Drawer, Image, ScrollArea } from "@mantine/core";
 import { useMantineTheme } from "@mantine/core";
@@ -18,6 +18,7 @@ import { LanguageSwitch } from "../i18n/LanguageSwitch";
 import { useBranding } from "../modules/theme/BrandingContext";
 import { Banner, Button, IconButton, SideNav, TopBar, type NavChild, type NavModule } from "../design-system/lumen";
 import { GlobalSearchDialog } from "../modules/search/GlobalSearchDialog";
+import { countReportsWaitingToSend, DELIVERIES_CHANGED } from "../modules/reports/reportDeliveries";
 import classes from "./AppShellLayout.module.scss";
 
 type AppRole = "admin" | "teacher" | "donor";
@@ -99,6 +100,27 @@ export const AppShellLayout: React.FC = () => {
     return result;
   }, [role, roles]);
 
+  // Reports still waiting to reach somebody, shown on Reports beta. Re-read on
+  // each page change and after any send, so it doesn't need a reload.
+  const adminView = viewRole === "admin" && effectiveRoles.includes("admin");
+  const [waitingToSend, setWaitingToSend] = useState(0);
+  useEffect(() => {
+    if (!adminView) {
+      setWaitingToSend(0);
+      return;
+    }
+    let live = true;
+    const refresh = () => {
+      void countReportsWaitingToSend().then((count) => live && setWaitingToSend(count));
+    };
+    refresh();
+    window.addEventListener(DELIVERIES_CHANGED, refresh);
+    return () => {
+      live = false;
+      window.removeEventListener(DELIVERIES_CHANGED, refresh);
+    };
+  }, [adminView, location.pathname]);
+
   // ── Nav config. Ids are route paths. ───────────────────────────────────
   //
   // Structure is priority-ordered, not role-ordered:
@@ -171,7 +193,13 @@ export const AppShellLayout: React.FC = () => {
           ],
         },
         { id: "/admin/reports", label: "Field reports", icon: "clipboard-list" },
-        { id: "/admin/reports-beta", label: "Reports beta", icon: "clipboard-list" },
+        {
+          id: "/admin/reports-beta",
+          label: "Reports beta",
+          icon: "clipboard-list",
+          // Undefined at zero: SideNav renders the badge whenever it's truthy.
+          badge: waitingToSend > 0 ? waitingToSend : undefined,
+        },
       );
     }
 
@@ -194,12 +222,14 @@ export const AppShellLayout: React.FC = () => {
       out.push(
         { id: "sec-org", section: "Organisation" },
         { id: "/admin/users", label: "Accounts", icon: "users" },
+        { id: "/admin/settings/calendar", label: "School calendar", icon: "clock" },
+        { id: "/admin/settings/email-templates", label: "Email templates", icon: "mail" },
         { id: "/admin/branding", label: "Settings", icon: "settings" },
       );
     }
 
     return out;
-  }, [effectiveRoles, viewRole]);
+  }, [effectiveRoles, viewRole, waitingToSend]);
 
   /** Deepest nav id that prefixes the current path — that row lights up. */
   const activeId = useMemo(() => {

@@ -13,6 +13,7 @@ import {
 } from "../../design-system";
 import { PROVINCES } from "./schoolProfile";
 import { isMissingColumnError } from "./teacherProfile";
+import { toFriendlyError } from "../../i18n/errors";
 
 export const AdminEditSchoolPage: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export const AdminEditSchoolPage: React.FC = () => {
 
   const load = async () => {
     if (!schoolId) {
-      setError("Missing school id.");
+      setError("We couldn't tell which school to open. Go back to the list and choose one.");
       setLoading(false);
       return;
     }
@@ -57,13 +58,12 @@ export const AdminEditSchoolPage: React.FC = () => {
     }
 
     if (fetchError) {
-      console.error("Error loading school", fetchError);
-      setError(fetchError.message);
+      setError(toFriendlyError(fetchError, "errors.load"));
       setLoading(false);
       return;
     }
     if (!data) {
-      setError("School not found.");
+      setError("We couldn't find this school. It may have been removed.");
       setLoading(false);
       return;
     }
@@ -90,7 +90,7 @@ export const AdminEditSchoolPage: React.FC = () => {
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError("School name is required.");
+      setError("Add a name for this school.");
       setSaving(false);
       return;
     }
@@ -114,20 +114,18 @@ export const AdminEditSchoolPage: React.FC = () => {
     }
 
     if (updateError) {
-      console.error("Error updating school", updateError);
-      setError(updateError.message);
+      setError(toFriendlyError(updateError, "errors.save"));
       setSaving(false);
       return;
     }
 
-    setMessage("School updated successfully.");
+    setMessage(`${trimmedName}'s details are saved.`);
     setSaving(false);
   };
 
   return (
     <FormPage
       title="Edit school"
-      subtitle="Update the school details."
       steps={["School details", "Teachers", "Students", "Assignments"]}
       activeStep={0}
     >

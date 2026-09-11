@@ -85,7 +85,10 @@ Deno.serve(async (req) => {
       error: callerError,
     } = await callerClient.auth.getUser();
 
-    if (callerError || !caller) return fail(401, "Unauthorized");
+    if (callerError || !caller) {
+      console.error("admin-user-access: callerError", callerError);
+      return fail(401, "Your session has ended. Sign in again to continue.");
+    }
 
     const { data: callerRoles, error: rolesError } = await serviceClient
       .from("person_roles")
@@ -94,10 +97,12 @@ Deno.serve(async (req) => {
 
     if (rolesError) {
       console.error("admin-user-access: rolesError", rolesError);
-      return fail(500, "Could not check the caller's role.");
+      return fail(500, "We couldn't check your access. Try again in a minute.");
     }
 
-    if (!(callerRoles ?? []).some((r) => r.role === "admin")) return fail(403, "Forbidden");
+    if (!(callerRoles ?? []).some((r) => r.role === "admin")) {
+      return fail(403, "Only admins can change someone's sign in. Ask an admin to do this for you.");
+    }
 
     // 2) What they asked for
     const body = await req.json().catch(() => ({}));
@@ -105,17 +110,26 @@ Deno.serve(async (req) => {
     const action = body?.action as Action | undefined;
     const redirectTo = (body?.redirectTo as string | undefined) || `${SITE_URL}/reset-password`;
 
-    if (!userId) return fail(400, "userId is required.");
-    if (!action || !ACTIONS.includes(action)) return fail(400, "Unknown action.");
+    if (!userId) {
+      console.error("admin-user-access: missing userId");
+      return fail(400, "We couldn't tell which account to change. Reload the page and try again.");
+    }
+    if (!action || !ACTIONS.includes(action)) {
+      console.error("admin-user-access: unknown action", action);
+      return fail(400, "We couldn't tell what to do with this account. Reload the page and try again.");
+    }
 
     // 3) The target account
     const { data: target, error: targetError } = await serviceClient.auth.admin.getUserById(userId);
 
-    if (targetError || !target?.user) return fail(404, "That user does not exist.");
+    if (targetError || !target?.user) {
+      console.error("admin-user-access: getUserById", targetError);
+      return fail(404, "We couldn't find this account.");
+    }
 
     const email = target.user.email;
     if (!email && action !== "revoke" && action !== "restore") {
-      return fail(400, "That user has no email address, so nothing can be sent.");
+      return fail(400, "This account has no email address, so nothing can be sent.");
     }
 
     // An account is "registered" once the person has set a password or signed
@@ -146,7 +160,7 @@ Deno.serve(async (req) => {
           // anything about, so it becomes the link the person actually needs.
           if (!alreadyRegistered(error)) {
             console.error("admin-user-access: inviteUserByEmail", error);
-            return fail(502, "The invite email could not be sent. Try again in a minute.");
+            return fail(502, "We couldn't send the invite email. Try again in a minute.");
           }
         }
         // A password link does the same job for somebody whose address is
@@ -154,10 +168,10 @@ Deno.serve(async (req) => {
         const { error } = await callerClient.auth.resetPasswordForEmail(email!, { redirectTo });
         if (error) {
           console.error("admin-user-access: resetPasswordForEmail", error);
-          return fail(502, "The email could not be sent. Try again in a minute.");
+          return fail(502, "We couldn't send the email. Try again in a minute.");
         }
         performed = "send_reset";
-        note = "This address is already registered, so a password link was sent instead of an invite.";
+        note = "This person already has an account, so we sent them a password link instead of an invite.";
         break;
       }
 
@@ -165,7 +179,7 @@ Deno.serve(async (req) => {
         const { error } = await callerClient.auth.resetPasswordForEmail(email!, { redirectTo });
         if (error) {
           console.error("admin-user-access: resetPasswordForEmail", error);
-          return fail(502, "The email could not be sent. Try again in a minute.");
+          return fail(502, "We couldn't send the email. Try again in a minute.");
         }
         note = "Password link sent.";
         break;
@@ -187,11 +201,11 @@ Deno.serve(async (req) => {
 
         if (error || !data?.properties?.action_link) {
           console.error("admin-user-access: generateLink", error);
-          return fail(502, "The link could not be created. Try again in a minute.");
+          return fail(502, "We couldn't create the link. Try again in a minute.");
         }
         actionLink = data.properties.action_link;
         channel = "clipboard";
-        note = "One-time sign-in link created and copied by an admin. The link itself is not recorded.";
+        note = "An admin created and copied a single use sign in link. We don't keep the link itself.";
         break;
       }
 
@@ -201,10 +215,10 @@ Deno.serve(async (req) => {
         });
         if (error) {
           console.error("admin-user-access: revoke", error);
-          return fail(502, "Access could not be removed. Try again in a minute.");
+          return fail(502, "We couldn't remove access. Try again in a minute.");
         }
         channel = "email"; // nothing was sent; the column stays null below
-        note = "Sign-in blocked.";
+        note = "Sign in blocked.";
         break;
       }
 
@@ -214,9 +228,9 @@ Deno.serve(async (req) => {
         });
         if (error) {
           console.error("admin-user-access: restore", error);
-          return fail(502, "Access could not be restored. Try again in a minute.");
+          return fail(502, "We couldn't restore access. Try again in a minute.");
         }
-        note = "Sign-in allowed again.";
+        note = "Sign in allowed again.";
         break;
       }
     }
@@ -256,6 +270,6 @@ Deno.serve(async (req) => {
     return ok({ action: performed, note, actionLink });
   } catch (error) {
     console.error("admin-user-access: unexpected", error);
-    return fail(500, "Something went wrong. Try again in a minute.");
+    return fail(500, "We couldn't finish that. Try again in a minute.");
   }
 });

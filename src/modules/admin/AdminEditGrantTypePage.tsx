@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button, NumberInput, Select, SimpleGrid, Textarea, TextInput } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import {
   FormBody,
   FormError,
@@ -47,7 +48,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
   // Load existing data
   useEffect(() => {
     if (!id) {
-      setError("Grant Type ID is missing.");
+      setError("We couldn't tell which grant type to open. Go back to the list and choose one.");
       setInitialLoading(false);
       return;
     }
@@ -72,9 +73,8 @@ export const AdminEditGrantTypePage: React.FC = () => {
         setAmountPerPeriod(gt.amount_per_period ?? undefined);
         setCurrency(gt.currency || "THB");
         setDefaultDurationMonths(gt.default_duration_months ?? undefined);
-      } catch (err: any) {
-        console.error("Error loading grant type", err);
-        setError("Could not load grant type details.");
+      } catch (err: unknown) {
+        setError(toFriendlyError(err, "errors.load"));
       } finally {
         setInitialLoading(false);
       }
@@ -91,7 +91,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
       // On the field, not only in the banner: one input, but the same rule as
       // every other form in the product.
       setNameError("Give this grant type a name.");
-      setError("One field needs attention before this can be saved.");
+      setError("One thing needs attention before this can be saved.");
       focusField(FORM_ID, "name");
       return;
     }
@@ -119,16 +119,14 @@ export const AdminEditGrantTypePage: React.FC = () => {
         .eq("id", id);
 
       if (updateError) {
-        console.error("Update grant type error", updateError);
-        setError(updateError.message);
+        setError(toFriendlyError(updateError, "errors.save"));
         setSaving(false);
         return;
       }
 
       navigate("/admin/grant-types", { replace: true });
-    } catch (err: any) {
-      console.error("Unexpected error updating grant type", err);
-      setError(err.message ?? "Unexpected error while updating grant type.");
+    } catch (err: unknown) {
+      setError(toFriendlyError(err, "errors.save"));
       setSaving(false);
     }
   };
@@ -161,7 +159,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
               label="Name"
               id={fieldId(FORM_ID, "name")}
               error={nameError}
-              placeholder='e.g. "KG – Grade 9", "Grade 10–12", "University full scholarship"'
+              placeholder='"KG to Grade 9", "Grade 10 to 12", "University full scholarship"'
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
               required
@@ -176,11 +174,11 @@ export const AdminEditGrantTypePage: React.FC = () => {
           </SimpleGrid>
         </FormSection>
 
-        <FormSection title="Amount & duration">
+        <FormSection title="Amount and duration">
           <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
             <NumberInput
               label="Standard scholarship amount"
-              placeholder="e.g. 6000, 8400, 160000"
+              placeholder="6000, 8400 or 160000"
               value={amountPerPeriod}
               onChange={(val) => setAmountPerPeriod(typeof val === "number" ? val : undefined)}
               min={0}
@@ -194,7 +192,7 @@ export const AdminEditGrantTypePage: React.FC = () => {
             />
             <NumberInput
               label="Default duration (months)"
-              placeholder="e.g. 3, 12, 16, or 48 for full university"
+              placeholder="3, 12, 16, or 48 for full university"
               value={defaultDurationMonths}
               onChange={(val) => setDefaultDurationMonths(typeof val === "number" ? val : undefined)}
               min={1}

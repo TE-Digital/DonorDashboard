@@ -30,6 +30,13 @@ import {
 import { ActionIcon, Avatar, Group, Menu, Select, Stack, Text } from "@mantine/core";
 import { IconDotsVertical, IconPencil, IconArchive, IconArrowBackUp, IconUserCog, IconCoins } from "@tabler/icons-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { SponsorChips } from "../sponsorship/SponsorChips";
+import {
+  activeDonorsByStudent,
+  loadSponsorshipsForStudents,
+  type Sponsorship,
+} from "../sponsorship/sponsorships";
 import { InlineMessage, LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
 import { Badge, Button, Tag, type DataColumn } from "../../design-system/lumen";
 import { profileAvatarStyle, profileInitials } from "../../design-system/profileAvatar";
@@ -75,7 +82,16 @@ const loadSchoolCycleRows = async (schoolIds: string[]) => {
 };
 
 /** A KPI that the table can be narrowed to. */
-type Focus = "all" | "overdue" | "unassigned" | "unfunded" | "gap" | "need-unknown";
+type Focus =
+  | "all"
+  | "overdue"
+  | "unassigned"
+  | "unfunded"
+  | "gap"
+  | "need-unknown"
+  | "no-donor"
+  | "needs-decision"
+  | "sponsored";
 
 const FOCUS_MATCH: Record<Exclude<Focus, "all">, (student: StudentRow) => boolean> = {
   overdue: (student) => student.cycle.state === "overdue",
@@ -86,6 +102,18 @@ const FOCUS_MATCH: Record<Exclude<Focus, "all">, (student: StudentRow) => boolea
   gap: (student) =>
     !!student.coverage && !student.coverage.need_unknown && student.coverage.monthly_gap_thb > 0,
   "need-unknown": (student) => !student.coverage || student.coverage.need_unknown,
+  // Who has a donor. A student funded only through an old award still counts as
+  // having one until the awards are copied into scholarships.
+  "no-donor": (student) => student.status === "enrolled" && !student.hasDonor,
+  "needs-decision": (student) => student.needsDecision,
+  sponsored: (student) => student.hasDonor,
+};
+
+/** Donor focuses read their chip label from the locale files; the older ones are still English here. */
+const DONOR_FOCUS_KEY: Partial<Record<Exclude<Focus, "all">, string>> = {
+  "no-donor": "sponsorship.directory.focus.noDonor",
+  "needs-decision": "sponsorship.directory.focus.needsDecision",
+  sponsored: "sponsorship.directory.focus.sponsored",
 };
 
 /**
@@ -96,13 +124,22 @@ const FOCUS_MATCH: Record<Exclude<Focus, "all">, (student: StudentRow) => boolea
  * and the rows on this one would be two different populations. So the contract
  * is written once, here, and the dashboard links to these words.
  */
-const URL_FOCUS: Focus[] = ["overdue", "unassigned", "unfunded", "gap", "need-unknown"];
+const URL_FOCUS: Focus[] = [
+  "overdue",
+  "unassigned",
+  "unfunded",
+  "gap",
+  "need-unknown",
+  "no-donor",
+  "needs-decision",
+  "sponsored",
+];
 
 const focusFromParam = (value: string | null): Focus =>
   URL_FOCUS.includes((value ?? "") as Focus) ? ((value as Focus) ?? "all") : "all";
 
 /** What a focus arrived at from elsewhere is called, on the chip that clears it. */
-const FOCUS_LABEL: Record<Exclude<Focus, "all">, string> = {
+const FOCUS_LABEL: Partial<Record<Exclude<Focus, "all">, string>> = {
   overdue: "Reports overdue",
   unassigned: "Without a teacher",
   unfunded: "No donation recorded",
@@ -135,6 +172,12 @@ type StudentRow = {
   donated: boolean;
   /** Need against received. Undefined until the funding migration lands. */
   coverage?: StudentCoverage;
+  /** Donors funding this student now, from scholarships. */
+  donors: Sponsorship[];
+  /** An active donor, or an active old award that has not been copied yet. */
+  hasDonor: boolean;
+  /** At least one of this student's donors is waiting on an admin's decision. */
+  needsDecision: boolean;
 };
 
 const asDate = (value: string | null) =>
@@ -145,6 +188,7 @@ const asDate = (value: string | null) =>
     : "—";
 
 export const AdminStudentsPage: React.FC = () => {
+  const { t } = useTranslation();
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -217,7 +261,7 @@ export const AdminStudentsPage: React.FC = () => {
     ) as string[];
     const studentIds = records.map((s) => s.id);
 
-    const [schoolRows, profileRows, awardRows, cycleReports] = await Promise.all([
+    const [schoolRows, profileRows, awardRows, cycleReports, sponsorshipRead] = await Promise.all([
       schoolIds.length ? loadSchoolCycleRows(schoolIds) : Promise.resolve({ data: [] }),
       teacherIds.length
         ? supabase.from("profiles").select("id, full_name").in("id", teacherIds)
@@ -229,7 +273,13 @@ export const AdminStudentsPage: React.FC = () => {
             .in("student_id", studentIds)
         : Promise.resolve({ data: [] }),
       loadCycleReports(supabase, studentIds),
+      loadSponsorshipsForStudents(studentIds),
     ]);
+
+    const donorsByStudent = activeDonorsByStudent(sponsorshipRead.data);
+    const decisionStudents = new Set(
+      sponsorshipRead.data.filter((row) => row.status === "needs_decision").map((row) => row.studentId),
+    );
 
     const schoolById = new Map<string, string>();
     // A student reports on their school's rhythm, not on a global six months.
@@ -246,8 +296,12 @@ export const AdminStudentsPage: React.FC = () => {
     // payment date on it. An award that exists but has never been paid is a
     // promise, and a promise is not coverage.
     const donatedStudents = new Set<string>();
+    // Until the old awards are copied into scholarships, an active award is the
+    // only record that some students have a donor at all.
+    const legacyFunded = new Set<string>();
     ((awardRows.data ?? []) as any[]).forEach((award) => {
       if (award.is_paid === true || award.payment_date) donatedStudents.add(award.student_id);
+      if ((award.status ?? "").toLowerCase() === "active" && award.donor_id) legacyFunded.add(award.student_id);
     });
 
     const reportsByStudent = cycleReports.byStudent;
@@ -298,6 +352,9 @@ export const AdminStudentsPage: React.FC = () => {
         ),
         completion: profileCompletion(record),
         donated: donatedStudents.has(record.id),
+        donors: donorsByStudent.get(record.id) ?? [],
+        hasDonor: (donorsByStudent.get(record.id)?.length ?? 0) > 0 || legacyFunded.has(record.id),
+        needsDecision: decisionStudents.has(record.id),
       };
     });
 
@@ -366,6 +423,7 @@ export const AdminStudentsPage: React.FC = () => {
         "Report status",
         "Profile completion (%)",
         "Donation",
+        "Donors",
       ];
 
       const rows = visible.map((s) => [
@@ -384,6 +442,7 @@ export const AdminStudentsPage: React.FC = () => {
         s.cycle.label,
         String(s.completion.percent),
         s.donated ? "Donation received" : "No donation yet",
+        s.donors.map((row) => row.donorName ?? "").filter(Boolean).join("; "),
       ]);
 
       const csv = [header, ...rows]
@@ -413,7 +472,7 @@ export const AdminStudentsPage: React.FC = () => {
   const kpis: TableKpi[] = useMemo(() => {
     const overdue = inScope.filter(FOCUS_MATCH.overdue).length;
     const withoutTeacher = inScope.filter(FOCUS_MATCH.unassigned).length;
-    const supported = inScope.filter((s) => s.donated).length;
+    const waiting = inScope.filter(FOCUS_MATCH["no-donor"]).length;
 
     // Each tile is also the filter for the thing it counts, so the number and
     // the rows behind it are never two separate journeys.
@@ -446,15 +505,17 @@ export const AdminStudentsPage: React.FC = () => {
         onClick: toggle("unassigned"),
       },
       {
-        label: "Donation coverage",
-        value: `${supported} of ${inScope.length}`,
-        footnote: supported === inScope.length ? "all supported" : "supported so far",
-        mark: "money",
-        active: focus === "unfunded",
-        onClick: toggle("unfunded"),
+        // Every student is in the programme to be funded, so the number worth
+        // acting on is who is still waiting, and clicking it shows them.
+        label: t("sponsorship.directory.kpiLabel"),
+        value: waiting,
+        footnote: waiting ? t("sponsorship.directory.kpiSome") : t("sponsorship.directory.kpiNone"),
+        mark: waiting ? "overdue" : "money",
+        active: focus === "no-donor",
+        onClick: toggle("no-donor"),
       },
     ];
-  }, [inScope, statusFilter, focus]);
+  }, [inScope, statusFilter, focus, t]);
 
   // Archive/restore from the row menu. Nothing cascades — only the word on the
   // record changes — so the list just reloads afterwards.
@@ -506,6 +567,40 @@ export const AdminStudentsPage: React.FC = () => {
           <Text size="sm" c="dimmed">
             Not assigned
           </Text>
+        ),
+    },
+
+    {
+      // Who funds this student now. A student with nobody is the one row on
+      // this page that asks for somebody's action, so it says so in words.
+      key: "donors",
+      label: t("sponsorship.directory.column"),
+      width: 220,
+      sortValue: (s) => (s.needsDecision ? -1 : s.hasDonor ? s.donors.length : 0),
+      filterValue: (s) =>
+        s.needsDecision
+          ? t("sponsorship.directory.focus.needsDecision")
+          : s.hasDonor
+            ? t("sponsorship.directory.focus.sponsored")
+            : t("sponsorship.directory.focus.noDonor"),
+      render: (s) =>
+        s.donors.length ? (
+          <span className={styles.donorCell}>
+            <SponsorChips sponsorships={s.donors} />
+            {s.needsDecision && (
+              <Badge tone="warning" dot>
+                {t("sponsorship.status.needs_decision")}
+              </Badge>
+            )}
+          </span>
+        ) : s.hasDonor ? (
+          <Text size="sm" c="dimmed">
+            {t("sponsorship.directory.oldAward")}
+          </Text>
+        ) : (
+          <Badge tone="warning" dot>
+            {t("sponsorship.chips.none")}
+          </Badge>
         ),
     },
 
@@ -624,13 +719,9 @@ export const AdminStudentsPage: React.FC = () => {
               </Menu.Item>
               <Menu.Item
                 leftSection={<IconCoins size={16} />}
-                onClick={() =>
-                  s.donated
-                    ? navigate(`/admin/students/${s.id}?tab=scholarships`)
-                    : navigate(`/admin/scholarships/new?studentId=${s.id}`)
-                }
+                onClick={() => navigate(`/admin/students/${s.id}?tab=donors`)}
               >
-                {s.donated ? "Change funding" : "Add funding"}
+                {s.donors.length ? t("sponsorship.directory.menuManage") : t("sponsorship.directory.menuAssign")}
               </Menu.Item>
               {lifecycle && (
                 <>
@@ -721,8 +812,23 @@ export const AdminStudentsPage: React.FC = () => {
                 The chip names the filter and removes it.
               */}
               {focus !== "all" && (
-                <Tag onRemove={() => setFocus("all")}>{FOCUS_LABEL[focus]}</Tag>
+                <Tag onRemove={() => setFocus("all")}>
+                  {DONOR_FOCUS_KEY[focus] ? t(DONOR_FOCUS_KEY[focus] as string) : FOCUS_LABEL[focus]}
+                </Tag>
               )}
+              <Select
+                aria-label={t("sponsorship.directory.filterLabel")}
+                allowDeselect={false}
+                w={200}
+                data={[
+                  { value: "any", label: t("sponsorship.directory.filterAny") },
+                  { value: "no-donor", label: t("sponsorship.directory.focus.noDonor") },
+                  { value: "needs-decision", label: t("sponsorship.directory.focus.needsDecision") },
+                  { value: "sponsored", label: t("sponsorship.directory.focus.sponsored") },
+                ]}
+                value={DONOR_FOCUS_KEY[focus as Exclude<Focus, "all">] ? focus : "any"}
+                onChange={(value) => value && setFocus(value === "any" ? "all" : (value as Focus))}
+              />
               {lifecycle && (
               <Select
                 label={undefined}

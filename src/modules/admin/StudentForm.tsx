@@ -374,7 +374,7 @@ export const StudentForm = forwardRef<EntityFormHandle, StudentFormProps>(
           onClearPhoto={photo ? clearPhoto : undefined}
           photoHint={
             photo
-              ? `${photo.name} — uploaded as soon as the student is created.`
+              ? `${photo.name}. It's uploaded as soon as the student is created.`
               : "Optional. JPG, PNG or WebP up to 5 MB. It can also be added later from the student's page."
           }
         />

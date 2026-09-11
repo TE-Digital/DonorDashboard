@@ -30,6 +30,29 @@ const escapeXml = (value: string): string =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
 
+const THAI = /[฀-๿]/;
+
+/**
+ * The pieces a line may break between.
+ *
+ * English breaks at spaces. Thai is written without them, so splitting on
+ * whitespace hands the wrapper one enormous "word" and the card prints a single
+ * line that runs off the edge. Intl.Segmenter knows Thai word boundaries; where
+ * a browser lacks it, a Thai run falls back to fixed-size chunks, which is
+ * uglier but never overflows. Each piece keeps its own trailing space, so
+ * joining pieces restores the original text exactly.
+ */
+const breakPieces = (text: string): string[] => {
+  if (!THAI.test(text)) {
+    return text.split(/(?<=\s)/).filter((piece) => piece.length > 0);
+  }
+  const Segmenter = (Intl as unknown as { Segmenter?: new (locale: string, options: { granularity: "word" }) => { segment: (input: string) => Iterable<{ segment: string }> } }).Segmenter;
+  if (Segmenter) {
+    return Array.from(new Segmenter("th", { granularity: "word" }).segment(text), (s) => s.segment);
+  }
+  return text.match(/.{1,6}/gsu) ?? [text];
+};
+
 /**
  * Greedy wrap at a measured character budget.
  *
@@ -39,30 +62,34 @@ const escapeXml = (value: string): string =>
  */
 export const wrapText = (text: string, fontSize: number, maxWidth: number, maxLines: number): string[] => {
   const budget = Math.max(8, Math.floor(maxWidth / (fontSize * CHAR_W)));
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  const clean = text.trim().replace(/\s+/g, " ");
+  const pieces = breakPieces(clean);
   const lines: string[] = [];
   let line = "";
 
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (candidate.length <= budget) {
+  for (const piece of pieces) {
+    const candidate = line + piece;
+    if (candidate.trimEnd().length <= budget) {
       line = candidate;
       continue;
     }
-    if (line) lines.push(line);
-    line = word;
+    if (line.trim()) lines.push(line.trimEnd());
     if (lines.length === maxLines) break;
+    line = piece.trimStart();
   }
 
-  if (line && lines.length < maxLines) lines.push(line);
+  if (line.trim() && lines.length < maxLines) lines.push(line.trimEnd());
 
-  if (lines.length === maxLines && words.join(" ").length > lines.join(" ").length) {
+  if (lines.length === maxLines && clean.length > lines.join("").replace(/\s+/g, "").length + lines.length) {
     const last = lines[maxLines - 1];
     lines[maxLines - 1] = `${last.slice(0, Math.max(0, budget - 1)).trimEnd()}…`;
   }
 
   return lines;
 };
+
+/** Figtree has no Thai glyphs; Noto Sans Thai keeps a Thai card from falling back mid-line. */
+const CARD_FONT = "Figtree, 'Noto Sans Thai', system-ui, sans-serif";
 
 export interface CardBranding {
   /** The organisation's name, printed once at the foot. */
@@ -94,12 +121,12 @@ export const donorCardSvg = (
     ? `<clipPath id="portrait"><circle cx="${photoCx}" cy="${photoCy}" r="${photoR}"/></clipPath>
        <image href="${photoHref}" x="${photoCx - photoR}" y="${photoCy - photoR}" width="${photoR * 2}" height="${photoR * 2}" preserveAspectRatio="xMidYMid slice" clip-path="url(#portrait)"/>`
     : `<circle cx="${photoCx}" cy="${photoCy}" r="${photoR}" fill="#edf2f0"/>
-       <text x="${photoCx}" y="${photoCy + 22}" text-anchor="middle" font-size="72" fill="#91a49d" font-family="system-ui, sans-serif">${escapeXml(name.charAt(0).toUpperCase())}</text>`;
+       <text x="${photoCx}" y="${photoCy + 22}" text-anchor="middle" font-size="72" fill="#91a49d" font-family="${CARD_FONT}">${escapeXml(name.charAt(0).toUpperCase())}</text>`;
 
   const descriptionLines = description
     .map(
       (line, index) =>
-        `<text x="${CARD_WIDTH / 2}" y="${560 + index * 40}" text-anchor="middle" font-size="26" fill="#41554e" font-family="system-ui, sans-serif">${escapeXml(line)}</text>`,
+        `<text x="${CARD_WIDTH / 2}" y="${560 + index * 40}" text-anchor="middle" font-size="26" fill="#41554e" font-family="${CARD_FONT}">${escapeXml(line)}</text>`,
     )
     .join("\n");
 
@@ -107,10 +134,10 @@ export const donorCardSvg = (
   <rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="#ffffff"/>
   <rect width="${CARD_WIDTH}" height="8" fill="${escapeXml(branding.accent)}"/>
   ${photo}
-  <text x="${CARD_WIDTH / 2}" y="${photoCy + photoR + 78}" text-anchor="middle" font-size="42" font-weight="600" fill="#1c302a" font-family="system-ui, sans-serif">${name}</text>
+  <text x="${CARD_WIDTH / 2}" y="${photoCy + photoR + 78}" text-anchor="middle" font-size="42" font-weight="600" fill="#1c302a" font-family="${CARD_FONT}">${name}</text>
 ${descriptionLines}
   <rect x="64" y="${CARD_HEIGHT - 110}" width="${CARD_WIDTH - 128}" height="1" fill="#e3eae7"/>
-  <text x="${CARD_WIDTH / 2}" y="${CARD_HEIGHT - 64}" text-anchor="middle" font-size="20" fill="#6a7d76" font-family="system-ui, sans-serif">${escapeXml(branding.organisation)}</text>
+  <text x="${CARD_WIDTH / 2}" y="${CARD_HEIGHT - 64}" text-anchor="middle" font-size="20" fill="#6a7d76" font-family="${CARD_FONT}">${escapeXml(branding.organisation)}</text>
 </svg>`;
 };
 
@@ -156,7 +183,9 @@ export const downloadCardPng = async (svg: string, fileName: string): Promise<st
 
       const context = canvas.getContext("2d");
       if (!context) {
-        resolve("This browser could not draw the card.");
+        resolve(
+          "We couldn't draw the card in this browser. Try downloading again, or use a different browser.",
+        );
         return;
       }
 
@@ -166,7 +195,9 @@ export const downloadCardPng = async (svg: string, fileName: string): Promise<st
 
       canvas.toBlob((blob) => {
         if (!blob) {
-          resolve("The card image could not be created.");
+          resolve(
+            "We couldn't draw the card in this browser. Try downloading again, or use a different browser.",
+          );
           return;
         }
         const url = URL.createObjectURL(blob);
@@ -182,7 +213,10 @@ export const downloadCardPng = async (svg: string, fileName: string): Promise<st
       }, "image/png");
     };
 
-    image.onerror = () => resolve("The card image could not be created.");
+    image.onerror = () =>
+      resolve(
+        "We couldn't draw the card in this browser. Try downloading again, or use a different browser.",
+      );
     image.src = svgDataUri(svg);
   });
 

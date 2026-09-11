@@ -76,7 +76,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
       problems.password = "Use at least 8 characters.";
     }
     if (newPassword !== confirmPassword) {
-      problems.confirm = "The two passwords do not match.";
+      problems.confirm = "The two passwords don't match.";
     }
     setFieldErrors(problems);
 
@@ -94,12 +94,12 @@ export const WelcomeSetPasswordPage: React.FC = () => {
 
       if (error) {
         console.error("updateUser error (welcome):", error);
-        setError(error.message ?? "Could not set password.");
+        setError("We couldn't set your password. Try again.");
         return;
       }
 
       setMessage(
-        "Your password has been set. You can now use it to log in with your email."
+        "Your password is set. You can now use it to sign in with your email."
       );
     } finally {
       setUpdating(false);
@@ -122,9 +122,9 @@ export const WelcomeSetPasswordPage: React.FC = () => {
       >
         <Stack align="center">
           <Text fw={700} fz={28} className={classes.title}>
-            {branding.hero_title ?? "iCare Donor Dashboard"}
+            {branding.hero_title ?? "Donor Dashboard"}
           </Text>
-          <Text c="dimmed">Preparing your welcome page…</Text>
+          <Text c="dimmed">Getting your welcome page ready…</Text>
         </Stack>
       </div>
     );
@@ -155,10 +155,10 @@ export const WelcomeSetPasswordPage: React.FC = () => {
             />
           )}
           <Text fw={700} fz={28} className={classes.title}>
-            {branding.hero_title ?? "iCare Donor Dashboard"}
+            {branding.hero_title ?? "Donor Dashboard"}
           </Text>
           <Text fz="sm" c="dimmed" ta="center" className={classes.subtitle}>
-            Welcome! Please choose a password to complete your account setup.
+            Choose a password to get started.
           </Text>
           {email && (
             <Text fz="sm" c="dimmed">
@@ -210,7 +210,7 @@ export const WelcomeSetPasswordPage: React.FC = () => {
                 type="button"
                 onClick={() => navigate("/login")}
               >
-                Back to login
+                Back to sign in
               </Button>
             </Stack>
           </form>

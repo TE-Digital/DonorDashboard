@@ -11,7 +11,15 @@ import {
 } from "@mantine/core";
 import { IconDotsVertical, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { LoadingState, PageHeader, TableSection, type TableKpi } from "../../design-system";
+import {
+  LoadingState,
+  PageHeader,
+  TableSection,
+  emptyValue,
+  formatDate,
+  type TableKpi,
+} from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 import { SchoolFormDrawer } from "./SchoolFormDrawer";
 import { Button, Tag, type DataColumn } from "../../design-system/lumen";
 import { notifications } from "@mantine/notifications";
@@ -124,7 +132,7 @@ export const AdminSchoolsPage: React.FC = () => {
         // address happened to end with -- see schoolProfile.ts, where these
         // were never facts.
         province: (school.province ?? "").trim() || PROVINCE_UNRECORDED,
-        district: (school.district ?? "").trim() || "—",
+        district: (school.district ?? "").trim() || emptyValue(),
         system: profile.system,
         studentCount: linkedStudents.length,
         teacherCount: teacherIds.size,
@@ -200,7 +208,7 @@ export const AdminSchoolsPage: React.FC = () => {
       setDeleteError(
         deleteTarget.studentCount > 0
           ? "This school still has linked students. Reassign or remove those students before deleting the school."
-          : error.message,
+          : toFriendlyError(error, "errors.delete"),
       );
       setDeleting(false);
       return;
@@ -241,7 +249,7 @@ export const AdminSchoolsPage: React.FC = () => {
       console.error("Error changing school status", error);
       notifications.show({
         title: "Nothing changed",
-        message: "The school status did not save. Try again in a minute.",
+        message: `We couldn't change ${school.name}'s status. Try again in a minute.`,
         color: "red",
         withBorder: true,
       });
@@ -261,7 +269,7 @@ export const AdminSchoolsPage: React.FC = () => {
   };
 
   const columns: DataColumn<SchoolRow>[] = [
-    { key: "displayId", label: "School ID", width: 120, render: (school) => <span className={styles.recordLink}>{school.displayId}</span> },
+    { key: "displayId", label: "Reference", width: 120, render: (school) => <span className={styles.recordLink}>{school.displayId}</span> },
     { key: "name", label: "School", width: 250 },
     { key: "province", label: "Province", width: 140 },
     { key: "district", label: "District", width: 150 },
@@ -282,7 +290,7 @@ export const AdminSchoolsPage: React.FC = () => {
       label: "Updated",
       width: 120,
       muted: true,
-      render: (school) => school.created_at ? new Date(school.created_at).toLocaleDateString() : "—",
+      render: (school) => formatDate(school.created_at),
     },
     {
       key: "actions",
@@ -327,7 +335,7 @@ export const AdminSchoolsPage: React.FC = () => {
       <Modal opened={Boolean(deleteTarget)} onClose={closeDelete} title="Remove school?" centered>
         <Stack>
           <Text size="sm">
-            {deleteTarget ? `Remove ${deleteTarget.name} from the programme? This action cannot be undone.` : ""}
+            {deleteTarget ? `Remove ${deleteTarget.name} from the programme? This can't be undone.` : ""}
           </Text>
           {deleteError && <Text size="sm" c="red">{deleteError}</Text>}
           <Group justify="flex-end">

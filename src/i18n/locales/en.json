@@ -13,7 +13,7 @@
     "search": "Search",
     "back": "Back",
     "retry": "Try again",
-    "none": "—",
+    "none": "Not recorded",
     "yes": "Yes",
     "no": "No",
     "required": "Required",
@@ -47,8 +47,8 @@
     "programmes": "Programmes",
     "requests": "Requests",
     "adminOverview": "Admin overview",
-    "logout": "Log out",
-    "logoutFailed": "Could not log out"
+    "logout": "Sign out",
+    "logoutFailed": "We couldn't sign you out. Try again."
   },
   "person": {
     "name": "Name",
@@ -64,7 +64,7 @@
     "noEmail": "No email recorded",
     "photo": "Profile photo",
     "photoUpdated": "Photo updated.",
-    "photoFailed": "Could not upload that photo.",
+    "photoFailed": "We couldn't upload that photo. Try a JPG or PNG under 5 MB.",
     "phoneHint": "Enter a Thai phone number, for example 081 234 5678."
   },
   "student": {
@@ -78,22 +78,22 @@
     "birthdate": "Birthdate",
     "village": "Community",
     "guardian": "Guardian name",
-    "background": "Background / notes",
-    "monthlySupport": "Expected monthly support (THB)",
+    "background": "Background and notes",
+    "monthlySupport": "Expected monthly support",
     "school": "School",
     "schoolNameEnglish": "School name (English)",
     "schoolNameThai": "School name (Thai)",
     "filterByGrade": "Filter by grade level",
-    "empty": "No students found.",
-    "loadFailed": "Could not load student details.",
-    "guardianRequired": "A guardian name is required on every student.",
-    "phoneRequired": "A contact phone number is required on every student.",
-    "thaiNameRequired": "A Thai name is required on every student."
+    "empty": "No students here yet.",
+    "loadFailed": "We couldn't load this student's details. Check your connection and try again.",
+    "guardianRequired": "Add a guardian's name, so we know who to contact about this student.",
+    "phoneRequired": "Add a phone number, so a teacher can reach this family.",
+    "thaiNameRequired": "Add this student's name in Thai. Teachers and Thai donors see this version."
   },
   "school": {
     "one": "School",
     "other": "Schools",
-    "thaiNameRequired": "A Thai name is required on every school."
+    "thaiNameRequired": "Add the school's name in Thai. Teachers see this version."
   },
   "teacher": {
     "one": "Teacher",
@@ -101,9 +101,9 @@
     "assignedStudents": "Assigned students",
     "reportsThisCycle": "Reports sent this cycle",
     "nothingOutstanding": "Nothing outstanding",
-    "everyStudentNeedsUpdate": "Every student needs one term update inside the cycle.",
-    "profileNotFound": "Profile not found.",
-    "thaiNameRequired": "A Thai name is required on every teacher."
+    "everyStudentNeedsUpdate": "Every student needs one report each cycle.",
+    "profileNotFound": "We couldn't find this profile. It may have been removed.",
+    "thaiNameRequired": "Add this teacher's name in Thai. Thai reports and emails use it."
   },
   "report": {
     "one": "Report",
@@ -120,12 +120,12 @@
     "notWrittenYet": "Not written yet",
     "originalLanguage": "Original",
     "translationNeeded": "{{name}} reads {{language}}. That version is empty.",
-    "approveAndSend": "Approve & send to donor",
+    "approveAndSend": "Approve and send",
     "preview": "Preview email",
     "sentTo": "Sent to {{names}}",
-    "sendFailed": "Approved, but the email did not send.",
+    "sendFailed": "Approved, but the email didn't send.",
     "retrySend": "Retry send",
-    "noRecipients": "No donor funds this student yet — approving files the report, it does not send it."
+    "noRecipients": "No donor funds this student yet. Approving saves the report but doesn't send it."
   },
   "money": {
     "given": "Given",
@@ -138,16 +138,608 @@
     "shortNextMonth": "Short for next month",
     "shortfall": "Needs {{amount}} more to cover next month.",
     "coversNextMonth": "Covers next month",
-    "overAllocated": "Over-allocated by {{amount}}",
+    "overAllocated": "{{amount}} more than this donor has given",
     "fullyAllocated": "Fully allocated"
   },
   "errors": {
-    "loadStudent": "Could not load the student.",
-    "loadReports": "Could not load reports.",
-    "loadSchools": "Could not load schools.",
-    "loadRoster": "Could not load your students.",
-    "updateStudent": "Could not save that change.",
-    "missingStudentId": "No student was named in the address.",
-    "generic": "Something went wrong. Try again."
+    "loadStudent": "We couldn't load this student. Check your connection and try again.",
+    "loadReports": "We couldn't load reports. Check your connection and try again.",
+    "loadSchools": "We couldn't load schools. Check your connection and try again.",
+    "loadRoster": "We couldn't load your students. Check your connection and try again.",
+    "updateStudent": "We couldn't save that change. Check your connection and try again.",
+    "missingStudentId": "We couldn't tell which student to open. Go back to the list and choose one.",
+    "generic": "We couldn't finish that. Check your connection and try again.",
+    "save": "We couldn't save your changes. Check your connection and try again.",
+    "load": "We couldn't load this page. Check your connection and try again.",
+    "create": "We couldn't create this. Check the details above and try again.",
+    "delete": "We couldn't delete this. Try again in a minute.",
+    "send": "We couldn't send that. Try again in a minute.",
+    "network": "We couldn't connect. Check your internet connection and try again.",
+    "permission": "Your account doesn't have access to do this. Ask an admin to give you access."
+  },
+  "sponsorship": {
+    "status": {
+      "active": "Active",
+      "needs_decision": "Needs a decision",
+      "ended": "Ended"
+    },
+    "decision": {
+      "student_archived": "The student has left the programme",
+      "renewal_short": "Not enough balance to renew",
+      "graduated": "The student has graduated"
+    },
+    "support": {
+      "full": "Full support",
+      "partial": "Partial support",
+      "specific_item": "Specific item"
+    },
+    "gates": {
+      "archived": "no longer in the programme",
+      "consent_pending": "waiting on family consent",
+      "consent_declined": "the family declined consent",
+      "profile_unpublished": "donor profile not published yet"
+    },
+    "chips": {
+      "count_one": "{{count}} donor",
+      "count_other": "{{count}} donors",
+      "more": "and {{count}} more",
+      "none": "No donor yet"
+    },
+    "tab": {
+      "label": "Donors",
+      "assign": "Assign a donor",
+      "emptyTitle": "No donor funds {{name}} yet",
+      "emptyBody": "When you assign a donor, you'll see their support, dates and emails here.",
+      "notSetUp": "Support type, emails and renewals aren't set up yet. You can still see who funds this student. Ask whoever looks after the system to set them up.",
+      "columns": {
+        "donor": "Donor",
+        "support": "Support",
+        "monthly": "Each month",
+        "dates": "Dates",
+        "status": "Status",
+        "emails": "Reports by email",
+        "renews": "Renews",
+        "welcome": "Welcome email"
+      },
+      "datesRange": "{{start}} to {{end}}",
+      "datesOpen": "From {{start}}, no end date",
+      "on": "On",
+      "off": "Off",
+      "welcomeSent": "Sent {{date}}",
+      "welcomeSkipped": "Skipped",
+      "welcomeWaiting": "Not sent yet",
+      "oneOff": "One time",
+      "more": "More"
+    },
+    "actions": {
+      "welcome": "Send a welcome to {{donor}}",
+      "edit": "Change {{donor}}'s support",
+      "end": "End {{donor}}'s support",
+      "emailsLabel": "Send this student's reports to {{donor}}",
+      "renewLabel": "Renew {{donor}}'s support each school year",
+      "donorEmailsOff": "{{donor}} has turned off all report emails. Turn them back on from the donor's page.",
+      "donorOff": "Off for this donor",
+      "toggleFailedTitle": "That change didn't save"
+    },
+    "end": {
+      "title": "End {{donor}}'s support for {{student}}?",
+      "body": "{{donor}} stops funding {{student}} from today, {{date}}. The {{amount}} they haven't used goes back to their free balance.",
+      "bodyNothing": "{{donor}} stops funding {{student}} from today, {{date}}. This support has all been used, so nothing goes back to their balance.",
+      "reason": "Why is it ending?",
+      "reasons": {
+        "student_left": "The student left the programme",
+        "donor_withdrew": "The donor asked to stop",
+        "completed": "The support is complete",
+        "other": "Something else"
+      },
+      "note": "What happened",
+      "noteOptional": "Anything to add",
+      "reasonRequired": "Choose why the support is ending.",
+      "noteRequired": "Tell us what happened, in a sentence.",
+      "confirm": "End support",
+      "ending": "Ending…",
+      "endedTitle": "Support ended",
+      "endedMessage": "{{donor}} no longer funds {{student}}. {{amount}} is back in their free balance.",
+      "endedMessageNothing": "{{donor}} no longer funds {{student}}."
+    },
+    "edit": {
+      "title": "Change {{donor}}'s support for {{student}}",
+      "available": "{{amount}} available, including this support",
+      "over": "{{amount}} more than this donor has. Lower the amount, or record their payment first.",
+      "savedTitle": "Support updated",
+      "savedMessage": "{{donor}}'s support for {{student}} is saved."
+    },
+    "welcome": {
+      "title": "Welcome {{donor}}",
+      "loading": "Getting the welcome ready…",
+      "template": "Template",
+      "templateNoLanguage": "{{name}} (no {{language}} version)",
+      "language": "Language",
+      "changedFrom": "Changed from {{language}}",
+      "description": "About {{student}}",
+      "descriptionNote": "Changes here are for this email only. The donor profile stays as it is.",
+      "note": "A note from you",
+      "notePlaceholder": "For example, how you met, or what they asked about",
+      "to": "To",
+      "subject": "Subject",
+      "previewTitle": "The email {{donor}} receives",
+      "writeTab": "Write",
+      "previewTab": "Preview",
+      "send": "Send welcome",
+      "skip": "Skip welcome",
+      "skipTitle": "Skip the welcome for {{donor}}?",
+      "skipBody": "Use this if you've already welcomed them yourself. We won't remind you about it again.",
+      "sentTitle": "Welcome sent",
+      "sentMessage": "{{donor}} will get it in their inbox within a few minutes.",
+      "skippedTitle": "Welcome skipped",
+      "skippedMessage": "We won't remind you about {{donor}}'s welcome again.",
+      "alreadySent": "A welcome was sent {{date}}.",
+      "notReady": "{{student}} isn't ready to be shown to a donor yet. Check consent and the donor profile first.",
+      "optedOut": "{{donor}} has turned off emails. Turn them back on from the donor's page if they'd like this one.",
+      "noEmail": "{{donor}} has no email address. Add one on the donor's page first.",
+      "noTemplate": "There's no welcome template yet. Add one in Email templates.",
+      "templateMissingLanguage": "This template has no {{language}} version. Choose another, or write it in Email templates.",
+      "missingLanguage": "{{donor}} reads {{language}}, and the {{language}} name or description for {{student}} is empty. Write it here or on the donor profile tab.",
+      "failed": "We couldn't send the welcome. Check your connection and try again.",
+      "alreadySentBlock": "A welcome was already sent on {{date}}. We only send one per donor and student."
+    },
+    "today": {
+      "aStudent": "a student",
+      "canHelp_one": "{{donor}} can fund {{count}} waiting student",
+      "canHelp_other": "{{donor}} can fund {{count}} waiting students",
+      "canHelpDetail": "{{amount}} free to assign",
+      "canHelpMany": "{{count}} donors can fund waiting students",
+      "canHelpManyDetail": "{{amount}} free in total, {{students}} students waiting",
+      "welcome": "Send a welcome to {{donor}}",
+      "welcomeDetail": "They now fund {{student}}",
+      "decision": "Decide about {{donor}}'s support",
+      "decisionDetail": "{{student}}: {{reason}}",
+      "decisionDetailUrgent": "{{student}}: {{reason}}. Waiting over a month, and no reports are going out.",
+      "renewal": "{{student}}'s support from {{donor}} ends {{date}}",
+      "renewalAuto": "It renews by itself if {{donor}} has enough balance",
+      "renewalOff": "Renewal is off. Decide whether it continues."
+    },
+    "directory": {
+      "column": "Donors",
+      "oldAward": "Funded through an old award",
+      "kpiLabel": "Waiting for a donor",
+      "kpiSome": "no donor yet",
+      "kpiNone": "everyone has a donor",
+      "filterLabel": "Donor",
+      "filterAny": "Any donor status",
+      "menuAssign": "Assign a donor",
+      "menuManage": "Manage donors",
+      "focus": {
+        "noDonor": "Waiting for a donor",
+        "needsDecision": "Needs a decision",
+        "sponsored": "Has a donor"
+      }
+    },
+    "errors": {
+      "not_set_up": "This isn't set up yet. Ask whoever looks after the system to set it up.",
+      "not_allowed": "Only admins can change a donor's support.",
+      "failed": "We couldn't save that. Check your connection and try again."
+    },
+    "assign": {
+      "titleDonor": "Assign students to {{name}}",
+      "titleStudent": "Assign a donor to {{name}}",
+      "loading": "Getting the students ready…",
+      "loadFailed": "We couldn't load the students. Check your connection and try again.",
+      "remaining": "Left to assign after this",
+      "overLabel": "This is more than has arrived",
+      "over": "{{amount}} more than this donor has given",
+      "overNote": "Lower an amount, or record the donor's payment first. We only assign money that has arrived.",
+      "free": "Free balance {{amount}}",
+      "schoolYear": "School year {{label}} ends {{end}}",
+      "search": "Find a student or school",
+      "searchDonor": "Find a donor by name or email",
+      "listLabel": "Students you can assign",
+      "donorListLabel": "Donors, most money free first",
+      "groupWaiting": "Waiting for a donor ({{count}})",
+      "groupSponsored": "Already have a donor ({{count}})",
+      "showSponsored": "Show students who already have a donor ({{count}})",
+      "nobodyWaiting": "Everyone in the programme has a donor right now.",
+      "noMatch": "No student matches that. Try another name or school.",
+      "notReady": "Not ready yet: {{reasons}}.",
+      "fixProfile": "Open their donor profile",
+      "gatesUnknown": "We can't check consent or donor profiles yet, so every student can be chosen. Check them yourself before you assign.",
+      "notSetUp": "Coverage isn't set up yet, so we can't tell who is short. Ask whoever looks after the system to set it up.",
+      "noFreeBalance": "{{name}} has no money left to assign",
+      "noFreeBalanceBody": "Record their next payment and it will show here, ready to assign.",
+      "donorFree": "{{amount}} free",
+      "donorNothingFree": "Nothing free to assign",
+      "studentMissing": "We couldn't find this student. Close this and try again.",
+      "studentNotReady": "{{name}} isn't ready for a donor yet: {{reasons}}. Fix that on the donor profile tab, then come back.",
+      "detailsFor": "Support for {{name}}",
+      "fit": {
+        "full": "Fully covered to {{date}}",
+        "partial": "Covers {{covered}} of {{total}} months",
+        "none": "Nothing left to cover this",
+        "unknown": "Need not recorded"
+      },
+      "fields": {
+        "support": "Kind of support",
+        "monthly": "Each month",
+        "oneOff": "Amount",
+        "item": "What it pays for",
+        "itemPlaceholder": "School uniform for this year",
+        "paidOn": "Date",
+        "start": "Starts",
+        "end": "Ends",
+        "emails": "Send this student's reports to the donor",
+        "renew": "Renew each school year"
+      },
+      "shortened": "The money covers this to {{date}}. Renewing will need a new payment.",
+      "pledge": "Assigns {{amount}} in total",
+      "needAmount": "Enter an amount above zero for {{name}}.",
+      "needItem": "Say what the amount pays for {{name}}, for example a school uniform.",
+      "endBeforeStart": "The end date for {{name}} is before the start date.",
+      "notAllowed": "Only admins can assign donors.",
+      "saveFailed": "We couldn't save these. Check your connection and try again.",
+      "submit_one": "Assign {{count}} student",
+      "submit_other": "Assign {{count}} students",
+      "submitDonor": "Assign {{name}}",
+      "submitNone": "Assign a donor",
+      "selected_one": "{{count}} student selected",
+      "selected_other": "{{count}} students selected",
+      "saving": "Assigning…",
+      "savedTitle": "Donor assigned",
+      "savedMessage": "{{donor}} now funds {{names}}. A welcome email is waiting on your Today list.",
+      "next_one": "Set details for {{count}} student",
+      "next_other": "Set details for {{count}} students",
+      "stepDetails": "Set the details",
+      "back": "Back to the list",
+      "nobodyEligibleTitle": "Nobody is ready for a donor right now",
+      "nobodyEligibleBody": "Everyone waiting still needs family consent or a published donor profile. The list below says what each student is waiting on."
+    },
+    "kpi": {
+      "label": "Donors",
+      "active_one": "{{count}} active",
+      "active_other": "{{count}} active",
+      "monthly": "{{amount}} each month",
+      "none": "Waiting for a donor",
+      "noneFootnote": "Nobody funds this student yet"
+    },
+    "donorPage": {
+      "assign": "Assign students",
+      "nothingFree": "Record a payment first. There is nothing free to assign yet.",
+      "emptyTitle": "Not funding anyone yet",
+      "emptyBody": "Assign students from this donor's free balance and they will show here."
+    },
+    "decide": {
+      "open": "Decide",
+      "title": "Decide about {{donor}}'s support",
+      "whyShort": "{{donor}}'s support for {{student}} ended on {{date}}, and their free balance doesn't cover the next school year.",
+      "whyLeft": "{{student}} has left the programme.",
+      "whyGraduated": "{{student}} has graduated.",
+      "student": "Student",
+      "monthly": "Each month",
+      "unused": "Not used yet",
+      "free": "Donor's free balance",
+      "checking": "Checking…",
+      "waiting": "Waiting",
+      "since": "Since {{date}}",
+      "paused": "No reports go to this donor about this student until you decide. The money stays set aside.",
+      "renew": "Renew for the next school year",
+      "renewNote": "Uses {{amount}} of the donor's free balance.",
+      "renewShort": "{{donor}} is {{amount}} short. Record their next payment first, then renew.",
+      "reassign": "Move the money to another student",
+      "reassignNote": "Ends this support and opens the list of students waiting for a donor.",
+      "return": "Return the money to the donor's balance",
+      "returnNote": "{{amount}} goes back to their free balance.",
+      "end": "End with a reason",
+      "endNote": "For anything else. You'll write what happened.",
+      "renewTitle": "Renew {{donor}}'s support for {{student}}?",
+      "renewBody": "{{amount}} for {{start}} to {{end}}, at the same amount each month. No welcome email goes out.",
+      "reassignTitle": "Move {{donor}}'s money to another student?",
+      "reassignBody": "{{donor}} stops funding {{student}}. {{amount}} they haven't used becomes free, and the list of waiting students opens next.",
+      "returnTitle": "Return the money to {{donor}}'s balance?",
+      "returnBody": "{{donor}} stops funding {{student}}. {{amount}} goes back to their free balance for you to assign later.",
+      "reasonReassign": "Moved to another student",
+      "reasonReturn": "Returned to the donor's balance",
+      "doneTitle": "Decision saved",
+      "renewed": "{{donor}} funds {{student}} until {{date}}.",
+      "returned": "{{amount}} is back in {{donor}}'s free balance.",
+      "renewFailed": "We couldn't renew this. The donor's balance may have changed. Check it and try again.",
+      "resolvedElsewhere": "Someone has already decided this. Close this panel to see where it stands now."
+    },
+    "recipients": {
+      "title": "Who gets this report",
+      "notSending": "Not sending to",
+      "template": "Template",
+      "language": "Language",
+      "changedFrom": "Changed from {{language}}",
+      "reasons": {
+        "needs_decision": "Their support is waiting on a decision",
+        "support_ended": "Their support has ended",
+        "report_emails_off": "Reports for this student are turned off",
+        "donor_emails_off": "They have turned off emails",
+        "no_email": "No email address on record"
+      },
+      "templateGapTitle": "A template is missing a language",
+      "templateGap": "{{name}} gets {{language}}, and {{template}} has no {{language}} version. Choose another template or language."
+    }
+  },
+  "templates": {
+    "title": "Email templates",
+    "notSetUp": "Email templates aren't set up yet. Until they are, emails use the words built into the app.",
+    "kinds": {
+      "welcome": "Welcome emails",
+      "report": "Report emails"
+    },
+    "new": {
+      "welcome": "New welcome template",
+      "report": "New report template"
+    },
+    "empty": {
+      "welcome": "No welcome templates yet. Add one and it becomes the default.",
+      "report": "No report templates yet. Add one and it becomes the default."
+    },
+    "default": "Default",
+    "makeDefault": "Make default",
+    "edited": "Edited {{date}}",
+    "languageReady": {
+      "en": "English written",
+      "th": "Thai written"
+    },
+    "languageMissing": {
+      "en": "English not written",
+      "th": "Thai not written"
+    },
+    "delete": "Delete {{name}}",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "Nobody can choose it for a new email after this. Emails already sent with it keep their words.",
+    "deleteConfirm": "Delete template",
+    "deletedTitle": "Template deleted",
+    "deletedMessage": "{{name}} is no longer offered when sending.",
+    "savedTitle": "Template saved",
+    "savedMessage": "{{name}} is ready to use.",
+    "errorTitle": "That didn't save",
+    "errors": {
+      "not_set_up": "Email templates aren't set up yet. Ask whoever looks after the system to set them up.",
+      "not_allowed": "Only admins can change email templates.",
+      "failed": "We couldn't save that. Check your connection and try again."
+    },
+    "placeholders": {
+      "donor_name": "Donor's name",
+      "student_name": "Student's name",
+      "school_name": "School",
+      "grade_level": "Grade",
+      "report_period": "Report period",
+      "organisation": "Our name"
+    },
+    "editor": {
+      "newTitle": {
+        "welcome": "New welcome template",
+        "report": "New report template"
+      },
+      "editTitle": "Edit {{name}}",
+      "create": "Create template",
+      "about": "About this template",
+      "name": "Name",
+      "description": "When to use it",
+      "words": "What it says",
+      "insertField": "Insert field",
+      "languageLabel": "Language of this template",
+      "subject": "Subject",
+      "intro": "Opening",
+      "closing": "Closing",
+      "nameRequired": "Give the template a name so you can find it when sending.",
+      "needOneLanguage": "Write the subject, opening and closing in at least one language.",
+      "unknownPlaceholders": "We don't recognise {{names}}. Use Insert field so the name is spelled the way we fill it in."
+    },
+    "preview": {
+      "label": "How it reads",
+      "noSubject": "No subject yet",
+      "welcomeBlock": "The student's photo, name, school and grade, and their description, go here.",
+      "reportBlock": "The teacher's report goes here: the grade and what they wrote."
+    }
+  },
+  "donorCard": {
+    "languageLabel": "Language of the card",
+    "notWritten": "Not written yet",
+    "displayName": "Display name",
+    "description": "Description for donors",
+    "aDonor": "A donor",
+    "readerMissing": "{{name}} reads {{language}}. Write the {{language}} version of this card before you send it.",
+    "thaiNotSetUp": "Thai text on the card isn't set up yet. You can keep writing the English version. Ask whoever looks after the system to set it up.",
+    "showing": "Showing the {{language}} card.",
+    "languageNames": {
+      "en": "English",
+      "th": "Thai"
+    },
+    "tabLabel": "Donor profile",
+    "editor": {
+      "statusTitle": "Status",
+      "profileStatus": "Profile status",
+      "consent": "Consent",
+      "cardTitle": "The card",
+      "photo": "Approved photo",
+      "replacePhoto": "Replace photo",
+      "choosePhoto": "Choose photo",
+      "useRecordPhoto": "Use the record photo",
+      "photoNote": "The record photo and the donor photo are separate on purpose. Choosing one here doesn't change the other. Both languages use this photo.",
+      "previewTitle": "What the donor receives",
+      "previewAlt": "Donor card for {{name}}",
+      "download": "Download",
+      "preparing": "Getting the card ready…",
+      "send": "Send to donor",
+      "saveFirst": "Save your changes first. The card that sends is the saved one.",
+      "lastSent": "Last sent {{date}}.",
+      "declined": "The family has declined. Nothing about this student can be sent to a donor, and this card can't be published.",
+      "savedTitle": "Donor profile saved",
+      "downloadedTitle": "Card downloaded",
+      "downloadedMessage": "The image is in your downloads folder.",
+      "sentTitle": "Card sent",
+      "sentMessage": "Sent to {{names}}. They'll get it in their inbox within a few minutes."
+    },
+    "errors": {
+      "saveFailed": "The donor profile didn't save. Check your connection and try again.",
+      "photoFailed": "We couldn't upload that photo. Try a JPG or PNG under 5 MB.",
+      "photoLinkFailed": "The photo uploaded but isn't on the card yet. Check your connection and try again.",
+      "sendFailed": "We couldn't send the card. Check your connection and try again.",
+      "connection": "We couldn't send that. Check your connection and try again."
+    },
+    "blocked": {
+      "consentDeclined": "The family has declined consent. Nothing about this student can be sent to a donor.",
+      "consentPending": "Consent hasn't been approved yet. Record the family's consent before sending anything.",
+      "unpublished": "This profile isn't published yet. Publish it once the photo, name and description have been checked.",
+      "noText": "The card needs a display name and a description in at least one language before it can be sent."
+    },
+    "profileStatus": {
+      "draft": "Draft",
+      "awaiting_review": "Awaiting review",
+      "published": "Published"
+    },
+    "consentOption": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "declined": "Declined"
+    },
+    "consentBadge": {
+      "pending": "Consent pending",
+      "approved": "Consent approved",
+      "declined": "Consent declined"
+    }
+  },
+  "calendar": {
+    "title": "School calendar",
+    "loading": "Getting the school calendar ready…",
+    "notSetUp": "The school calendar isn't set up yet, so we're showing the Thai school year and saving is turned off. Ask whoever looks after the system to set it up.",
+    "previewTitle": "School year {{label}}",
+    "previewYear": "Runs from {{start}} to {{end}}.",
+    "previewSemester": "{{start}} to {{end}}. Reports are due by {{due}}.",
+    "schoolYear": "School year",
+    "semester1": "Semester 1",
+    "semester2": "Semester 2",
+    "reports": "Reports",
+    "fields": {
+      "schoolYearStart": "School year starts",
+      "schoolYearEnd": "School year ends",
+      "semester1Start": "Semester 1 starts",
+      "semester1End": "Semester 1 ends",
+      "semester2Start": "Semester 2 starts",
+      "semester2End": "Semester 2 ends",
+      "reportDueAfterDays": "Days after a semester ends that its report is due"
+    },
+    "dayOf": "Day, {{label}}",
+    "monthOf": "Month, {{label}}",
+    "months": {
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    },
+    "errors": {
+      "yearEndBeforeStart": "The school year has to end after it starts.",
+      "semester1BeforeYear": "Semester 1 can't start before the school year does.",
+      "semester1EndBeforeStart": "Semester 1 has to end after it starts.",
+      "semester2BeforeSemester1Ends": "Semester 2 has to start after semester 1 ends.",
+      "semester2EndBeforeStart": "Semester 2 has to end after it starts.",
+      "semester2AfterYear": "Semester 2 can't end after the school year does.",
+      "dueDays": "Choose a number of days from 0 to 120."
+    },
+    "needsAttention_one": "{{count}} date needs attention before you can save.",
+    "needsAttention_other": "{{count}} dates need attention before you can save.",
+    "useThaiDefaults": "Use the Thai school year",
+    "savedTitle": "School calendar saved",
+    "savedMessage": "Report due dates and renewals now follow these dates.",
+    "saveFailed": {
+      "not_set_up": "The school calendar isn't set up yet. Ask whoever looks after the system to set it up, then try again.",
+      "not_allowed": "Only admins can change the school calendar.",
+      "failed": "We couldn't save the calendar. Check your connection and try again."
+    }
+  },
+  "teacherPages": {
+    "cycle": {
+      "midYear": "{{year}} midyear",
+      "yearEnd": "{{year}} year end"
+    },
+    "common": {
+      "unnamed": "Name not recorded",
+      "unnamedSchool": "School name not recorded",
+      "classLabel": "Class {{grade}}",
+      "fieldsNeedAttention_one": "One field needs your attention before we can save.",
+      "fieldsNeedAttention_other": "{{count}} fields need your attention before we can save."
+    },
+    "dashboard": {
+      "title": "Teaching overview",
+      "subtitle": "Reporting cycle {{cycle}}, closes {{date}}",
+      "overdueTitle_one": "{{count}} report is overdue",
+      "overdueTitle_other": "{{count}} reports are overdue",
+      "dueTitle_one": "{{count}} report due {{when}}",
+      "dueTitle_other": "{{count}} reports due {{when}}",
+      "dueToday": "today",
+      "dueTomorrow": "tomorrow",
+      "dueInDays_one": "in {{count}} day",
+      "dueInDays_other": "in {{count}} days",
+      "openStudents": "Open my students",
+      "closesOn": "The {{cycle}} cycle closes on {{date}}.",
+      "overdueBody": "These students didn't have a report last cycle either.",
+      "allSentBody": "Every student on your list has a report for {{cycle}}.",
+      "stillToSend": "Still to send",
+      "nextDue": "Next reports due for {{cycle}}",
+      "nothingToSend": "Nothing to send. Reports you've sent show on each student's page.",
+      "lastReportOn": "Last report {{date}}",
+      "sentThisCycle": "Sent this cycle",
+      "sendReport": "Send report",
+      "sendReportFor": "Send a report for {{name}}"
+    },
+    "students": {
+      "searchPlaceholder": "Search by name or community",
+      "actions": "Actions",
+      "open": "Open",
+      "openFor": "Open {{name}}'s page",
+      "addReport": "Add report",
+      "addReportFor": "Add a report for {{name}}",
+      "reportNeeded": "No report yet. One is due now.",
+      "reportOverdue": "{{date}}. The next one is overdue.",
+      "lastReportLine": "Last report: {{label}}",
+      "emptyTitle": "No students here yet.",
+      "emptyBody": "Your students will show here once an admin assigns them.",
+      "noMatchTitle": "No students match your search.",
+      "noMatchBody": "Try another name, or clear the grade filter."
+    },
+    "studentDetail": {
+      "title": "Student details",
+      "notFound": "We couldn't find this student. They may have been removed.",
+      "nameRequired": "Add this student's name.",
+      "schoolRequired": "Choose the school this student goes to.",
+      "photoLinkFailed": "We uploaded the photo but couldn't add it to this student's page. Try uploading it again.",
+      "saveDenied": "We couldn't save this student. Your account may not be allowed to edit it. Ask an admin if you need access.",
+      "saved": "{{name}}'s details are saved.",
+      "photo": "Photo",
+      "photoAlt": "{{name}}'s photo",
+      "choosePhoto": "Choose a photo",
+      "uploadPhoto": "Upload photo",
+      "gradePlaceholder": "Choose a grade level",
+      "schoolPlaceholder": "Choose a school",
+      "guardianHeading": "Guardian and contact details",
+      "reports": "Term reports"
+    },
+    "profile": {
+      "subtitle": "This is how we and the schools see your contact details.",
+      "editDetails": "Edit details",
+      "details": "Your details",
+      "saved": "Your details are saved.",
+      "partlySaved": "Your English name and phone number are saved. Your Thai name and LINE ID can't be saved yet, as that part is still being set up. Try again later.",
+      "notSetUp": "Your Thai name and LINE ID can't be saved yet. That part is still being set up.",
+      "schoolNotSet": "Not set yet. An admin adds this.",
+      "fullNameRequired": "Add your full name in English.",
+      "fullNameThRequired": "Add your name in Thai. Thai reports and emails use it.",
+      "phoneRequired": "Add your phone number, so we can reach you when LINE doesn't work.",
+      "lineIdRequired": "Add your LINE ID. It's how we usually reach you.",
+      "thaiNamePlaceholder": "Your name as it's written in Thai",
+      "lineIdPlaceholder": "The ID people use to add you on LINE",
+      "managedByUs": "We look after your email address and the school you represent. Ask an admin if either one needs to change."
+    }
   }
 }

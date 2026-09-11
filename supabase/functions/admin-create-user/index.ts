@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
     } = await callerSupabase.auth.getUser();
 
     if (callerError || !caller) {
-      return new Response("Unauthorized", {
+      console.error("callerError", callerError);
+      return new Response("Your session has ended. Sign in again to continue.", {
         status: 401,
         headers: corsHeaders,
       });
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
 
     if (rolesError) {
       console.error("rolesError", rolesError);
-      return new Response("Error loading caller roles", {
+      return new Response("We couldn't check your access. Try again in a minute.", {
         status: 500,
         headers: corsHeaders,
       });
@@ -73,7 +74,7 @@ Deno.serve(async (req) => {
 
     const isAdmin = (callerRoles ?? []).some((r) => r.role === "admin");
     if (!isAdmin) {
-      return new Response("Forbidden", {
+      return new Response("Only admins can add people. Ask an admin to do this for you.", {
         status: 403,
         headers: corsHeaders,
       });
@@ -96,7 +97,7 @@ Deno.serve(async (req) => {
     } = body;
 
     if (!email || !full_name) {
-      return new Response("Email and full_name are required", {
+      return new Response("Add an email address and a name to invite this person.", {
         status: 400,
         headers: corsHeaders,
       });
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
     if (inviteError || !inviteData?.user) {
       console.error("inviteError", inviteError);
       return new Response(
-        "Error inviting user: " + (inviteError?.message ?? "unknown error"),
+        "We couldn't send the invite. Try again in a minute.",
         { status: 500, headers: corsHeaders },
       );
     }
@@ -145,7 +146,7 @@ Deno.serve(async (req) => {
     if (profileError) {
       console.error("profileError", profileError);
       return new Response(
-        "Error creating profile: " + profileError.message,
+        "We couldn't finish setting up this account. Try again in a minute.",
         { status: 500, headers: corsHeaders },
       );
     }
@@ -164,7 +165,7 @@ Deno.serve(async (req) => {
       if (rolesInsertError) {
         console.error("rolesInsertError", rolesInsertError);
         return new Response(
-          "Error creating roles: " + rolesInsertError.message,
+          "We couldn't finish setting up this account. Try again in a minute.",
           { status: 500, headers: corsHeaders },
         );
       }
@@ -188,7 +189,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("Unexpected function error", err);
-    return new Response("Internal server error", {
+    return new Response("We couldn't finish that. Try again in a minute.", {
       status: 500,
       headers: corsHeaders,
     });

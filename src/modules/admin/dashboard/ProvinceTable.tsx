@@ -80,7 +80,7 @@ export const ProvinceTable: React.FC<ProvinceTableProps> = ({ rows, onOpenProvin
       sortable: true,
       width: 160,
       render: (row) =>
-        row.needUnknown > 0 ? <Badge tone="neutral">{row.needUnknown}</Badge> : <span>—</span>,
+        row.needUnknown > 0 ? <Badge tone="neutral">{row.needUnknown}</Badge> : <span>0</span>,
     },
   ];
 
@@ -116,7 +116,7 @@ export const ProvinceTable: React.FC<ProvinceTableProps> = ({ rows, onOpenProvin
                   <span className={styles.provinceName}>{row.province}</span>
                   {row.monthlyGapThb > 0 && (
                     <span className={styles.provinceGap}>
-                      {formatCurrency(row.monthlyGapThb)}/mo short
+                      {formatCurrency(row.monthlyGapThb)} short each month
                     </span>
                   )}
                 </span>

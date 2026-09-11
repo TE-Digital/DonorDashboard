@@ -51,7 +51,7 @@ serve(async (req) => {
     if (!name || !email || !message) {
       return new Response(
         JSON.stringify({
-          error: "Missing required fields: name, email, message.",
+          error: "Add your name, email and a message before sending.",
         }),
         {
           status: 400,
@@ -97,7 +97,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           error:
-            "Could not store your request. Please try again later.",
+            "We couldn't send your request. Check your connection and try again.",
         }),
         {
           status: 500,
@@ -111,7 +111,7 @@ serve(async (req) => {
       JSON.stringify({
         ok: true,
         message:
-          "Your request has been received. We will contact you shortly.",
+          "We've got your request and will be in touch soon.",
       }),
       {
         status: 200,
@@ -121,7 +121,7 @@ serve(async (req) => {
   } catch (err) {
     console.error("donor-renew-request: unexpected error", err);
     return new Response(
-      JSON.stringify({ error: "Internal error" }),
+      JSON.stringify({ error: "We couldn't send your request. Check your connection and try again." }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },

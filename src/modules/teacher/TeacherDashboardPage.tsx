@@ -13,22 +13,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Stack } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "../../lib/supabaseClient";
-import { KpiRow, LoadingState, PageHeader } from "../../design-system";
+import { InlineMessage, KpiRow, LoadingState, PageHeader, formatDate } from "../../design-system";
 import { Badge, Banner, Button, Card } from "../../design-system/lumen";
+import { toFriendlyError } from "../../i18n/errors";
 import { useEffectiveTeacherId } from "../viewAs/ViewAsContext";
-import {
-  cycleOf,
-  duePhrase,
-  formatDueDate,
-  reportStatusFor,
-  type ReportState,
-} from "./reportingCycle";
+import { cycleOf, reportStatusFor, type ReportState } from "./reportingCycle";
 import styles from "./TeacherHome.module.scss";
 
 interface RosterStudent {
   id: string;
-  name: string;
+  name: string | null;
   grade: string | null;
   school: string | null;
   state: ReportState;
@@ -41,25 +37,20 @@ const TONE: Record<ReportState, "success" | "warning" | "danger"> = {
   overdue: "danger",
 };
 
-const STATE_LABEL: Record<ReportState, string> = {
-  submitted: "Sent this cycle",
-  due: "Not sent yet",
-  overdue: "Overdue",
+const STATE_LABEL_KEY: Record<ReportState, string> = {
+  submitted: "teacherPages.dashboard.sentThisCycle",
+  due: "report.notSent",
+  overdue: "report.overdue",
 };
 
-const asDate = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
-        new Date(value),
-      )
-    : "No report yet";
-
 export const TeacherDashboardPage: React.FC = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const teacherId = useEffectiveTeacherId();
 
   const [students, setStudents] = useState<RosterStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // One "now" for the whole render, so a student cannot be measured against a
   // different cycle from the one named in the heading.
@@ -70,6 +61,7 @@ export const TeacherDashboardPage: React.FC = () => {
     const load = async () => {
       if (!teacherId) return;
       setLoading(true);
+      setLoadError(null);
 
       const { data, error } = await supabase
         .from("students")
@@ -78,7 +70,7 @@ export const TeacherDashboardPage: React.FC = () => {
         .order("name");
 
       if (error) {
-        console.error("Error loading teacher roster", error);
+        setLoadError(toFriendlyError(error, "errors.load", "Error loading teacher roster"));
         setStudents([]);
         setLoading(false);
         return;
@@ -91,7 +83,7 @@ export const TeacherDashboardPage: React.FC = () => {
 
         return {
           id: row.id,
-          name: row.name ?? "(no name)",
+          name: row.name ?? null,
           grade: row.grade_level ?? null,
           // supabase-js widens a to-one embed to an array; both shapes appear.
           school: row.schools?.name ?? row.schools?.[0]?.name ?? null,
@@ -112,92 +104,115 @@ export const TeacherDashboardPage: React.FC = () => {
   const submitted = students.length - outstanding.length;
   const deadline = reportStatusFor([], today);
 
+  // Built here rather than taken from cycle.label, which is English only.
+  const cycleLabel = t(
+    cycle.start.getMonth() === 0 ? "teacherPages.cycle.midYear" : "teacherPages.cycle.yearEnd",
+    { year: cycle.start.getFullYear() },
+  );
+  const closes = formatDate(cycle.end);
+  const when =
+    deadline.daysLeft === 0
+      ? t("teacherPages.dashboard.dueToday")
+      : deadline.daysLeft === 1
+        ? t("teacherPages.dashboard.dueTomorrow")
+        : t("teacherPages.dashboard.dueInDays", { count: deadline.daysLeft });
+
   if (loading) return <LoadingState />;
 
   return (
     <Stack>
       <PageHeader
-        title="Teaching overview"
-        subtitle={`Reporting cycle ${cycle.label} · closes ${formatDueDate(cycle.end)}`}
+        title={t("teacherPages.dashboard.title")}
+        subtitle={t("teacherPages.dashboard.subtitle", { cycle: cycleLabel, date: closes })}
       />
 
       {/* The one notification the product owes a teacher. */}
-      {outstanding.length > 0 ? (
+      {loadError ? (
+        <InlineMessage tone="error">{loadError}</InlineMessage>
+      ) : outstanding.length > 0 ? (
         <Banner
           tone={overdue.length ? "danger" : "warning"}
           title={
             overdue.length
-              ? `${overdue.length} report${overdue.length === 1 ? " is" : "s are"} overdue`
-              : `${outstanding.length} report${
-                  outstanding.length === 1 ? "" : "s"
-                } due ${duePhrase(deadline)}`
+              ? t("teacherPages.dashboard.overdueTitle", { count: overdue.length })
+              : t("teacherPages.dashboard.dueTitle", { count: outstanding.length, when })
           }
           action={
             <Button variant="primary" onClick={() => navigate("/teacher/students")}>
-              Open my students
+              {t("teacherPages.dashboard.openStudents")}
             </Button>
           }
         >
-          The {cycle.label} cycle closes on {formatDueDate(cycle.end)}.{" "}
+          {t("teacherPages.dashboard.closesOn", { cycle: cycleLabel, date: closes })}{" "}
           {overdue.length > 0
-            ? "The overdue students went without a report last cycle as well."
-            : "Every student needs one term update inside the cycle."}
+            ? t("teacherPages.dashboard.overdueBody")
+            : t("teacher.everyStudentNeedsUpdate")}
         </Banner>
       ) : (
-        <Banner tone="success" title="Nothing outstanding">
-          Every student on this roster has a report for {cycle.label}.
+        <Banner tone="success" title={t("teacher.nothingOutstanding")}>
+          {t("teacherPages.dashboard.allSentBody", { cycle: cycleLabel })}
         </Banner>
       )}
 
       <KpiRow
         items={[
-          { label: "My students", value: String(students.length), mark: "students" },
+          { label: t("nav.myStudents"), value: String(students.length), mark: "students" },
           {
-            label: "Reports sent this cycle",
+            label: t("teacher.reportsThisCycle"),
             value: `${submitted}/${students.length}`,
             mark: "reports",
           },
           {
-            label: "Still to send",
+            label: t("teacherPages.dashboard.stillToSend"),
             value: String(outstanding.length),
             mark: outstanding.length ? "overdue" : "ontrack",
           },
         ]}
       />
 
-      <Card title={`Next reports due · ${cycle.label}`} flush>
+      <Card title={t("teacherPages.dashboard.nextDue", { cycle: cycleLabel })} flush>
         {outstanding.length === 0 ? (
-          <p className={styles.empty}>
-            Nothing to send. Reports already filed appear on each student's page.
-          </p>
+          <p className={styles.empty}>{t("teacherPages.dashboard.nothingToSend")}</p>
         ) : (
           <ul className={styles.dueList}>
-            {outstanding.map((student) => (
-              <li key={student.id} className={styles.dueRow}>
-                <button
-                  type="button"
-                  className={styles.dueIdentity}
-                  onClick={() => navigate(`/teacher/students/${student.id}`)}
-                >
-                  <span className={styles.dueName}>{student.name}</span>
-                  <span className={styles.dueMeta}>
-                    {student.grade ? `Class ${student.grade}` : "Class not set"}
-                    {student.school ? ` · ${student.school}` : ""} · last report{" "}
-                    {asDate(student.lastReport)}
-                  </span>
-                </button>
-                <span className={styles.dueActions}>
-                  <Badge tone={TONE[student.state]}>{STATE_LABEL[student.state]}</Badge>
-                  <Button
-                    variant="secondary"
-                    icon="plus"
-                    onClick={() => navigate(`/teacher/reports/new?studentId=${student.id}`)}
+            {outstanding.map((student) => {
+              const name = student.name || t("teacherPages.common.unnamed");
+              const meta = [
+                student.grade
+                  ? t("teacherPages.common.classLabel", { grade: student.grade })
+                  : t("student.classNotSet"),
+                student.school,
+                student.lastReport
+                  ? t("teacherPages.dashboard.lastReportOn", { date: formatDate(student.lastReport) })
+                  : t("report.none"),
+              ]
+                .filter(Boolean)
+                .join(" · ");
+
+              return (
+                <li key={student.id} className={styles.dueRow}>
+                  <button
+                    type="button"
+                    className={styles.dueIdentity}
+                    onClick={() => navigate(`/teacher/students/${student.id}`)}
                   >
-                    Submit report
-                  </Button>
-                </span>
-              </li>
-            ))}
+                    <span className={styles.dueName}>{name}</span>
+                    <span className={styles.dueMeta}>{meta}</span>
+                  </button>
+                  <span className={styles.dueActions}>
+                    <Badge tone={TONE[student.state]}>{t(STATE_LABEL_KEY[student.state])}</Badge>
+                    <Button
+                      variant="secondary"
+                      icon="plus"
+                      aria-label={t("teacherPages.dashboard.sendReportFor", { name })}
+                      onClick={() => navigate(`/teacher/reports/new?studentId=${student.id}`)}
+                    >
+                      {t("teacherPages.dashboard.sendReport")}
+                    </Button>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Card>

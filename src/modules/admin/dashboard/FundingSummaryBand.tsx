@@ -95,7 +95,7 @@ export const FundingSummaryBand: React.FC<FundingSummaryBandProps> = ({
         <Decomposed
           label={`Received in ${year}`}
           value={formatCurrency(funding.receivedThisYearThb)}
-          note="Contributions recorded"
+          note="Payments recorded"
         />
         <Decomposed
           label="Unallocated"

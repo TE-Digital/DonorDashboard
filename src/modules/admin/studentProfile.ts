@@ -557,10 +557,26 @@ export interface DonorCard {
   photoUrl: string | null;
 }
 
+/** The words on the card in one language. The photo is shared by both. */
+export interface DonorCardText {
+  displayName: string;
+  description: string;
+}
+
+/** A language is ready when both its name and its description are written. */
+export const cardTextComplete = (text: DonorCardText | null | undefined): boolean =>
+  Boolean(text?.displayName.trim() && text?.description.trim());
+
 export interface DonorProfileState {
   profileStatus: DonorProfileStatus;
   consent: ConsentStatus;
+  /** The English card. The original columns. */
   card: DonorCard;
+  /**
+   * The Thai card, from 20260911130000_bilingual_donor_card.sql. Null when that
+   * migration is not applied, which leaves the card English only.
+   */
+  cardTh?: DonorCardText | null;
   sentAt: string | null;
 }
 
@@ -568,20 +584,17 @@ export interface DonorProfileState {
  * Why this card cannot be sent yet, or null when it can.
  *
  * Both conditions are named separately, because "you cannot send this" without
- * saying which of the two is missing is a dead end.
+ * saying which of the two is missing is a dead end. Whether each donor can read
+ * the language written is a separate question, answered per donor on the tab
+ * and again on the server.
  */
+/** Returns an i18n key under donorCard.blocked; the screen translates it. */
 export const sendBlockedReason = (state: DonorProfileState): string | null => {
   if (state.consent !== "approved") {
-    return state.consent === "declined"
-      ? "The family has declined consent. Nothing about this student can be sent to a donor."
-      : "Consent has not been approved yet. Record the family's consent before sending anything.";
+    return state.consent === "declined" ? "donorCard.blocked.consentDeclined" : "donorCard.blocked.consentPending";
   }
-  if (state.profileStatus !== "published") {
-    return "This profile is not published yet. Publish it once the photo, name and description have been checked.";
-  }
-  if (!state.card.displayName.trim() || !state.card.description.trim()) {
-    return "The card needs a display name and a description before it can be sent.";
-  }
+  if (state.profileStatus !== "published") return "donorCard.blocked.unpublished";
+  if (!cardTextComplete(state.card) && !cardTextComplete(state.cardTh)) return "donorCard.blocked.noText";
   return null;
 };
 

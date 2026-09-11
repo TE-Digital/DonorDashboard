@@ -15,6 +15,10 @@
 // so a form can mark four empty fields at once instead of telling an admin
 // about them one submit at a time.
 
+import { getExampleNumber, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js";
+import examples from "libphonenumber-js/mobile/examples";
+import { countryName } from "./countries";
+
 /** field name → what is wrong with it, in a sentence an admin can act on. */
 export type FieldErrors<K extends string = string> = Partial<Record<K, string>>;
 
@@ -63,6 +67,67 @@ export const isEmail = (value: string): boolean => EMAIL.test(value.trim());
 const PHONE = /^(?:\+?66|0)\d{8,9}$/;
 
 export const isPhone = (value: string): boolean => PHONE.test(value.replace(/[\s\-().]/g, ""));
+
+/* --------------------------------------------------- International phone */
+
+/**
+ * Any country's number, for records where people aren't only in Thailand.
+ *
+ * Donors ring from the UK, Australia and Singapore; isPhone above would turn
+ * every one of them away. These check against the donor's country when one is
+ * recorded, and otherwise require the number to carry its own code, because a
+ * bare "081 234 5678" means nothing without knowing where it's dialled.
+ *
+ * isPhone stays as it is: students and teachers are in Thailand.
+ */
+export type PhoneProblem = "needs-country-code" | "invalid" | null;
+
+const asCountry = (country: string | null | undefined): CountryCode | undefined =>
+  (country ?? undefined) as CountryCode | undefined;
+
+export const phoneProblem = (value: string, country: string | null): PhoneProblem => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (!country && !trimmed.startsWith("+")) return "needs-country-code";
+  return parsePhoneNumberFromString(trimmed, asCountry(country))?.isValid() ? null : "invalid";
+};
+
+export const isInternationalPhone = (value: string, country: string | null): boolean =>
+  value.trim() !== "" && phoneProblem(value, country) === null;
+
+/** One stored form, E.164 ("+66812345678"), or null if the number isn't valid. */
+export const normalisePhone = (value: string, country: string | null): string | null => {
+  const parsed = parsePhoneNumberFromString(value.trim(), asCountry(country));
+  return parsed?.isValid() ? parsed.number : null;
+};
+
+/**
+ * How a stored number reads back in the field: the local form when it belongs
+ * to the chosen country ("081 234 5678"), the international form otherwise.
+ * Anything that doesn't parse is shown exactly as stored, so an admin fixing an
+ * old number sees what is really there.
+ */
+export const displayPhone = (stored: string | null | undefined, country: string | null): string => {
+  if (!stored) return "";
+  const parsed = parsePhoneNumberFromString(stored, asCountry(country));
+  if (!parsed?.isValid()) return stored;
+  return country && parsed.country === country ? parsed.formatNational() : parsed.formatInternational();
+};
+
+/** The sentence under a phone field with this problem. */
+export const phoneMessage = (problem: PhoneProblem, country: string | null): string | null => {
+  if (problem === "needs-country-code") {
+    return "Add the country code, for example +66 81 234 5678, or choose a country above.";
+  }
+  if (problem === "invalid") {
+    if (!country) return "That doesn't look like a complete international number. Check the country code and the number.";
+    const example = getExampleNumber(asCountry(country) as CountryCode, examples)?.formatNational();
+    return example
+      ? `That doesn't look like a complete phone number for ${countryName(country)}. Include the area code, for example ${example}.`
+      : `That doesn't look like a complete phone number for ${countryName(country)}.`;
+  }
+  return null;
+};
 
 /* ------------------------------------------------------------------ Dates */
 

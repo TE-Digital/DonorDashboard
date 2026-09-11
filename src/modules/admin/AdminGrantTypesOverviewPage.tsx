@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Stack } from "@mantine/core";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabaseClient";
+import { toFriendlyError } from "../../i18n/errors";
 import {
   InlineMessage,
   LoadingState,
@@ -45,8 +46,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
 
       setGrantTypes((data as GrantType[]) || []);
     } catch (err: any) {
-      console.error("Error loading grant types", err);
-      setError("Could not load grant types.");
+      setError(toFriendlyError(err, "errors.load", "Error loading grant types"));
     } finally {
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete the grant type: "${name}"? This action cannot be undone.`)) {
+    if (!window.confirm(`Delete ${name}? This can't be undone.`)) {
       return;
     }
 
@@ -73,7 +73,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
       setGrantTypes((prev) => prev.filter((gt) => gt.id !== id));
     } catch (err: any) {
       console.error("Error deleting grant type", err);
-      setError("Failed to delete grant type. It may be in use by existing scholarships.");
+      setError("This grant type couldn't be deleted because scholarships still use it.");
     }
   };
 
@@ -99,14 +99,14 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
       },
       {
         label: "Average award",
-        value: avg != null ? new Intl.NumberFormat().format(avg) : "—",
-        footnote: currency,
+        value: avg != null ? new Intl.NumberFormat().format(avg) : "None set",
+        footnote: avg != null ? currency : "no amounts yet",
         mark: "money",
       },
       {
         label: "Typical duration",
-        value: avgMonths ?? "—",
-        footnote: avgMonths ? "months" : "not set",
+        value: avgMonths ?? "None set",
+        footnote: avgMonths ? "months" : "no durations yet",
         mark: "time",
       },
     ];
@@ -123,7 +123,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
       render: (g) =>
         g.amount_per_period != null
           ? `${new Intl.NumberFormat().format(g.amount_per_period)} ${g.currency}`
-          : "—",
+          : "Amount not set",
     },
     {
       key: "default_duration_months",
@@ -131,7 +131,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
       align: "right",
       numeric: true,
       width: 160,
-      render: (g) => (g.default_duration_months ? `${g.default_duration_months} months` : "—"),
+      render: (g) => (g.default_duration_months ? `${g.default_duration_months} months` : "No default"),
     },
     {
       key: "actions",
@@ -177,7 +177,7 @@ export const AdminGrantTypesOverviewPage: React.FC = () => {
         kpis={kpis}
         columns={columns}
         rows={grantTypes}
-        emptyTitle="No grant types found"
+        emptyTitle="No grant types yet"
         emptyDescription="Add a grant type to create scholarships from it."
         emptyIcon="hand-coins"
         emptyAction={

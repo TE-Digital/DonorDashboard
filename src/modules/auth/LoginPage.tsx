@@ -16,6 +16,7 @@ import { useBranding } from "../theme/BrandingContext";
 import { InlineMessage, isEmail, textRole, useDocumentTitle } from "../../design-system";
 import type { FieldErrors } from "../../design-system/fieldValidation";
 import { color } from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 import classes from "./AuthSurface.module.scss";
 
 export const LoginPage: React.FC = () => {
@@ -45,7 +46,7 @@ export const LoginPage: React.FC = () => {
     if (!email.trim()) {
       problems.email = "Enter the email address you sign in with.";
     } else if (!isEmail(email)) {
-      problems.email = "That does not look like an email address.";
+      problems.email = "That doesn't look like an email address.";
     }
     if (!password) problems.password = "Enter your password.";
 
@@ -63,7 +64,16 @@ export const LoginPage: React.FC = () => {
       password,
     });
 
-    if (signInError) setError(signInError.message);
+    if (signInError) {
+      // Supabase answers a wrong email or password with a 400; anything else is
+      // a connection or server problem and gets the shared message.
+      setError(
+        signInError.status === 400
+          ? (console.error(signInError),
+            "That email and password don't match. Try again, or reset your password.")
+          : toFriendlyError(signInError, "errors.generic", "signIn")
+      );
+    }
     setSubmitting(false);
   };
 

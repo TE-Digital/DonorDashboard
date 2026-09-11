@@ -32,10 +32,9 @@ export interface StudentFormDrawerProps {
   contextLabel?: string;
 }
 
-const HEADINGS: Record<Step, { title: string; subtitle: string }> = {
+const HEADINGS: Record<Step, { title: string; subtitle?: string }> = {
   student: {
     title: "Add student",
-    subtitle: "Create the student record without leaving this screen.",
   },
   school: {
     title: "Add school",

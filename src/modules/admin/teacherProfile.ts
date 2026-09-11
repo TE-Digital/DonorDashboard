@@ -56,11 +56,12 @@ export const EMPTY_TEACHER_DETAILS: TeacherDetailsInput = {
 };
 
 /**
- * Shown wherever a screen had to drop the extended fields. Naming the migration
- * makes the fix a copy-paste rather than a support conversation.
+ * Shown wherever a screen had to drop the extended fields. The migration that
+ * fixes it (named at the top of this file) stays out of the sentence: admins
+ * read this, not developers (VOICE.md R11).
  */
 export const TEACHER_FIELDS_PENDING_NOTE =
-  "Thai name, LINE ID, school and notes could not be saved: the profiles table does not have those columns yet. Apply supabase/migrations/20260820090000_teacher_profile_fields.sql, then reopen this teacher and save again.";
+  "Everything else is saved, but the Thai name, LINE ID, school and notes aren't yet. That part is still being set up. Reopen this teacher later to add them.";
 
 /**
  * True when PostgREST refused a request because a column is not in the schema.

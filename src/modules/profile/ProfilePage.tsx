@@ -23,6 +23,7 @@ import {
   isEmail,
   type FieldErrors,
 } from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 
 /** Namespaces this form's field ids. */
 const FORM_ID = "my-profile";
@@ -60,7 +61,7 @@ export const ProfilePage: React.FC = () => {
       setMessage(null);
 
       if (!session?.user) {
-        setError("You are not logged in.");
+        setError("You're not signed in.");
         setLoading(false);
         return;
       }
@@ -82,14 +83,13 @@ export const ProfilePage: React.FC = () => {
         .maybeSingle();
 
       if (profileError) {
-        console.error(profileError);
-        setError("Could not load profile.");
+        setError(toFriendlyError(profileError, "errors.load", "loadProfile"));
         setLoading(false);
         return;
       }
 
       if (!profile) {
-        setError("Profile not found.");
+        setError("We couldn't find this profile.");
         setLoading(false);
         return;
       }
@@ -123,7 +123,7 @@ export const ProfilePage: React.FC = () => {
         // Marked on the field. `includes("@")` accepted "a@b" and rejected
         // nothing else; the shared check is the one every other form uses.
         const problem = !trimmedEmail
-          ? "An email address is required — it is how you sign in."
+          ? "Add an email address. It's how you sign in."
           : !isEmail(trimmedEmail)
             ? "Enter a complete email address, for example name@example.com."
             : null;
@@ -142,8 +142,7 @@ export const ProfilePage: React.FC = () => {
         });
 
         if (authError) {
-          console.error("Error updating auth email", authError);
-          setError(authError.message || "Could not update email.");
+          setError(toFriendlyError(authError, "errors.save", "updateAuthEmail"));
           setSavingProfile(false);
           return;
         }
@@ -169,8 +168,7 @@ export const ProfilePage: React.FC = () => {
         .eq("id", targetUserId);
 
       if (updateError) {
-        console.error(updateError);
-        setError(updateError.message);
+        setError(toFriendlyError(updateError, "errors.save", "updateProfile"));
         setSavingProfile(false);
         return;
       }
@@ -209,7 +207,7 @@ export const ProfilePage: React.FC = () => {
               console.error("Error syncing donor email", donorUpdateError);
               // We don't abort the whole flow, just show a softer message
               setMessage(
-                "Profile updated, but there was a problem syncing the donor contact email. Please contact an administrator if this persists."
+                "Your profile is saved, but we couldn't update the email on your donor profile. Ask us to change it for you."
               );
               setSavingProfile(false);
               return;
@@ -221,10 +219,9 @@ export const ProfilePage: React.FC = () => {
         }
       }
 
-      setMessage("Profile updated successfully.");
+      setMessage("Your profile is saved.");
     } catch (err: any) {
-      console.error("Unexpected error updating profile", err);
-      setError(err.message ?? "Unexpected error while updating profile.");
+      setError(toFriendlyError(err, "errors.save", "updateProfile"));
     } finally {
       setSavingProfile(false);
     }
@@ -243,7 +240,7 @@ export const ProfilePage: React.FC = () => {
       problems.newPassword = "Use at least 6 characters.";
     }
     if (newPassword !== newPasswordConfirm) {
-      problems.confirmPassword = "The two passwords do not match.";
+      problems.confirmPassword = "The two passwords don't match.";
     }
     setFieldErrors((current) => ({ ...current, ...problems }));
 
@@ -259,10 +256,9 @@ export const ProfilePage: React.FC = () => {
     });
 
     if (pwError) {
-      console.error(pwError);
-      setError(pwError.message);
+      setError(toFriendlyError(pwError, "errors.save", "updatePassword"));
     } else {
-      setMessage("Password updated successfully.");
+      setMessage("Your new password is saved. Use it next time you sign in.");
       setNewPassword("");
       setNewPasswordConfirm("");
     }
@@ -273,11 +269,11 @@ export const ProfilePage: React.FC = () => {
   const heading =
     isOwnProfile || !session?.user
       ? "My profile"
-      : "Edit user profile";
+      : "Edit profile";
 
   const subtitle = isOwnProfile
     ? "Update your contact details, email and password."
-    : "You are editing this user's contact details as an admin.";
+    : "You're editing this person's contact details as an admin.";
 
   return (
     <div style={{ position: "relative" }}>

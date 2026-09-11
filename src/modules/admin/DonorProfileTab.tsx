@@ -14,11 +14,17 @@
 // photo. The internal bio, the guardian, the phone, the village and every
 // amount are unreachable from here, so no future edit can put them on a card by
 // accident.
+//
+// The card exists in English and Thai. A donor reads the language they asked
+// for or nothing: the tab names any donor whose language is still empty, and
+// the server refuses the send for the same reason.
 
 import React from "react";
 import { Select, Textarea, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { FormSection, InlineMessage } from "../../design-system";
+import { useTranslation } from "react-i18next";
+import { FormSection, InlineMessage, formatDate } from "../../design-system";
+import { LanguageTabs, type TextLanguage } from "../../design-system/components/LanguageTabs";
 import { Badge, Button, Icon } from "../../design-system/lumen";
 import { useBranding } from "../theme/BrandingContext";
 import { supabase } from "../../lib/supabaseClient";
@@ -34,12 +40,14 @@ import { logEvent } from "./studentEvents";
 import {
   CONSENT_META,
   DONOR_PROFILE_META,
+  cardTextComplete,
   sendBlockedReason,
   studentPhotoUrl,
   type ConsentStatus,
   type DonorProfileStatus,
   type StudentRecord,
 } from "./studentProfile";
+import { isMissingColumnError } from "./teacherProfile";
 import styles from "./DonorProfileTab.module.scss";
 
 /**
@@ -49,6 +57,15 @@ import styles from "./DonorProfileTab.module.scss";
  */
 const ORGANISATION = "iCare Thailand Foundation";
 
+const DESCRIPTION_LIMIT = 420;
+
+type ByLanguage = Record<TextLanguage, string>;
+
+interface Reader {
+  name: string;
+  language: TextLanguage;
+}
+
 export interface DonorProfileTabProps {
   student: StudentRecord;
   /** Re-reads the record after anything here changes it. */
@@ -56,13 +73,20 @@ export interface DonorProfileTabProps {
 }
 
 export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onChanged }) => {
+  const { t } = useTranslation();
   const branding = useBranding();
   const { session } = useAuth();
 
-  const [displayName, setDisplayName] = React.useState(
-    student.donor_display_name ?? student.nickname ?? "",
-  );
-  const [description, setDescription] = React.useState(student.donor_description ?? "");
+  const initialEnName = student.donor_display_name ?? student.nickname ?? "";
+  const initialEnDescription = student.donor_description ?? "";
+
+  const [names, setNames] = React.useState<ByLanguage>({ en: initialEnName, th: "" });
+  const [descriptions, setDescriptions] = React.useState<ByLanguage>({ en: initialEnDescription, th: "" });
+  const [savedTh, setSavedTh] = React.useState<{ name: string; description: string }>({ name: "", description: "" });
+  const [thaiAvailable, setThaiAvailable] = React.useState(true);
+  const [writing, setWriting] = React.useState<TextLanguage>("en");
+  const [readers, setReaders] = React.useState<Reader[]>([]);
+
   const [profileStatus, setProfileStatus] = React.useState<DonorProfileStatus>(
     (student.donor_profile_status as DonorProfileStatus) ?? "draft",
   );
@@ -79,33 +103,96 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
 
   const photoUrl = studentPhotoUrl(photoPath);
 
+  // The Thai card and the donors who will read it. Read separately from the
+  // student row: naming a column the database does not have yet would empty the
+  // whole record, and the English card must keep working before the migration.
+  React.useEffect(() => {
+    let cancelled = false;
+
+    supabase
+      .from("students")
+      .select("donor_display_name_th, donor_description_th")
+      .eq("id", student.id)
+      .maybeSingle()
+      .then(({ data, error: readError }) => {
+        if (cancelled) return;
+        if (readError) {
+          if (isMissingColumnError(readError)) setThaiAvailable(false);
+          else console.error("Error loading the Thai donor card", readError);
+          return;
+        }
+        const name = (data as { donor_display_name_th?: string | null } | null)?.donor_display_name_th ?? "";
+        const description = (data as { donor_description_th?: string | null } | null)?.donor_description_th ?? "";
+        setNames((prev) => ({ ...prev, th: name }));
+        setDescriptions((prev) => ({ ...prev, th: description }));
+        setSavedTh({ name, description });
+      });
+
+    supabase
+      .from("student_donors")
+      .select("donor_name, donor_language")
+      .eq("student_id", student.id)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setReaders(
+          (data ?? []).map((row: { donor_name: string | null; donor_language: string | null }) => ({
+            name: row.donor_name ?? t("donorCard.aDonor"),
+            language: row.donor_language === "th" ? "th" : "en",
+          })),
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [student.id, t]);
+
+  const textFor = (language: TextLanguage) => ({
+    displayName: names[language],
+    description: descriptions[language],
+  });
+
+  const written: Record<TextLanguage, boolean> = {
+    en: cardTextComplete(textFor("en")),
+    th: cardTextComplete(textFor("th")),
+  };
+
   const state = {
     profileStatus,
     consent,
-    card: { displayName, description, photoUrl },
+    card: { ...textFor("en"), photoUrl },
+    cardTh: thaiAvailable ? textFor("th") : null,
     sentAt: student.donor_card_sent_at ?? null,
   };
 
-  const blocked = sendBlockedReason(state);
+  const languageName = (language: TextLanguage) => t(`donorCard.languageNames.${language}`);
+
+  // Donors who would receive a language nobody has written. Named one by one:
+  // "the Thai version is missing" does not tell anybody who is waiting for it.
+  const unreadable = readers.filter((reader) => !written[reader.language]);
+  const readerProblem = unreadable.length
+    ? unreadable
+        .map((reader) => t("donorCard.readerMissing", { name: reader.name, language: languageName(reader.language) }))
+        .join(" ")
+    : null;
+
+  const baseBlock = sendBlockedReason(state);
+  const blocked = baseBlock ? t(baseBlock) : readerProblem;
+
+  const branded = { organisation: ORGANISATION, accent: branding?.primary_color ?? "#1c7ed6" };
 
   // The preview and the download are the same SVG. Not the same design — the
   // same string, shown here as an image and rasterised there.
   const svg = React.useMemo(
-    () =>
-      donorCardSvg(
-        { displayName, description, photoUrl },
-        {
-          organisation: ORGANISATION,
-          accent: branding?.primary_color ?? "#1c7ed6",
-        },
-        photoUrl,
-      ),
-    [displayName, description, photoUrl, branding],
+    () => donorCardSvg({ ...textFor(writing), photoUrl }, branded, photoUrl),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [names, descriptions, writing, photoUrl, branding],
   );
 
   const dirty =
-    displayName !== (student.donor_display_name ?? student.nickname ?? "") ||
-    description !== (student.donor_description ?? "") ||
+    names.en !== initialEnName ||
+    descriptions.en !== initialEnDescription ||
+    (thaiAvailable && (names.th !== savedTh.name || descriptions.th !== savedTh.description)) ||
     profileStatus !== ((student.donor_profile_status as DonorProfileStatus) ?? "draft") ||
     consent !== ((student.consent_status as ConsentStatus) ?? "pending");
 
@@ -118,8 +205,14 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
     const { error: updateError } = await supabase
       .from("students")
       .update({
-        donor_display_name: displayName.trim() || null,
-        donor_description: description.trim() || null,
+        donor_display_name: names.en.trim() || null,
+        donor_description: descriptions.en.trim() || null,
+        ...(thaiAvailable
+          ? {
+              donor_display_name_th: names.th.trim() || null,
+              donor_description_th: descriptions.th.trim() || null,
+            }
+          : {}),
         donor_profile_status: profileStatus,
         consent_status: consent,
         ...(consentChanged ? { consent_recorded_at: new Date().toISOString() } : {}),
@@ -130,9 +223,11 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
 
     if (updateError) {
       console.error("Error saving donor profile", updateError);
-      setError("The donor profile did not save. Check your connection, then try again.");
+      setError(t("donorCard.errors.saveFailed"));
       return;
     }
+
+    if (thaiAvailable) setSavedTh({ name: names.th.trim(), description: descriptions.th.trim() });
 
     await logEvent(
       student.id,
@@ -149,8 +244,8 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
     }
 
     notifications.show({
-      title: "Donor profile saved",
-      message: `${DONOR_PROFILE_META[profileStatus].label} · ${CONSENT_META[consent].label}`,
+      title: t("donorCard.editor.savedTitle"),
+      message: `${t(`donorCard.profileStatus.${profileStatus}`)} · ${t(`donorCard.consentBadge.${consent}`)}`,
       color: "green",
       icon: <Icon name="check" size={16} />,
       withBorder: true,
@@ -172,7 +267,7 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
 
     if (uploadError) {
       console.error("Error uploading donor photo", uploadError);
-      setError("The photo could not be uploaded.");
+      setError(t("donorCard.errors.photoFailed"));
       return;
     }
 
@@ -182,7 +277,7 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
       .eq("id", student.id);
 
     if (linkError) {
-      setError("The photo uploaded but could not be linked.");
+      setError(t("donorCard.errors.photoLinkFailed"));
       return;
     }
 
@@ -192,7 +287,7 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
   };
 
   const download = async () => {
-    if (blocked) return;
+    if (sendBlockedReason(state) || !written[writing]) return;
     setBusy("download");
     setError(null);
 
@@ -200,15 +295,8 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
     // drawn through, and the export would fail with nothing to show for it.
     const inlined = await inlinePhoto(photoUrl);
     const problem = await downloadCardPng(
-      donorCardSvg(
-        { displayName, description, photoUrl },
-        {
-          organisation: ORGANISATION,
-          accent: branding?.primary_color ?? "#1c7ed6",
-        },
-        inlined,
-      ),
-      cardFileName(displayName),
+      donorCardSvg({ ...textFor(writing), photoUrl }, branded, inlined),
+      cardFileName(names.en || names[writing]),
     );
 
     setBusy(null);
@@ -218,10 +306,14 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
       return;
     }
 
-    await logEvent(student.id, "donor_card_downloaded", `Donor card downloaded for ${displayName}`);
+    await logEvent(
+      student.id,
+      "donor_card_downloaded",
+      `Donor card downloaded in ${writing === "th" ? "Thai" : "English"} for ${names[writing]}`,
+    );
     notifications.show({
-      title: "Card downloaded",
-      message: "The image is in your downloads folder.",
+      title: t("donorCard.editor.downloadedTitle"),
+      message: t("donorCard.editor.downloadedMessage"),
       color: "green",
       icon: <Icon name="check" size={16} />,
       withBorder: true,
@@ -249,13 +341,13 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setError((payload as { error?: string } | null)?.error ?? "The card was not sent.");
+        setError((payload as { error?: string } | null)?.error ?? t("donorCard.errors.sendFailed"));
         return;
       }
 
       notifications.show({
-        title: "Card sent",
-        message: `Sent to ${(payload as { recipient?: string })?.recipient ?? "the donor"}.`,
+        title: t("donorCard.editor.sentTitle"),
+        message: t("donorCard.editor.sentMessage", { names: (payload as { recipient?: string })?.recipient ?? t("donorCard.aDonor") }),
         color: "green",
         icon: <Icon name="check" size={16} />,
         withBorder: true,
@@ -264,56 +356,58 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
       onChanged();
     } catch (requestError) {
       console.error("Error sending donor card", requestError);
-      setError("The server could not be reached. Check your connection, then try again.");
+      setError(t("donorCard.errors.connection"));
     } finally {
       setBusy(null);
     }
   };
+
+  const description = descriptions[writing];
 
   return (
     <div className={styles.layout}>
       <div className={styles.editor}>
         {/* Both gates, side by side, each saying what it is waiting for. */}
         <FormSection
-          title="Status"
+          title={t("donorCard.editor.statusTitle")}
           actions={
             <Button variant="primary" disabled={!dirty || saving} onClick={() => void save()}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           }
         >
           <div className={styles.statusRow}>
             <div className={styles.statusCell}>
               <Select
-                label="Profile status"
+                label={t("donorCard.editor.profileStatus")}
                 allowDeselect={false}
                 data={[
-                  { value: "draft", label: "Draft" },
-                  { value: "awaiting_review", label: "Awaiting review" },
-                  { value: "published", label: "Published" },
+                  { value: "draft", label: t("donorCard.profileStatus.draft") },
+                  { value: "awaiting_review", label: t("donorCard.profileStatus.awaiting_review") },
+                  { value: "published", label: t("donorCard.profileStatus.published") },
                 ]}
                 value={profileStatus}
                 onChange={(value) => value && setProfileStatus(value as DonorProfileStatus)}
               />
               <Badge tone={DONOR_PROFILE_META[profileStatus].tone} dot>
-                {DONOR_PROFILE_META[profileStatus].label}
+                {t(`donorCard.profileStatus.${profileStatus}`)}
               </Badge>
             </div>
 
             <div className={styles.statusCell}>
               <Select
-                label="Consent"
+                label={t("donorCard.editor.consent")}
                 allowDeselect={false}
                 data={[
-                  { value: "pending", label: "Pending" },
-                  { value: "approved", label: "Approved" },
-                  { value: "declined", label: "Declined" },
+                  { value: "pending", label: t("donorCard.consentOption.pending") },
+                  { value: "approved", label: t("donorCard.consentOption.approved") },
+                  { value: "declined", label: t("donorCard.consentOption.declined") },
                 ]}
                 value={consent}
                 onChange={(value) => value && setConsent(value as ConsentStatus)}
               />
               <Badge tone={CONSENT_META[consent].tone} dot>
-                {CONSENT_META[consent].label}
+                {t(`donorCard.consentBadge.${consent}`)}
               </Badge>
             </div>
           </div>
@@ -321,38 +415,69 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
           {consent === "declined" && (
             <div className={styles.note}>
               <InlineMessage tone="error">
-                The family has declined. Nothing about this student may be sent to a donor, and this
-                card cannot be published.
+                {t("donorCard.editor.declined")}
               </InlineMessage>
             </div>
           )}
         </FormSection>
 
-        <FormSection
-          title="The card"
-        >
-          <TextInput
-            label="Display name"
-            placeholder="e.g. Nong Anucha"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.currentTarget.value)}
+        <FormSection title={t("donorCard.editor.cardTitle")}>
+          <LanguageTabs
+            idPrefix="donor-card"
+            value={writing}
+            onChange={setWriting}
+            written={written}
+            label={t("donorCard.languageLabel")}
+            missingLabel={t("donorCard.notWritten")}
+            disabled={{ th: !thaiAvailable }}
           />
 
-          <div className={styles.field}>
-            <Textarea
-              label="Donor-facing description"
-              minRows={5}
-              autosize
-              maxLength={420}
-              placeholder="What this student enjoys, what they are working towards, what the sponsorship changes."
-              value={description}
-              onChange={(event) => setDescription(event.currentTarget.value)}
-            />
-            <span className={styles.counter}>{description.length} / 420</span>
+          {!thaiAvailable && (
+            <div className={styles.note}>
+              <InlineMessage tone="info">{t("donorCard.thaiNotSetUp")}</InlineMessage>
+            </div>
+          )}
+
+          <div id="donor-card-panel" role="tabpanel" aria-labelledby={`donor-card-tab-${writing}`}>
+            <div className={styles.field}>
+              <TextInput
+                label={t("donorCard.displayName")}
+                lang={writing}
+                placeholder={writing === "th" ? "น้องอนุชา" : "Nong Anucha"}
+                value={names[writing]}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setNames((prev) => ({ ...prev, [writing]: value }));
+                }}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <Textarea
+                label={t("donorCard.description")}
+                lang={writing}
+                minRows={5}
+                autosize
+                maxLength={DESCRIPTION_LIMIT}
+                placeholder={
+                  writing === "th"
+                    ? "สิ่งที่นักเรียนชอบ สิ่งที่กำลังตั้งใจทำ และทุนนี้ช่วยอะไรได้บ้าง"
+                    : "What this student enjoys, what they are working towards, what the support changes."
+                }
+                value={description}
+                onChange={(event) => {
+                  const value = event.currentTarget.value;
+                  setDescriptions((prev) => ({ ...prev, [writing]: value }));
+                }}
+              />
+              <span className={styles.counter}>
+                {description.length} / {DESCRIPTION_LIMIT}
+              </span>
+            </div>
           </div>
 
           <div className={styles.field}>
-            <span className={styles.photoLabel}>Approved photo</span>
+            <span className={styles.photoLabel}>{t("donorCard.editor.photo")}</span>
             <input
               ref={photoInput}
               type="file"
@@ -365,7 +490,7 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
             />
             <div className={styles.photoButtons}>
               <Button variant="secondary" icon="upload" onClick={() => photoInput.current?.click()}>
-                {photoPath ? "Replace photo" : "Choose photo"}
+                {photoPath ? t("donorCard.editor.replacePhoto") : t("donorCard.editor.choosePhoto")}
               </Button>
               {student.profile_photo_path && photoPath !== student.profile_photo_path && (
                 <Button
@@ -380,13 +505,12 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
                     onChanged();
                   }}
                 >
-                  Use the record photo
+                  {t("donorCard.editor.useRecordPhoto")}
                 </Button>
               )}
             </div>
             <span className={styles.photoHint}>
-              The record photo and the donor photo are separate on purpose. Choosing one here does
-              not change the other.
+              {t("donorCard.editor.photoNote")}
             </span>
           </div>
         </FormSection>
@@ -394,13 +518,18 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
 
       <aside className={styles.previewPane}>
         <div className={styles.previewHead}>
-          <h2 className={styles.previewTitle}>What the donor receives</h2>
+          <h2 className={styles.previewTitle}>{t("donorCard.editor.previewTitle")}</h2>
           <span className={styles.previewNote}>
-            This image is exactly what downloads and what is emailed.
+            {t("donorCard.showing", { language: languageName(writing) })}
           </span>
         </div>
 
-        <img className={styles.preview} src={svgDataUri(svg)} alt={`Donor card for ${displayName}`} />
+        <img
+          className={styles.preview}
+          src={svgDataUri(svg)}
+          alt={t("donorCard.editor.previewAlt", { name: names[writing] || names.en })}
+          lang={writing}
+        />
 
         {blocked && (
           <div className={styles.blocked}>
@@ -418,10 +547,10 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
           <Button
             variant="secondary"
             icon="download"
-            disabled={Boolean(blocked) || busy !== null || dirty}
+            disabled={Boolean(sendBlockedReason(state)) || !written[writing] || busy !== null || dirty}
             onClick={() => void download()}
           >
-            {busy === "download" ? "Preparing…" : "Download"}
+            {busy === "download" ? t("donorCard.editor.preparing") : t("donorCard.editor.download")}
           </Button>
           <Button
             variant="primary"
@@ -429,19 +558,19 @@ export const DonorProfileTab: React.FC<DonorProfileTabProps> = ({ student, onCha
             disabled={Boolean(blocked) || busy !== null || dirty}
             onClick={() => void send()}
           >
-            {busy === "send" ? "Sending…" : "Send to donor"}
+            {busy === "send" ? t("common.sending") : t("donorCard.editor.send")}
           </Button>
         </div>
 
         {dirty && !blocked && (
           <span className={styles.previewNote}>
-            Save your changes first — the card that sends is the saved one.
+            {t("donorCard.editor.saveFirst")}
           </span>
         )}
 
         {student.donor_card_sent_at && (
           <span className={styles.previewNote}>
-            Last sent {new Date(student.donor_card_sent_at).toLocaleString()}.
+            {t("donorCard.editor.lastSent", { date: formatDate(student.donor_card_sent_at) })}
           </span>
         )}
       </aside>

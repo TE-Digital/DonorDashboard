@@ -10,7 +10,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Menu, Modal, Stack, Text, Group } from "@mantine/core";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { KpiRow, LoadingState, TableSection, type KpiItem } from "../../design-system";
+import {
+  KpiRow,
+  LoadingState,
+  TableSection,
+  emptyValue,
+  formatDate,
+  type KpiItem,
+} from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 import { Badge, Banner, Button, Icon, Tabs, type DataColumn } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
 import { StudentFormDrawer } from "./StudentFormDrawer";
@@ -57,7 +65,7 @@ interface ReportFolder {
 }
 
 const shortId = (prefix: string, id: string) => `${prefix}-${id.slice(0, 6).toUpperCase()}`;
-const asDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : "—");
+const asDate = (value: string | null) => formatDate(value);
 
 /** Reports land in one of two cycles a year; the design groups them that way. */
 const periodOf = (isoDate: string): string => {
@@ -97,7 +105,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       if (!schoolId) {
-        setError("Missing school id.");
+        setError("We couldn't tell which school to open. Go back to the list and choose one.");
         setLoading(false);
         return;
       }
@@ -123,7 +131,11 @@ export const AdminSchoolDetailPage: React.FC = () => {
 
       if (schoolError || !schoolData) {
         console.error("Error loading school", schoolError);
-        setError(schoolError?.message ?? "School not found.");
+        setError(
+          schoolError
+            ? toFriendlyError(schoolError, "errors.load")
+            : "We couldn't find this school. It may have been removed.",
+        );
         setLoading(false);
         return;
       }
@@ -199,12 +211,12 @@ export const AdminSchoolDetailPage: React.FC = () => {
         id: student.id,
         name: student.name ?? "(no name)",
         displayId: shortId("ST", student.id),
-        grade: student.grade_level || "—",
+        grade: student.grade_level || emptyValue(),
         teacherId: student.responsible_teacher_id ?? null,
         teacherName: student.responsible_teacher_id
           ? profilesById.get(student.responsible_teacher_id)?.full_name ?? "Teacher"
           : "Unassigned",
-        scholarship: student.scholarship || "—",
+        scholarship: student.scholarship || "No scholarship recorded",
         lastReport: latestByStudent.get(student.id) ?? null,
       }));
 
@@ -220,8 +232,8 @@ export const AdminSchoolDetailPage: React.FC = () => {
           id,
           displayId: shortId("TC", id),
           name: profile?.full_name ?? "(no name)",
-          email: profile?.email ?? "—",
-          phone: profile?.phone ?? "—",
+          email: profile?.email ?? emptyValue(),
+          phone: profile?.phone ?? emptyValue(),
           studentCount: mine.length,
           lastActive: latest ?? null,
         };
@@ -265,7 +277,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
       setError(
         students.length > 0
           ? "This school still has linked students. Reassign or remove them first."
-          : deleteError.message,
+          : toFriendlyError(deleteError, "errors.delete"),
       );
       setDeleting(false);
       return;
@@ -274,7 +286,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
   };
 
   const studentColumns: DataColumn<StudentRow>[] = [
-    { key: "displayId", label: "Student ID", width: 120, muted: true },
+    { key: "displayId", label: "Reference", width: 120, muted: true },
     { key: "name", label: "Name", width: 200 },
     { key: "grade", label: "Grade", width: 90 },
     { key: "teacherName", label: "Teacher", width: 180 },
@@ -289,7 +301,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
   ];
 
   const teacherColumns: DataColumn<TeacherRow>[] = [
-    { key: "displayId", label: "Teacher ID", width: 130, muted: true },
+    { key: "displayId", label: "Reference", width: 130, muted: true },
     { key: "name", label: "Name", width: 200 },
     { key: "email", label: "Email", width: 220 },
     { key: "phone", label: "Phone", width: 140 },
@@ -326,7 +338,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
   const kpis: KpiItem[] = [
     { label: "Students recorded", value: String(students.length), mark: "students" },
     { label: "Teachers recorded", value: String(teachers.length), mark: "teachers" },
-    { label: "Grade range", value: `${profile.gradeFrom}–${profile.gradeTo}`, mark: "grade" },
+    { label: "Grade range", value: `${profile.gradeFrom} to ${profile.gradeTo}`, mark: "grade" },
     { label: "Dormitory", value: profile.dormitory, mark: "dormitory" },
     { label: "Reporting", value: `${reported}/${students.length || 0}`, mark: "reports" },
   ];
@@ -336,7 +348,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
       title: "Programme",
       fields: [
         ["School system", profile.system, 4],
-        ["Grade range", `${profile.gradeFrom} – ${profile.gradeTo}`, 4],
+        ["Grade range", `${profile.gradeFrom} to ${profile.gradeTo}`, 4],
         ["Dormitory status", profile.dormitory, 4],
         // A real, stored fact: every student here reports on this rhythm.
         ["Reporting period", reportingPeriodLabel(school.reporting_period_months), 4],
@@ -357,7 +369,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
       fields: [
         ["Province", profile.province, 6],
         ["District", profile.district, 6],
-        ["Address on record", school.address || "—", 12],
+        ["Address on record", school.address || "No address recorded", 12],
       ],
     },
     {
@@ -417,7 +429,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
       >
         <Stack>
           <Text size="sm">
-            Remove {school.name} from the programme? This action cannot be undone.
+            Remove {school.name} from the programme? This can't be undone.
           </Text>
           {error && <Text size="sm" c="red">{error}</Text>}
           <Group justify="flex-end">
@@ -442,7 +454,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
         <div className={styles.detailIdentity}>
           <div className={styles.detailTitleRow}>
             <h1 className={styles.detailTitle}>{school.name}</h1>
-            <span title="Derived for display until the schools table carries a status column.">
+            <span title="This status is an estimate. We don't record a status for each school yet.">
               <Badge tone={statusTone(profile.status)}>{profile.status}</Badge>
             </span>
           </div>
@@ -505,7 +517,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
           }
         >
           {school.name} is on the programme. Add the teachers who represent it and the students who
-          attend it — both open here with the school already filled in.
+          attend it. Both forms open here with the school already filled in.
         </Banner>
       )}
 
@@ -559,7 +571,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
             {students.length === 1 ? "" : "s"} are linked to {school.name}. Both forms open here with
             the school already selected.
             {!teacherLinkSupported &&
-              " A teacher invited from here is created and emailed, but cannot carry this school until the teacher-profile migration is applied — they will appear above once they supervise one of its students."}
+              " A teacher invited from here gets their invitation, but can't be linked to this school yet. They'll appear above once they look after one of its students."}
           </Banner>
 
           <div className={styles.detailOverview}>
@@ -626,7 +638,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
           emptyDescription={
             teacherLinkSupported
               ? "Teachers appear here once they represent this school or supervise one of its students."
-              : "Teachers appear here once they supervise a student at this school. Linking a teacher to a school directly needs the teacher-profile migration."
+              : "Teachers appear here once they look after a student at this school. Linking a teacher to a school directly isn't available yet."
           }
           emptyIcon="users"
         />
@@ -692,7 +704,7 @@ export const AdminSchoolDetailPage: React.FC = () => {
                   tone: "warning",
                   text:
                     teacher.warning ??
-                    `The invitation for ${teacher.email} was sent, but the Thai name, LINE ID, school and notes were not saved — the profiles table does not have those columns yet.`,
+                    `The invitation for ${teacher.email} was sent, but we couldn't save the Thai name, LINE ID, school and notes yet. You can add them from the teacher's page later.`,
                 }
               : {
                   tone: "success",

@@ -72,7 +72,7 @@ export const ReportCommentThread: React.FC<ReportCommentThreadProps> = ({
     setBusy(false);
 
     if (!result.ok) {
-      setError(result.message ?? "Could not post that comment.");
+      setError(result.message ?? "We couldn't post that comment. Try again.");
       return;
     }
 
@@ -86,7 +86,7 @@ export const ReportCommentThread: React.FC<ReportCommentThreadProps> = ({
     const result = await editComment(editingId, editDraft);
     setBusy(false);
     if (!result.ok) {
-      setError(result.message ?? "Could not save that change.");
+      setError(result.message ?? "We couldn't save that change. Try again.");
       return;
     }
     setEditingId(null);
@@ -99,7 +99,7 @@ export const ReportCommentThread: React.FC<ReportCommentThreadProps> = ({
     const result = await deleteComment(comment.id);
     setBusy(false);
     if (result.ok) reload();
-    else setError(result.message ?? "Could not remove that comment.");
+    else setError(result.message ?? "We couldn't remove that comment. Try again.");
   };
 
   return (
@@ -134,7 +134,7 @@ export const ReportCommentThread: React.FC<ReportCommentThreadProps> = ({
                   .join(" ")}
               >
                 <div className={styles.bubbleMeta}>
-                  <span>{mine ? "You" : comment.audience === "internal" ? "Staff, internal" : "iCare"}</span>
+                  <span>{mine ? "You" : comment.audience === "internal" ? "Staff, internal" : "The team"}</span>
                   <span>·</span>
                   <span>{formatDateTime(comment.created_at)}</span>
                   {comment.audience === "internal" && <Badge tone="warning">Internal</Badge>}

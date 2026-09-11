@@ -24,7 +24,15 @@ import {
   Textarea,
 } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
-import { ContactCell, InlineMessage, KpiRow, LoadingState, optional } from "../../design-system";
+import {
+  ContactCell,
+  InlineMessage,
+  KpiRow,
+  LoadingState,
+  emptyValue,
+  formatDate,
+  optional,
+} from "../../design-system";
 import { AccessBadge, AccessMenu } from "./AccessActions";
 import {
   ACCESS_META,
@@ -73,8 +81,7 @@ type School = { id: string; name: string | null };
 /** Every student in the system — only loaded when the roster is being edited. */
 type AssignableStudent = Student & { responsible_teacher_id: string | null };
 
-const asDate = (value: string | null) =>
-  value ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)) : "—";
+const asDate = (value: string | null) => formatDate(value);
 const teacherId = (id: string) => `TC-${id.slice(0, 6).toUpperCase()}`;
 
 /** The stored row, as the edit form holds it. */
@@ -137,7 +144,8 @@ export const AdminTeacherOverviewPage: React.FC = () => {
     setExtended(extendedAvailable);
 
     if (profileError || !profile) {
-      setError(profileError ?? "Teacher not found.");
+      if (profileError) console.error("Error loading teacher", profileError);
+      setError("We couldn't find this teacher. They may have been removed from the directory.");
       setLoading(false);
       return;
     }
@@ -186,7 +194,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
   }, [load]);
 
   const schoolById = useMemo(
-    () => new Map([...schools, ...allSchools].map((school) => [school.id, school.name || "—"])),
+    () => new Map([...schools, ...allSchools].map((school) => [school.id, school.name || "Unnamed school"])),
     [schools, allSchools],
   );
 
@@ -300,7 +308,10 @@ export const AdminTeacherOverviewPage: React.FC = () => {
     setSaving(false);
 
     if (assignError) {
-      setSaveError(`The details were saved, but the student roster could not be updated: ${assignError}`);
+      console.error("Error updating teacher students", assignError);
+      setSaveError(
+        "The teacher's details are saved, but we couldn't update their students. Check your connection and save again.",
+      );
       return;
     }
 
@@ -314,7 +325,9 @@ export const AdminTeacherOverviewPage: React.FC = () => {
   if (error || !teacher) {
     return (
       <Stack className={styles.page}>
-        <Text c="red">{error ?? "Teacher not found."}</Text>
+        <Text c="red">
+          {error ?? "We couldn't find this teacher. They may have been removed from the directory."}
+        </Text>
         <Group>
           <Button variant="secondary" onClick={() => navigate("/admin/teachers")}>
             Back to teachers
@@ -326,26 +339,28 @@ export const AdminTeacherOverviewPage: React.FC = () => {
 
   const reportedStudents = latestByStudent.size;
   const latestReport = reports[0] ?? null;
-  const teacherSchoolName = teacher.school_id ? schoolById.get(teacher.school_id) ?? "—" : "—";
+  const teacherSchoolName = teacher.school_id
+    ? schoolById.get(teacher.school_id) ?? "No school recorded"
+    : "No school recorded";
 
   const overviewSections: Array<{ title: string; fields: Array<[string, string, number]> }> = [
     {
       title: "Account details",
       fields: [
-        ["Teacher ID", teacherId(teacher.id), 4],
-        ["Full name (English)", teacher.full_name || "—", 4],
-        ["Full name (Thai)", teacher.full_name_th || "—", 4],
+        ["Teacher reference", teacherId(teacher.id), 4],
+        ["Full name (English)", teacher.full_name || emptyValue(), 4],
+        ["Full name (Thai)", teacher.full_name_th || emptyValue(), 4],
         ["Joined", asDate(teacher.created_at), 4],
         ["Role", "Teacher", 4],
-        ["Email confirmation", "Backend status tracking pending", 4],
+        ["Email confirmation", "Not tracked yet", 4],
       ],
     },
     {
       title: "Contact details",
       fields: [
-        ["Email address", teacher.email || "—", 4],
-        ["Phone number", teacher.phone || "—", 4],
-        ["LINE ID", teacher.line_id || "—", 4],
+        ["Email address", teacher.email || emptyValue(), 4],
+        ["Phone number", teacher.phone || emptyValue(), 4],
+        ["LINE ID", teacher.line_id || emptyValue(), 4],
       ],
     },
     {
@@ -364,7 +379,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
   ];
 
   const activity = [
-    latestReport ? { title: "Latest report submitted", body: latestReport.grade_text || latestReport.info || "Term update recorded.", when: asDate(latestReport.report_date) } : null,
+    latestReport ? { title: "Latest report sent in", body: latestReport.grade_text || latestReport.info || "Report saved.", when: asDate(latestReport.report_date) } : null,
     students.length ? { title: "Current roster", body: `${students.length} student${students.length === 1 ? "" : "s"} assigned across ${schools.length} school${schools.length === 1 ? "" : "s"}.`, when: "Current" } : null,
     { title: "Teacher record created", body: "The teacher was added to the directory.", when: asDate(teacher.created_at) },
   ].filter(Boolean) as Array<{ title: string; body: string; when: string }>;
@@ -575,7 +590,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
                 required
                 searchable
                 clearable
-                nothingFoundMessage="No school matches — create it instead"
+                nothingFoundMessage="No school matches. Create it instead."
                 data={allSchools.map((school) => ({ value: school.id, label: school.name ?? "(no name)" }))}
                 value={draft.schoolId}
                 onChange={(value) => setField("schoolId", value)}
@@ -597,7 +612,7 @@ export const AdminTeacherOverviewPage: React.FC = () => {
                 searchable
                 clearable
                 hidePickedOptions
-                nothingFoundMessage="No student matches — create them instead"
+                nothingFoundMessage="No student matches. Create them instead."
                 data={studentOptions}
                 value={draftStudentIds}
                 onChange={setDraftStudentIds}

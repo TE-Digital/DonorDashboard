@@ -25,6 +25,8 @@ import {
   InlineMessage,
   LoadingState,
   StatusBadge,
+  formatDate,
+  formatDateRange,
 } from "../../design-system";
 import { Button, Icon } from "../../design-system/lumen";
 import { supabase } from "../../lib/supabaseClient";
@@ -76,12 +78,6 @@ interface ScholarshipRow {
   grant_type_name: string | null;
 }
 
-const asDate = (value: string | null) =>
-  value
-    ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(
-        new Date(value),
-      )
-    : "—";
 
 export const AdminStudentDetailPage: React.FC = () => {
   // Both /students/:studentId/edit and the older /students/:id shape.
@@ -223,7 +219,7 @@ export const AdminStudentDetailPage: React.FC = () => {
 
     if (updateError) {
       console.error("Error saving student", updateError);
-      setError("The student did not save. Check your connection, then try again.");
+      setError("We couldn't save this student. Check your connection and try again.");
       return;
     }
 
@@ -249,7 +245,7 @@ export const AdminStudentDetailPage: React.FC = () => {
     if (deleteError) {
       console.error("Error deleting student", deleteError);
       setError(
-        "This student could not be deleted. They may still have scholarships or reports attached.",
+        "We couldn't delete this student. Remove their scholarships and reports first, then try again.",
       );
       return;
     }
@@ -261,7 +257,10 @@ export const AdminStudentDetailPage: React.FC = () => {
 
   if (notFound) {
     return (
-      <FormPage title="Student not found" subtitle="This record may have been deleted.">
+      <FormPage
+        title="We couldn't find this student"
+        subtitle="They may have been removed from the directory."
+      >
         <Button variant="secondary" onClick={() => navigate("/admin/students")}>
           Back to students
         </Button>
@@ -272,7 +271,6 @@ export const AdminStudentDetailPage: React.FC = () => {
   return (
     <FormPage
       title="Edit student"
-      subtitle={`Update ${studentName || "this student"}'s record. Everything here is the same as the add-student form.`}
     >
       <FormBody
         onSubmit={(event) => {
@@ -368,13 +366,13 @@ export const AdminStudentDetailPage: React.FC = () => {
                     {award.grant_type_name || "Scholarship"}
                   </Anchor>
                   <span className={styles.detailActivityWhen}>
-                    {asDate(award.period_start)} – {asDate(award.period_end)}
+                    {formatDateRange(award.period_start, award.period_end)}
                   </span>
                 </div>
                 <div className={styles.detailListMeta}>
                   <span>
                     {award.amount_for_period == null
-                      ? "—"
+                      ? "Amount not recorded"
                       : `${award.amount_for_period.toLocaleString()} ${award.currency ?? "THB"}`}
                   </span>
                   <StatusBadge kind="scholarship" value={award.status} />
@@ -427,7 +425,7 @@ export const AdminStudentDetailPage: React.FC = () => {
       >
         <Text size="sm" style={{ textWrap: "pretty" }}>
           {studentName || "This student"} is removed from the system permanently, along with the
-          link to their school, their teacher and their donor. This cannot be undone.
+          link to their school, their teacher and their donor. This can't be undone.
         </Text>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
           <Button variant="ghost" onClick={() => setConfirmingDelete(false)} disabled={deleting}>

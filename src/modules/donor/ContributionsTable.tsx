@@ -65,7 +65,7 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
     const result = await voidContribution(voiding.id, reason);
     setBusy(false);
     if (!result.ok) {
-      setError(result.message ?? "Could not void this contribution.");
+      setError(result.message ?? "We couldn't void this payment. Check your connection and try again.");
       return;
     }
     closeVoid();
@@ -116,7 +116,7 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
       label: "Reference",
       width: 160,
       muted: true,
-      render: (row) => row.reference || "—",
+      render: (row) => row.reference || "Not recorded",
     },
     {
       key: "note",
@@ -124,9 +124,9 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
       muted: true,
       render: (row) =>
         row.voided_at ? (
-          <Badge tone="neutral">Voided{row.voided_reason ? ` — ${row.voided_reason}` : ""}</Badge>
+          <Badge tone="neutral">Voided{row.voided_reason ? `: ${row.voided_reason}` : ""}</Badge>
         ) : (
-          row.note || "—"
+          row.note || "Not recorded"
         ),
     },
     {
@@ -141,8 +141,8 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
           </Button>
         ) : (
           <span style={{ display: "inline-flex", gap: 4 }}>
-            <IconButton icon="pencil" label="Edit this contribution" onClick={() => onEdit(row)} />
-            <IconButton icon="x" label="Void this contribution" onClick={() => setVoiding(row)} />
+            <IconButton icon="pencil" label="Edit this payment" onClick={() => onEdit(row)} />
+            <IconButton icon="x" label="Void this payment" onClick={() => setVoiding(row)} />
           </span>
         ),
     },
@@ -150,28 +150,27 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
 
   return (
     <SectionCard
-      title="Contributions"
-      description="Every gift recorded for this donor, newest first."
+      title="Payments"
       actions={
         <Button variant="secondary" icon="plus" onClick={onRecord} disabled={unavailable}>
-          Record contribution
+          Record payment
         </Button>
       }
     >
       {unavailable ? (
         <EmptyState
           icon="banknote"
-          title="Contributions are not set up yet"
-          description="The funding migration has not been applied to this database, so there is nowhere to record money."
+          title="Payments can't be recorded yet"
+          description="There's nowhere to record money yet. Ask whoever looks after the system to set this up."
         />
       ) : contributions.length === 0 ? (
         <EmptyState
           icon="banknote"
           title="No money recorded"
-          description="Record the first contribution and this donor gets a balance to allocate from."
+          description="Record the first payment and this donor gets a balance to allocate from."
           action={
             <Button variant="secondary" icon="plus" onClick={onRecord}>
-              Record contribution
+              Record payment
             </Button>
           }
         />
@@ -183,7 +182,7 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
         <Dialog
           open
           onClose={closeVoid}
-          title="Void this contribution?"
+          title="Void this payment?"
           // The prompt names the amount and the date rather than saying "this
           // item", because voiding changes what the donor can allocate and may
           // push their balance negative.
@@ -196,7 +195,7 @@ export const ContributionsTable: React.FC<ContributionsTableProps> = ({
                 Cancel
               </Button>
               <Button variant="danger" onClick={confirmVoid} disabled={busy}>
-                {busy ? "Voiding…" : "Void contribution"}
+                {busy ? "Voiding…" : "Void payment"}
               </Button>
             </>
           }

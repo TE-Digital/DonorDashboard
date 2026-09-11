@@ -49,7 +49,7 @@ export const AcceptInvitePage: React.FC = () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session) {
         setError(
-          "Could not find a valid invite session. Please try the link again or contact support."
+          "We couldn't find a valid invite. Try the link again, or ask the person who invited you for a new one."
         );
       }
       setChecking(false);
@@ -66,7 +66,7 @@ export const AcceptInvitePage: React.FC = () => {
       problems.password = "Use at least 8 characters.";
     }
     if (password !== password2) {
-      problems.confirm = "The two passwords do not match.";
+      problems.confirm = "The two passwords don't match.";
     }
     setFieldErrors(problems);
 
@@ -83,7 +83,7 @@ export const AcceptInvitePage: React.FC = () => {
 
     if (updateError) {
       console.error(updateError);
-      setError("Could not set password. Please try again.");
+      setError("We couldn't set your password. Try again.");
       setSaving(false);
       return;
     }
@@ -125,10 +125,9 @@ export const AcceptInvitePage: React.FC = () => {
       style={{ maxWidth: 420, margin: "40px auto" }}
     >
       <Stack gap="md">
-        <Text fw={600}>Welcome – set your password</Text>
+        <Text fw={600}>Welcome. Choose a password to get started.</Text>
         <Text size="sm" c="dimmed">
-          Your email has been verified. Please choose a password to complete your
-          account setup.
+          Your email is verified. You'll use this password to sign in.
         </Text>
 
         {error && (

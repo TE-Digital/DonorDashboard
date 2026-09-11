@@ -21,7 +21,11 @@ import {
   KpiRow,
   LoadingState,
   PageHeader,
+  emptyValue,
+  formatCurrency,
+  formatDate,
 } from "../../design-system";
+import { toFriendlyError } from "../../i18n/errors";
 
 type StudentCard = {
   studentId: string;
@@ -80,15 +84,14 @@ export const DonorDashboardPage: React.FC = () => {
           .maybeSingle();
 
         if (donorError) {
-          console.error("Error loading donor profile", donorError);
-          setError("Could not load donor profile.");
+          setError(toFriendlyError(donorError, "errors.load", "loadDonorProfile"));
           setLoading(false);
           return;
         }
 
         if (!donorRow) {
           setError(
-            "Your account is not linked to a donor profile yet. Please contact the administrator."
+            "Your sign in isn't linked to a donor profile yet. Ask us to connect it and your students will appear here."
           );
           setLoading(false);
           return;
@@ -96,7 +99,7 @@ export const DonorDashboardPage: React.FC = () => {
 
         if (donorRow.is_dashboard_enabled === false) {
           setDashboardDisabledMessage(
-            "Your donor dashboard is currently disabled. Please contact the administrator if you believe this is a mistake."
+            "Your dashboard is turned off for now. Get in touch with us and we'll turn it back on."
           );
           setLoading(false);
           return;
@@ -132,11 +135,9 @@ export const DonorDashboardPage: React.FC = () => {
           .order("period_start", { ascending: false });
 
         if (awardError) {
-          console.error(
-            "Error loading scholarship awards for donor",
-            awardError
+          setError(
+            toFriendlyError(awardError, "errors.load", "loadDonorAwards")
           );
-          setError("Could not load scholarship data.");
           setLoading(false);
           return;
         }
@@ -355,10 +356,7 @@ export const DonorDashboardPage: React.FC = () => {
         });
         setStudents(cards);
       } catch (err: any) {
-        console.error("Unexpected error loading donor dashboard", err);
-        setError(
-          err.message ?? "Unexpected error while loading donor dashboard."
-        );
+        setError(toFriendlyError(err, "errors.load", "loadDonorDashboard"));
       } finally {
         setLoading(false);
       }
@@ -394,15 +392,11 @@ export const DonorDashboardPage: React.FC = () => {
   }
 
   const summaryAmountLabel =
-    summary.totalAmount > 0
-      ? `${summary.totalAmount.toLocaleString("en-US", {
-          maximumFractionDigits: 0,
-        })} ${summary.currency || "THB"}`
-      : "—";
+    summary.totalAmount > 0 ? formatCurrency(summary.totalAmount) : emptyValue();
 
   const lastScholarshipLabel = summary.lastScholarshipDate
-    ? new Date(summary.lastScholarshipDate).toLocaleDateString()
-    : "—";
+    ? formatDate(summary.lastScholarshipDate)
+    : emptyValue();
 
   return (
     <Stack>
@@ -426,7 +420,7 @@ export const DonorDashboardPage: React.FC = () => {
 
       {students.length === 0 ? (
         <Card mt="md">
-          <EmptyState title="No scholarships are linked to your donor account yet. Once a scholarship award is created for you, updates will appear here." />
+          <EmptyState title="No scholarships on your account yet. Once we set one up for you, your students' updates will appear here." />
         </Card>
       ) : (
         <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} mt="md">
@@ -446,14 +440,12 @@ const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
   const coverPhoto = student.latestReportPhotoUrl || student.profilePhotoUrl;
 
   const reportDateLabel = student.latestReportDate
-    ? new Date(student.latestReportDate).toLocaleDateString()
+    ? formatDate(student.latestReportDate)
     : null;
 
   const amountLabel =
     student.totalAwardedForStudent > 0
-      ? `${student.totalAwardedForStudent.toLocaleString("en-US", {
-          maximumFractionDigits: 0,
-        })} ${student.currency || "THB"}`
+      ? formatCurrency(student.totalAwardedForStudent)
       : null;
 
   const displayName = student.nickname || student.name;
@@ -498,7 +490,7 @@ const StudentImpactCard: React.FC<{ student: StudentCard }> = ({
             <div>
               <Text fw={600}>
                 {displayName}
-                {student.gradeLevel ? ` – Grade ${student.gradeLevel}` : ""}
+                {student.gradeLevel ? `, Grade ${student.gradeLevel}` : ""}
               </Text>
               <Text size="xs" c="dimmed">
                 {student.schoolName || "No school information"}

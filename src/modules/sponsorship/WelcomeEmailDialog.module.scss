@@ -1,0 +1,77 @@
+// Mobile first: a Write / Preview tab pair. From 641px the controls and the
+// email sit side by side, the email always at phone width because that is
+// where it will be read.
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  margin-top: var(--sp-3);
+}
+
+.languageRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.changed {
+  padding-bottom: 6px;
+}
+
+.hint {
+  margin-top: calc(var(--sp-2) * -1);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+
+  dt {
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-heading);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.frame {
+  width: 100%;
+  max-width: 375px;
+  height: 640px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+@media (min-width: 641px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 375px;
+    gap: var(--sp-5);
+    align-items: start;
+  }
+
+  .preview {
+    position: sticky;
+    top: 0;
+  }
+}

@@ -94,7 +94,7 @@ export const AssignTeacherModal: React.FC<AssignTeacherModalProps> = ({
 
     if (updateError) {
       console.error("Error assigning teacher", updateError);
-      setError("The change did not go through. Try again in a minute.");
+      setError("We couldn't save that change. Try again in a minute.");
       return;
     }
 
@@ -163,7 +163,7 @@ export const AssignTeacherModal: React.FC<AssignTeacherModalProps> = ({
 
         <Stack gap="xs">
           <Button variant="primary" onClick={() => void save()} disabled={!changed || saving}>
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : "Save teacher"}
           </Button>
           <Button variant="ghost" onClick={onClose} disabled={saving}>
             Cancel

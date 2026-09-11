@@ -118,12 +118,12 @@ export const TeacherFormDrawer: React.FC<TeacherFormDrawerProps> = ({
     setStep("teacher");
   };
 
-  const HEADINGS: Record<Step, { title: string; subtitle: string }> = {
+  const HEADINGS: Record<Step, { title: string; subtitle?: string }> = {
     teacher: {
       title: "Add teacher",
       subtitle: contextLabel
         ? `The teacher represents ${contextLabel}, and is invited by email.`
-        : "Create the teacher's account and send the invitation without leaving this screen.",
+        : undefined,
     },
     school: {
       title: "Add school",

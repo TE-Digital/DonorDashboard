@@ -17,7 +17,7 @@ import {
 } from "@mantine/core";
 import { supabase } from "../../lib/supabaseClient";
 import { Link } from "react-router-dom";
-import { EmptyState, LoadingState, PageHeader, StatusBadge } from "../../design-system";
+import { EmptyState, LoadingState, PageHeader, StatusBadge, emptyValue } from "../../design-system";
 import styles from "./AdminDirectory.module.scss";
 
 type ColumnType = "text" | "number" | "date" | "boolean";
@@ -41,120 +41,120 @@ const TABLE_DEFS: TableDef[] = [
     value: "students",
     label: "Students",
     columns: [
-      { name: "id", label: "ID", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
       { name: "name", label: "Name", type: "text" },
       { name: "nickname", label: "Nickname", type: "text" },
-      { name: "school_id", label: "School (id)", type: "text" },
-      { name: "grade_level", label: "Grade level", type: "text" },
+      { name: "school_id", label: "School", type: "text" },
+      { name: "grade_level", label: "Grade", type: "text" },
       { name: "village", label: "Village", type: "text" },
       { name: "scholarship", label: "Scholarship", type: "text" },
-      { name: "birthdate", label: "Birthdate", type: "date" },
+      { name: "birthdate", label: "Date of birth", type: "date" },
       {
         name: "monthly_support_expected",
-        label: "Monthly support expected",
+        label: "Expected monthly support",
         type: "number",
       },
       {
         name: "responsible_teacher_id",
-        label: "Responsible teacher (id)",
+        label: "Teacher",
         type: "text",
       },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "term_updates",
-    label: "Term updates / reports",
+    label: "Reports",
     columns: [
-      { name: "id", label: "ID", type: "text" },
-      { name: "student_id", label: "Student (id)", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
+      { name: "student_id", label: "Student", type: "text" },
       { name: "report_date", label: "Report date", type: "date" },
       { name: "covers_start", label: "Covers from", type: "date" },
       { name: "covers_end", label: "Covers to", type: "date" },
-      { name: "grade", label: "Grade label", type: "text" },
-      { name: "grade_numeric", label: "Grade numeric", type: "number" },
-      { name: "grade_text", label: "Grade text", type: "text" },
-      { name: "donor_comment", label: "Donor comment", type: "text" },
-      { name: "info", label: "Additional info", type: "text" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "grade", label: "Grade", type: "text" },
+      { name: "grade_numeric", label: "Grade as a number", type: "number" },
+      { name: "grade_text", label: "Grade in words", type: "text" },
+      { name: "donor_comment", label: "Message for the donor", type: "text" },
+      { name: "info", label: "More information", type: "text" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "scholarship_awards",
-    label: "Scholarship awards",
+    label: "Scholarships",
     columns: [
-      { name: "id", label: "ID", type: "text" },
-      { name: "student_id", label: "Student (id)", type: "text" },
-      { name: "donor_id", label: "Donor (id)", type: "text" },
-      { name: "grant_type_id", label: "Grant type (id)", type: "text" },
-      { name: "period_start", label: "Period start", type: "date" },
-      { name: "period_end", label: "Period end", type: "date" },
+      { name: "id", label: "Reference", type: "text" },
+      { name: "student_id", label: "Student", type: "text" },
+      { name: "donor_id", label: "Donor", type: "text" },
+      { name: "grant_type_id", label: "Grant type", type: "text" },
+      { name: "period_start", label: "Starts", type: "date" },
+      { name: "period_end", label: "Ends", type: "date" },
       {
         name: "amount_for_period",
-        label: "Amount for period",
+        label: "Amount for the period",
         type: "number",
       },
       { name: "currency", label: "Currency", type: "text" },
       { name: "status", label: "Status", type: "text" },
-      { name: "is_paid", label: "Is paid?", type: "boolean" },
+      { name: "is_paid", label: "Paid", type: "boolean" },
       { name: "payment_date", label: "Payment date", type: "date" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "donors",
     label: "Donors",
     columns: [
-      { name: "id", label: "ID", type: "text" },
-      { name: "user_id", label: "User ID", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
+      { name: "user_id", label: "Account", type: "text" },
       { name: "name", label: "Name", type: "text" },
       { name: "contact->>email", label: "Email", type: "text" },
       { name: "contact->>phone", label: "Phone", type: "text" },
       { name: "contact->>address", label: "Address", type: "text" },
       { name: "contact->>other_contact", label: "Other contact", type: "text" },
-      { name: "contact->>agent_id", label: "Agent ID", type: "text" },
-      { name: "is_dashboard_enabled", label: "Dashboard enabled", type: "boolean" },
+      { name: "contact->>agent_id", label: "Agent", type: "text" },
+      { name: "is_dashboard_enabled", label: "Can use the dashboard", type: "boolean" },
       { name: "wants_email_updates", label: "Wants email updates", type: "boolean" },
       { name: "wants_newsletter", label: "Wants newsletter", type: "boolean" },
       { name: "preferred_language", label: "Preferred language", type: "text" },
       { name: "note_internal", label: "Internal note", type: "text" },
-      { name: "invited_at", label: "Invited at", type: "date" },
-      { name: "invited_email", label: "Invited email", type: "text" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "invited_at", label: "Invited on", type: "date" },
+      { name: "invited_email", label: "Invitation sent to", type: "text" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "schools",
     label: "Schools",
     columns: [
-      { name: "id", label: "ID", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
       { name: "name", label: "Name", type: "text" },
       { name: "address", label: "Address", type: "text" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "profiles",
-    label: "Users/Profiles",
+    label: "People",
     columns: [
-      { name: "id", label: "ID", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
       { name: "full_name", label: "Full name", type: "text" },
       { name: "email", label: "Email", type: "text" },
       { name: "phone", label: "Phone", type: "text" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
   {
     value: "grant_types",
-    label: "Grant Types",
+    label: "Grant types",
     columns: [
-      { name: "id", label: "ID", type: "text" },
+      { name: "id", label: "Reference", type: "text" },
       { name: "name", label: "Name", type: "text" },
       { name: "description", label: "Description", type: "text" },
       { name: "amount_per_period", label: "Amount per period", type: "number" },
       { name: "currency", label: "Currency", type: "text" },
       { name: "default_duration_months", label: "Default duration (months)", type: "number" },
-      { name: "created_at", label: "Created at", type: "date" },
+      { name: "created_at", label: "Added on", type: "date" },
     ],
   },
 ];
@@ -230,14 +230,14 @@ type FilterOperator =
   | "in";
 
 const OPERATOR_OPTIONS = [
-  { value: "eq", label: "=" },
-  { value: "neq", label: "≠" },
-  { value: "gt", label: ">" },
-  { value: "gte", label: "≥" },
-  { value: "lt", label: "<" },
-  { value: "lte", label: "≤" },
+  { value: "eq", label: "is" },
+  { value: "neq", label: "isn't" },
+  { value: "gt", label: "is more than" },
+  { value: "gte", label: "is at least" },
+  { value: "lt", label: "is less than" },
+  { value: "lte", label: "is at most" },
   { value: "contains", label: "contains" },
-  { value: "in", label: "in list" },
+  { value: "in", label: "is one of" },
 ];
 
 type FilterRow = {
@@ -551,9 +551,9 @@ export const AdminReportsPage: React.FC = () => {
         />
 
         <div className={styles.reportHint}>
-          Start with <strong>Term updates / reports</strong>, then select report date, student,
-          coverage period, grade, and comments. Add date filters to create a mid-year or year-end
-          workspace, and export the resulting review list when it is ready.
+          Start with <strong>Reports</strong>, then choose report date, student, the dates it
+          covers, grade and comments. Add date filters to look at one half of the year, and
+          export the list when it's ready.
         </div>
 
         {/* Table & configuration */}
@@ -562,7 +562,7 @@ export const AdminReportsPage: React.FC = () => {
             <Group align="flex-end" grow>
               <Select
                 label="Data source"
-                placeholder="Select a table"
+                placeholder="Choose what to look at"
                 value={selectedTable}
                 onChange={(value) => {
                   setSelectedTable(value);
@@ -619,7 +619,7 @@ export const AdminReportsPage: React.FC = () => {
 
                   {filters.length === 0 && (
                     <Text size="xs" c="dimmed">
-                      No filters added. All rows from the selected table will be
+                      No filters yet, so everything you chose above will be
                       shown.
                     </Text>
                   )}
@@ -639,7 +639,7 @@ export const AdminReportsPage: React.FC = () => {
                         }
                       />
                       <Select
-                        label="Op"
+                        label="Condition"
                         style={{ width: 120 }}
                         data={OPERATOR_OPTIONS}
                         value={f.operator}
@@ -713,7 +713,7 @@ export const AdminReportsPage: React.FC = () => {
                     Previous
                   </Button>
                   <Text size="xs">
-                    Page {page} / {totalPages}
+                    Page {page} of {totalPages}
                   </Text>
                   <Button
                     size="xs"
@@ -746,8 +746,8 @@ export const AdminReportsPage: React.FC = () => {
 
             {!loading && (!rows || rows.length === 0) && (
               <EmptyState
-                title="No data to display yet."
-                description="Configure a report above and click Run report."
+                title="Nothing to show yet"
+                description="Choose what to look at above, then select Run report."
               />
             )}
 
@@ -840,7 +840,7 @@ export const AdminReportsPage: React.FC = () => {
                             <Table.Td key={c}>
                               <Text size="sm">
                                 {value === null || value === undefined
-                                  ? "–"
+                                  ? emptyValue()
                                   : String(value)}
                               </Text>
                             </Table.Td>

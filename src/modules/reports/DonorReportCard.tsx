@@ -54,7 +54,7 @@ export const DonorReportCard: React.FC<DonorReportCardProps> = ({
     setBusy(false);
 
     if (!result.ok) {
-      setError(result.message ?? "Could not raise that question.");
+      setError(result.message ?? "We couldn't send your question. Try again.");
       return;
     }
 
@@ -81,7 +81,7 @@ export const DonorReportCard: React.FC<DonorReportCardProps> = ({
       {open && (
         <div className={styles.flagBanner}>
           <strong>You asked about this report.</strong>
-          <span>{report.flag_reason || "iCare will reply here."}</span>
+          <span>{report.flag_reason || "We'll reply here."}</span>
         </div>
       )}
 
@@ -111,7 +111,7 @@ export const DonorReportCard: React.FC<DonorReportCardProps> = ({
                 src={attachmentUrl(file.path)}
                 // A photograph of a specific child, described as one. "Image"
                 // is not an alternative to seeing her.
-                alt={`${studentName ?? "The student"} — photo from this term's report`}
+                alt={`${studentName ?? "The student"}, photo from this term's report`}
                 loading="lazy"
               />
             ) : (
@@ -153,7 +153,7 @@ export const DonorReportCard: React.FC<DonorReportCardProps> = ({
         <Dialog
           open
           onClose={() => (busy ? undefined : setFlagging(false))}
-          title="Ask iCare about this report"
+          title="Ask us about this report"
           description="This puts the report at the top of the team's list until somebody answers you. Your question appears in the comments below, and so will their reply."
           footer={
             <>
@@ -170,7 +170,7 @@ export const DonorReportCard: React.FC<DonorReportCardProps> = ({
             autosize
             minRows={3}
             label="What would you like to know?"
-            placeholder="Is she still living with her grandmother?"
+            placeholder="Who is Mali living with at the moment?"
             value={reason}
             onChange={(event) => setReason(event.currentTarget.value)}
           />

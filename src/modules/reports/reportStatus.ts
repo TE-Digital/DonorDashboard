@@ -52,7 +52,7 @@ export const REPORT_STATE_META: Record<ReportCycleState, ReportStateMeta> = {
   draft: {
     label: "Draft",
     tone: "neutral",
-    hint: "A report is started but has not been submitted.",
+    hint: "A report is started but hasn't been sent in.",
   },
   submitted: {
     label: "Submitted",
